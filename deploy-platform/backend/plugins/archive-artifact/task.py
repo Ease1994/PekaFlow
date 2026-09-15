@@ -15,7 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import qxci_atom_sdk as sdk  # noqa: E402
+import release_atom_sdk as sdk  # noqa: E402
 
 PACKAGE_TYPE = "zip"
 # 一次归档文件数上限，避免误填 ** 把整棵工作区打进去把构建机打满。
@@ -205,7 +205,7 @@ def main() -> int:
     if len(files) > 50:
         sdk.log.info(f"  ... 另有 {len(files) - 50} 个文件")
 
-    dest = workspace / "_qxci_pack" / f"{name}-{version}.zip"
+    dest = workspace / "_release_pack" / f"{name}-{version}.zip"
     names = _build_zip(workspace, files, dest)
     sdk.log.info(f"已打包：{dest.name}（{dest.stat().st_size / 1024:.1f} KB）")
 

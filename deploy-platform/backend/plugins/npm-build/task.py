@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import qxci_atom_sdk as sdk  # noqa: E402
+import release_atom_sdk as sdk  # noqa: E402
 
 # npm script 名对应 package.json 的 key，禁止跟额外命令。
 _SCRIPT_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")

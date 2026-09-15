@@ -109,7 +109,7 @@ export default function DataTable<T extends object>({
       dataSource={dataSource}
       size={chrome.size}
       columns={chrome.columns}
-      rootClassName={['qxci-table', rootClassName].filter(Boolean).join(' ')}
+      rootClassName={['rp-table', rootClassName].filter(Boolean).join(' ')}
       components={{
         ...components,
         header: { ...components?.header, cell: ResizableTitle },

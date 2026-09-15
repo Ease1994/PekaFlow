@@ -1,10 +1,10 @@
-package com.qxci.agent;
+package com.release.agent;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/** 不进 jar。编译：javac -cp out test/LogBatcherTest.java -d out && java -cp out com.qxci.agent.LogBatcherTest */
+/** 不进 jar。编译：javac -cp out test/LogBatcherTest.java -d out && java -cp out com.release.agent.LogBatcherTest */
 public final class LogBatcherTest {
     private static int failed;
 

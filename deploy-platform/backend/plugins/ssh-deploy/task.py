@@ -16,7 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import qxci_atom_sdk as sdk  # noqa: E402
+import release_atom_sdk as sdk  # noqa: E402
 
 
 class DeployError(Exception):
@@ -141,7 +141,7 @@ def _wrap_sshpass(cmd: list[str], password: str) -> tuple[list[str], dict]:
 
 def _write_key(text: str) -> str:
     """私钥写到仅当前用户可读的临时文件，scp 用完删除。"""
-    fd, name = tempfile.mkstemp(prefix="qxci-ssh-", suffix=".key")
+    fd, name = tempfile.mkstemp(prefix="rp-ssh-", suffix=".key")
     os.close(fd)
     path = Path(name)
     path.write_text(text if text.endswith("\n") else text + "\n", encoding="utf-8")

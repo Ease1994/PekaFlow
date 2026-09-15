@@ -19,7 +19,7 @@ from app.modules.harness import skills as harness_skills
 from app.modules.harness.models import HarnessComponent, HarnessVersion
 from app.modules.harness.packages import _NAME_RE
 
-_PLUGIN_MARKERS = ("qxci_atom_sdk", "task.py", "task.json", "QXCI_ATOM_INPUT")
+_PLUGIN_MARKERS = ("release_atom_sdk", "task.py", "task.json", "RELEASE_ATOM_INPUT")
 _TOOL_TOKEN = re.compile(r"`([a-z][a-z0-9_]{2,40})`")
 # 说明书里会把返回字段写成 `created_at`，不能一律当虚构工具。
 # 真正要拦的是「调用一个平台没有的 list_/query_ 接口」。
@@ -131,8 +131,8 @@ def _lint(name: str, body: str) -> list[str]:
     errors: list[str] = []
     if not _NAME_RE.fullmatch(name):
         errors.append("name 只能是小写字母、数字、点、下划线、连字符，如 query-pipeline-status")
-    if name in _reserved_names() or name.startswith("qxci-"):
-        errors.append("不能占用平台内置技能名（qxci-*）")
+    if name in _reserved_names() or name.startswith("rp-"):
+        errors.append("不能占用平台内置技能名（rp-*）")
     text = (body or "").strip()
     if not text:
         errors.append("SKILL.md 不能为空")

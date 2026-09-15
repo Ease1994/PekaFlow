@@ -18,18 +18,18 @@
                 IIS 启停默认看站点物理路径是否落在 -AllowPaths 内；查不到路径则失败。
                 不填不表示拒绝全部，只是不再额外限制名字。
   -EnrollToken  接入凭证，平台「节点管理 → 新增节点」页面复制。jar 下载和首次注册都用它，
-                之后凭据落在 C:\ProgramData\qxci-agent\node\enrolled\，重跑不用再带。
+                之后凭据落在 C:\ProgramData\release-agent\node\enrolled\，重跑不用再带。
   -Server       平台地址。从平台下载本脚本时已自动填好，一般不用管。
-  -BackupRoot   备份根。留空则用站点盘上的 qxci-backup（D:\wwwroot\o2o → D:\qxci-backup）。
+  -BackupRoot   备份根。留空则用站点盘上的 release-backup（D:\wwwroot\o2o → D:\release-backup）。
                 必须在 -AllowPaths 之外，否则发布会被拒绝。
 
-装完会注册一个名为 QXCI-Node-Agent 的计划任务：开机自动拉起，进程挂了 2 分钟内自愈。
+装完会注册一个名为 RELEASE-Node-Agent 的计划任务：开机自动拉起，进程挂了 2 分钟内自愈。
 以后升级 jar 不用再上这台机器，在平台「节点管理」页点「升级」即可——节点不会自作主张
 升级，只有你点了才动，而且会等当前发布任务跑完再换版本。
 #>
 [CmdletBinding()]
 param(
-    [string]   $Server      = '__QXCI_SERVER__',
+    [string]   $Server      = '__RELEASE_SERVER__',
     [string]   $Name        = $env:COMPUTERNAME,
     [Parameter(Mandatory = $true)]
     [string[]] $AllowPaths,
@@ -39,10 +39,10 @@ param(
     # 决定往这台机器下发文件要不要审批（test/dev 免审，其余要审）。
     # 只在平台首次见到这台机器时生效，之后以页面上的设置为准。非法码直接退出。
     [string]   $Env         = 'prod',
-    [string]   $WorkDir     = (Join-Path $env:USERPROFILE 'qxci-node'),
-    [string]   $EnrollToken = $env:QXCI_ENROLL_TOKEN,
-    # 备份根。留空则按第一个允许目录所在盘建 <盘符>\qxci-backup，
-    # 例如 D:\wwwroot\o2o → D:\qxci-backup。必须在站点目录之外。
+    [string]   $WorkDir     = (Join-Path $env:USERPROFILE 'rp-node'),
+    [string]   $EnrollToken = $env:RELEASE_ENROLL_TOKEN,
+    # 备份根。留空则按第一个允许目录所在盘建 <盘符>\release-backup，
+    # 例如 D:\wwwroot\o2o → D:\release-backup。必须在站点目录之外。
     [string]   $BackupRoot  = ''
 )
 
@@ -64,7 +64,7 @@ if ($Server -notmatch '^https?://.+') { throw "平台地址不对：$Server" }
 
 # 与 Agent 的 Config.credentialFile() 保持一致：判断这台机器是否已登记过
 $credKey  = ($Server + '|' + $Name) -replace '[^A-Za-z0-9._-]', '_'
-$credFile = Join-Path $env:USERPROFILE ".qx-agent\enrolled\$credKey.token"
+$credFile = Join-Path $env:USERPROFILE ".release-agent\enrolled\$credKey.token"
 $enrolled = Test-Path $credFile
 
 Write-Host "==> 部署节点 $Name -> $Server"
@@ -159,12 +159,12 @@ function Resolve-NodeBackupRoot {
         return $b
     }
     $drive = Split-Path -Qualifier $Allows[0]
-    $candidate = $drive.TrimEnd('\') + '\qxci-backup'
+    $candidate = $drive.TrimEnd('\') + '\release-backup'
     try {
         Test-BackupRootSafe -Bak $candidate -Allows $Allows
         return $candidate
     } catch {
-        $fallback = 'C:\ProgramData\qxci-backup'
+        $fallback = 'C:\ProgramData\release-backup'
         Test-BackupRootSafe -Bak $fallback -Allows $Allows
         return $fallback
     }
@@ -186,7 +186,7 @@ Set-Location -LiteralPath $WorkDir
 
 Write-Host '[1/5] 停掉旧节点 agent'
 # 先停守护，否则我们刚杀掉旧进程它就用旧配置给拉回来了
-Disable-ScheduledTask -TaskName 'QXCI-Node-Agent' -ErrorAction SilentlyContinue | Out-Null
+Disable-ScheduledTask -TaskName 'RELEASE-Node-Agent' -ErrorAction SilentlyContinue | Out-Null
 Get-CimInstance Win32_Process -Filter "Name='java.exe' OR Name='javaw.exe'" |
     Where-Object { $_.CommandLine -like '*deploy-agent*' -and $_.CommandLine -like '*--role node*' } |
     ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
@@ -226,7 +226,7 @@ Write-Host '[3/5] 生成启动器与守护脚本'
 $allowArg = $resolved -join ';'
 # --home 必须显式指定：守护进程以 SYSTEM 身份拉起时 user.home 会变成另一个目录，
 # 登记凭据就找不着了，Agent 会退化成每次都要接入凭证
-$agentHome = 'C:\ProgramData\qxci-agent\node'
+$agentHome = 'C:\ProgramData\release-agent\node'
 New-Item -ItemType Directory -Force -Path $agentHome | Out-Null
 $agentArgs = "-jar deploy-agent.jar --server $Server --name `"$Name`" --role node --env $Env" `
     + " --home `"$agentHome`" --allow-paths `"$allowArg`" --backup-root `"$backupRoot`""
@@ -243,7 +243,7 @@ if ($enrolled) {
     Write-Host '      本机已登记过，Agent 会用本地凭据续期'
 }
 # 走环境变量传给子进程，凭证就不会落进 start-node.cmd
-$env:QXCI_ENROLL_TOKEN = $EnrollToken
+$env:RELEASE_ENROLL_TOKEN = $EnrollToken
 
 # 启动器：注释保持纯 ASCII —— cmd 按控制台代码页解析，中文注释里的字节会被当成管道符；
 # 机器名和路径可能含中文，所以按 OEM（控制台代码页）落盘，它们本身在引号里是安全的
@@ -255,7 +255,7 @@ rem javaw detaches from the console, so closing the window won't kill the agent.
 rem The absolute path is baked in at install time on purpose: resolving it via PATH
 rem breaks under the SYSTEM account and on boxes with stale Oracle javapath links.
 rem Cap heap so a runaway unzip cannot starve IIS on the same box.
-start "qxci-node" /b /belownormal "$javawExe" -Xms64m -Xmx256m $agentArgs >> node-agent.log 2>&1
+start "rp-node" /b /belownormal "$javawExe" -Xms64m -Xmx256m $agentArgs >> node-agent.log 2>&1
 "@ | Set-Content -Path $launcher -Encoding OEM
 
 # 守护脚本：计划任务反复调用它，所以必须幂等。它还负责升级时的换包和日志滚动
@@ -359,7 +359,7 @@ if ((Running) -eq $true) {
 Write-Host '[4/5] 注册守护（开机自启 + 掉线自愈）'
 # 用系统自带的计划任务，不引入 nssm 之类的额外二进制：生产机上装的东西越少越好。
 # SYSTEM 身份运行，权限足够启停 IIS，也不依赖任何人登录。
-$taskName = 'QXCI-Node-Agent'
+$taskName = 'RELEASE-Node-Agent'
 try {
     $action = New-ScheduledTaskAction -Execute 'powershell.exe' `
         -Argument "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$watchdog`""

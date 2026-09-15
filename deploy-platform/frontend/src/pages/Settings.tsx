@@ -100,7 +100,7 @@ export default function Settings() {
       } = settings
       form.setFieldsValue({
         ...formValues,
-        es_index: settings.es_index || 'qxci-build-logs',
+        es_index: settings.es_index || 'release-build-logs',
         artifact_prod_retention_days: settings.artifact_prod_retention_days || '10',
         session_expire_days: settings.session_expire_days || '1',
         totp_2fa_enabled: settings.totp_2fa_enabled || 'false',
@@ -157,7 +157,7 @@ export default function Settings() {
   const handleSave = async () => {
     const values = await form.validateFields()
     if (!values.es_index?.trim()) {
-      values.es_index = 'qxci-build-logs'
+      values.es_index = 'release-build-logs'
     }
     saveMutation.mutate(values)
   }
@@ -340,11 +340,11 @@ export default function Settings() {
           <Form.Item
             label="ES 日志索引前缀"
             name="es_index"
-            extra="构建日志写入 qxci-build-logs-当天日期。AI 助手审计日志固定走独立前缀 qxci-ai-logs，不占用这项配置、也不进业务库。"
+            extra="构建日志写入 release-build-logs-当天日期。AI 助手审计日志固定走独立前缀 release-ai-logs，不占用这项配置、也不进业务库。"
           >
-            <Input placeholder="qxci-build-logs" />
+            <Input placeholder="release-build-logs" />
           </Form.Item>
-          <div className="qxci-field-row">
+          <div className="rp-field-row">
             <Form.Item label="ES 用户名（可空）" name="es_username" style={{ flex: 1 }}>
               <Input placeholder="elastic" />
             </Form.Item>
@@ -400,7 +400,7 @@ export default function Settings() {
             style={{ marginBottom: 12 }}
             message="定时触发器（cron）依赖 Redis 延迟队列。配置好 Redis 后保存，定时触发才会真正生效。"
           />
-          <div className="qxci-field-row">
+          <div className="rp-field-row">
             <Form.Item label="Redis 主机" name="redis_host" style={{ flex: 2 }}>
               <Input placeholder="localhost" />
             </Form.Item>
@@ -408,7 +408,7 @@ export default function Settings() {
               <Input placeholder="6379" />
             </Form.Item>
           </div>
-          <div className="qxci-field-row">
+          <div className="rp-field-row">
             <Form.Item label="密码（可空）" name="redis_password" style={{ flex: 1 }}>
               <Input.Password placeholder="无密码留空" />
             </Form.Item>
@@ -444,7 +444,7 @@ export default function Settings() {
           <Form.Item label="LDAP 服务器地址" name="ldap_server_uri">
             <Input placeholder="ldap://ldap.example.com:389" />
           </Form.Item>
-          <div className="qxci-field-row">
+          <div className="rp-field-row">
             <Form.Item label="绑定账号 DN" name="ldap_bind_dn" style={{ flex: 1 }}>
               <Input placeholder="cn=ldap-bind,dc=example,dc=com" />
             </Form.Item>
@@ -458,7 +458,7 @@ export default function Settings() {
           <Form.Item label="用户搜索过滤器（{username}=登录名，{sam}=@ 前一段）" name="ldap_user_search_filter">
             <Input placeholder="(|(mail={username})(userPrincipalName={username})(sAMAccountName={sam}))" />
           </Form.Item>
-          <div className="qxci-field-row">
+          <div className="rp-field-row">
             <Form.Item label="属性：用户名" name="ldap_attr_username" style={{ flex: 1 }}>
               <Input placeholder="sAMAccountName" />
             </Form.Item>
@@ -488,7 +488,7 @@ export default function Settings() {
               ]}
             />
           </Form.Item>
-          <div className="qxci-field-row">
+          <div className="rp-field-row">
             <Form.Item label="企业 ID（CorpId）" name="wecom_corp_id" style={{ flex: 2 }}>
               <Input placeholder="ww1234567890abcdef" />
             </Form.Item>
@@ -525,7 +525,7 @@ export default function Settings() {
           <Form.Item label="平台访问根地址（卡片跳转）" name="wecom_app_base">
             <Input placeholder="https://your-domain.com ，空则从 OAuth 回调地址推断" />
           </Form.Item>
-          <div className="qxci-field-row">
+          <div className="rp-field-row">
             <Form.Item label="回调 Token" name="wecom_callback_token" style={{ flex: 1 }}>
               <Input placeholder="配置企微回调 URL 时用" />
             </Form.Item>
@@ -555,7 +555,7 @@ export default function Settings() {
               ]}
             />
           </Form.Item>
-          <div className="qxci-field-row">
+          <div className="rp-field-row">
             <Form.Item label="SMTP 服务器" name="smtp_host" style={{ flex: 2 }}>
               <Input placeholder="smtp.exmail.qq.com" />
             </Form.Item>
@@ -571,7 +571,7 @@ export default function Settings() {
               />
             </Form.Item>
           </div>
-          <div className="qxci-field-row">
+          <div className="rp-field-row">
             <Form.Item label="发信账号" name="smtp_user" style={{ flex: 1 }}>
               <Input placeholder="mailer@example.com" />
             </Form.Item>
@@ -599,8 +599,8 @@ export default function Settings() {
           <div>
             <Tag color="green">日志：Redis 实时 + ES 归档</Tag>
             <Tag>ES：{settings.es_hosts}</Tag>
-            <Tag>索引：{(settings.es_index || 'qxci-build-logs').replace(/-\d{4}-\d{2}-\d{2}$/, '')}-YYYY-MM-DD</Tag>
-            <Tag>AI 日志：qxci-ai-logs-YYYY-MM-DD</Tag>
+            <Tag>索引：{(settings.es_index || 'release-build-logs').replace(/-\d{4}-\d{2}-\d{2}$/, '')}-YYYY-MM-DD</Tag>
+            <Tag>AI 日志：release-ai-logs-YYYY-MM-DD</Tag>
             <Tag>业务库（启动项）：{settings.bootstrap_database || '—'}</Tag>
             <Tag>版本：{settings.bootstrap_version || '—'}</Tag>
             <Tag>平台名：{settings.platform_display_name || '发布部署平台'}</Tag>

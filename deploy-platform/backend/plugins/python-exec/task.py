@@ -14,7 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import qxci_atom_sdk as sdk  # noqa: E402
+import release_atom_sdk as sdk  # noqa: E402
 
 
 class ExecError(Exception):
@@ -55,7 +55,7 @@ def resolve_script(workspace: Path, file_path: str, content: str) -> Path:
     body = content or ""
     if not body.strip():
         raise ExecError("请填写脚本内容，或指定仓库内的脚本文件")
-    dest = workspace / "_qxci_python_exec.py"
+    dest = workspace / "_release_python_exec.py"
     dest.write_text(body, encoding="utf-8")
     return dest
 

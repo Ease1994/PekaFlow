@@ -182,7 +182,7 @@ def test_harness_skill_tool_loads_playbook(token: str) -> None:
     tools = _data(token, "/harness/tools")
     names = {item.get("name") for item in tools} if isinstance(tools, list) else set()
     assert "skill" in names
-    loaded = _tool(token, "skill", {"name": "qxci-release"})
+    loaded = _tool(token, "skill", {"name": "rp-release"})
     assert loaded.get("error") is None, loaded
     text = loaded.get("skill_content") or loaded.get("content") or ""
     assert "propose_release" in text

@@ -22,7 +22,7 @@ def test_plugin_template_has_task_json_and_sdk() -> None:
 
     names = zipfile.ZipFile(io.BytesIO(data)).namelist()
     assert "sign.py" in names
-    assert any(name.startswith("qxci_atom_sdk/") for name in names)
+    assert any(name.startswith("release_atom_sdk/") for name in names)
 
 
 def test_tool_template_manifest_matches_parser() -> None:

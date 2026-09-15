@@ -24,15 +24,15 @@
 #                   只在平台首次见到这台机器时生效，之后以页面上的设置为准——
 #                   免得重装一次就把人工标好的环境冲掉。非法码直接退出，不改写成 prod。
 #   ENROLL_TOKEN    接入凭证，平台「节点管理 → 新增节点」页面复制。
-#   RUN_USER        Agent 运行账号，默认 qxci（不存在会自动建，无登录权限）。
+#   RUN_USER        Agent 运行账号，默认 release（不存在会自动建，无登录权限）。
 #                   想复用已有的部署账号就指过去，如 RUN_USER=www-data。
 #   INSTALL_DIR     你执行安装命令时所在的目录。页面生成的命令会带 INSTALL_DIR=$(pwd)。
-#                   备份根取其第一层：/data/soft/qxci → /data/qxci-backup。
-#   BACKUP_ROOT     可选。不填则按 INSTALL_DIR 第一层自动建 qxci-backup，并 chown 给运行账号。
+#                   备份根取其第一层：/data/soft/release → /data/release-backup。
+#   BACKUP_ROOT     可选。不填则按 INSTALL_DIR 第一层自动建 release-backup，并 chown 给运行账号。
 #   SERVER          平台地址。从平台下载本脚本时已自动填好，一般不用管。
 set -e
 
-SERVER="${SERVER:-__QXCI_SERVER__}"
+SERVER="${SERVER:-__RELEASE_SERVER__}"
 NAME="${NAME:-$(hostname 2>/dev/null | cut -d. -f1)}"
 # 环境码。默认 prod：它决定往这台机器下发文件要不要审批。
 # 猜错方向得是「多审一道」而不是「悄悄免审」。非法码直接退出，不改写成 prod。
@@ -42,11 +42,11 @@ if ! printf '%s' "$ENV" | grep -Eq '^[a-z][a-z0-9_-]{0,15}$'; then
     echo "ENV 不合法「$ENV」，只允许小写字母开头、最多 16 位的字母数字-_，内置：prod、test、uat、staging、dev" >&2
     exit 1
 fi
-RUN_USER="${RUN_USER:-qxci}"
-WORK_DIR="${WORK_DIR:-/opt/qxci-node}"
+RUN_USER="${RUN_USER:-release}"
+WORK_DIR="${WORK_DIR:-/opt/release-node}"
 # 备份根：有人显式传 BACKUP_ROOT 就用；否则按 INSTALL_DIR 第一层推，见 resolve_backup_root
-SERVICE_NAME="qxci-node"
-SUDOERS_FILE="/etc/sudoers.d/qxci-node"
+SERVICE_NAME="rp-node"
+SUDOERS_FILE="/etc/sudoers.d/release-node"
 # ensure_java 写成绝对路径；systemd ExecStart 和首次登记都用它，不再从 PATH 猜
 JAVA_BIN=""
 
@@ -97,8 +97,8 @@ verify_agent_jar() {
     }
 }
 
-# 从安装目录取第一层：/data/soft/qxci → /data/qxci-backup。
-# 系统目录那一层推不出来，返回空，调用方退到 /var/qxci/backup。
+# 从安装目录取第一层：/data/soft/release → /data/release-backup。
+# 系统目录那一层推不出来，返回空，调用方退到 /var/release/backup。
 derive_backup_root() {
     local dir="$1"
     dir="${dir%/}"
@@ -113,10 +113,10 @@ derive_backup_root() {
     case "$first" in
         .|..|etc|bin|sbin|usr|boot|sys|proc|dev|lib|lib64|root|tmp|var) return 1 ;;
     esac
-    echo "/${first}/qxci-backup"
+    echo "/${first}/release-backup"
 }
 
-# 备份根至少两层：/data/qxci-backup。/ 或 /data 这种会 chown 到根或整块盘，禁止。
+# 备份根至少两层：/data/release-backup。/ 或 /data 这种会 chown 到根或整块盘，禁止。
 # 成功必须 return 0：函数最后一条如果是失败的 `[ ] && die`，bash 在 set -e
 # 下会把整个安装脚本杀掉，现象就是打印完备份路径后静默回到提示符。
 assert_backup_root_safe() {
@@ -132,7 +132,7 @@ assert_backup_root_safe() {
     local parent="${bak%/*}"
     [ -n "$parent" ] || die "备份根不能是 /"
     if [ "$parent" = "/" ]; then
-        die "备份不能直接建在 / 下（$bak）。要用 /data/qxci-backup 这种，避免写到根目录或 chown 整块盘"
+        die "备份不能直接建在 / 下（$bak）。要用 /data/release-backup 这种，避免写到根目录或 chown 整块盘"
     fi
     return 0
 }
@@ -170,7 +170,7 @@ resolve_backup_root() {
             BACKUP_ROOT="$derived"
             echo "      按安装目录 ${INSTALL_DIR} 把备份放在 ${BACKUP_ROOT}"
         else
-            BACKUP_ROOT="/var/qxci/backup"
+            BACKUP_ROOT="/var/release/backup"
             echo "      安装目录 ${INSTALL_DIR} 不在数据盘第一层，备份退到 ${BACKUP_ROOT}（系统盘，空间可能紧张）"
         fi
     fi
@@ -394,7 +394,7 @@ ALLOW_SERVICES_ARG=""
 if [ -n "$ALLOW_SERVICES" ]; then
     TMP_SUDO="$(mktemp)"
     {
-        echo "# QXCI 部署节点：只放行下面这几条服务控制命令，由安装脚本生成，勿手工编辑"
+        echo "# RELEASE 部署节点：只放行下面这几条服务控制命令，由安装脚本生成，勿手工编辑"
         echo "# 要增减服务请重跑安装脚本并调整 ALLOW_SERVICES"
     } > "$TMP_SUDO"
     IFS=',' read -r -a _svcs <<< "$ALLOW_SERVICES"
@@ -526,7 +526,7 @@ chown "$RUN_USER" "${WORK_DIR}/start-node.sh"
 
 cat > "/etc/systemd/system/${SERVICE_NAME}.service" <<UNITEOF
 [Unit]
-Description=QXCI Deploy Node Agent
+Description=RELEASE Deploy Node Agent
 After=network-online.target
 Wants=network-online.target
 
@@ -534,7 +534,7 @@ Wants=network-online.target
 Type=simple
 User=${RUN_USER}
 WorkingDirectory=${WORK_DIR}
-Environment=QXCI_AGENT_HOME=${AGENT_HOME}
+Environment=RELEASE_AGENT_HOME=${AGENT_HOME}
 KillMode=mixed
 # ---- 内核层加固 ----
 # 这几条是在 Agent 代码之外再加一道：就算 Agent 本身被攻破，能碰的东西也有限。
@@ -579,7 +579,7 @@ if [ ! -f "${AGENT_HOME}/enrolled/${CRED_KEY}.token" ]; then
     chown -R "$RUN_USER" "$AGENT_HOME"
     # --env 只在这一次（平台首次见到这台机器）起作用，后面以页面上的设置为准，
     # 所以这条命令上漏了它，环境就只能装完再去页面上改
-    sudo -u "$RUN_USER" env QXCI_ENROLL_TOKEN="$ENROLL_TOKEN" QXCI_AGENT_HOME="$AGENT_HOME" \
+    sudo -u "$RUN_USER" env RELEASE_ENROLL_TOKEN="$ENROLL_TOKEN" RELEASE_AGENT_HOME="$AGENT_HOME" \
         "$JAVA_BIN" -Xms64m -Xmx256m -jar "${WORK_DIR}/deploy-agent.jar" --server "$SERVER" --name "$NAME" \
         --role node --env "$ENV" --home "$AGENT_HOME" --allow-paths "$ALLOW_PATHS_ARG" \
         --backup-root "$BACKUP_ROOT" \

@@ -72,13 +72,13 @@ def test_resolve_backup_root_survives_set_e() -> None:
         "set -e\n"
         'die() { echo "错误：$*" >&2; exit 1; }\n'
         + text[start:end]
-        + "\nINSTALL_DIR=/data/qxci\nBACKUP_ROOT=\n"
+        + "\nINSTALL_DIR=/data/release\nBACKUP_ROOT=\n"
         "resolve_backup_root\n"
         'echo SURVIVED:$BACKUP_ROOT\n'
     )
     result = subprocess.run([bash, "-c", payload], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr + result.stdout
-    assert "SURVIVED:/data/qxci-backup" in result.stdout.replace("\r", "")
+    assert "SURVIVED:/data/release-backup" in result.stdout.replace("\r", "")
 
 
 def test_windows_node_script_pins_backup_root_and_verifies_jar() -> None:
@@ -88,7 +88,7 @@ def test_windows_node_script_pins_backup_root_and_verifies_jar() -> None:
     assert "--backup-root" in text
     assert "jar-sha256" in text
     assert "/belownormal" in text
-    assert "qxci-backup" in text
+    assert "release-backup" in text
 
 
 def test_jdk_linux_download_uses_same_bootstrap_auth() -> None:

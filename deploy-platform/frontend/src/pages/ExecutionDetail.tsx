@@ -202,7 +202,7 @@ export default function ExecutionDetail() {
   const isMobile = useIsMobile()
   const [viewMode, setViewMode] = useState<'list' | 'canvas'>(() => {
     try {
-      return localStorage.getItem('qxci-exec-view') === 'canvas' ? 'canvas' : 'list'
+      return localStorage.getItem('rp-exec-view') === 'canvas' ? 'canvas' : 'list'
     } catch {
       return 'list'
     }
@@ -271,7 +271,7 @@ export default function ExecutionDetail() {
       setLogDismissed(false)
     }
     try {
-      localStorage.setItem('qxci-exec-view', next)
+      localStorage.setItem('rp-exec-view', next)
     } catch {
       /* 隐私模式写不了也没关系，当次会话仍能切 */
     }

@@ -17,12 +17,12 @@ import time
 from datetime import datetime, timezone
 
 _DATE_SUFFIX = re.compile(r"-\d{4}-\d{2}-\d{2}$")
-_DEFAULT_INDEX_PREFIX = "qxci-build-logs"
+_DEFAULT_INDEX_PREFIX = "release-build-logs"
 _ES_TIMEOUT = 3.0
 
 logger = logging.getLogger(__name__)
 
-STREAM_KEY = "qxci:task:{task_id}:logs"
+STREAM_KEY = "release:task:{task_id}:logs"
 STREAM_TTL_SECONDS = 3600
 STREAM_MAXLEN = 30000  # 一小时之外的时间裁剪为主；这条是防单任务把 Redis 打满
 _DRAIN_CHUNK = 500

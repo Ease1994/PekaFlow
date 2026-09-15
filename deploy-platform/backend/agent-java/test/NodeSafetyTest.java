@@ -1,4 +1,4 @@
-package com.qxci.agent;
+package com.release.agent;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -15,7 +15,7 @@ import java.util.zip.ZipOutputStream;
  * 不进 jar。
  *
  * 编译：javac -cp out test/NodeSafetyTest.java -d out
- * 运行：java -cp out com.qxci.agent.NodeSafetyTest
+ * 运行：java -cp out com.release.agent.NodeSafetyTest
  */
 public final class NodeSafetyTest {
     private static int failed;
@@ -190,28 +190,28 @@ public final class NodeSafetyTest {
         }
         check("备份目录不能落在站点里", rejected);
 
-        File outside = new File(site.getParentFile(), "qxci-backup");
+        File outside = new File(site.getParentFile(), "release-backup");
         check("站点之外的备份目录放行",
                 NodeExecutor.resolveBackupRoot(allow, outside.getPath()) != null);
     }
 
     /** 备份跟安装命令所在盘走：第一层 /data、/mnt、/opt，不进允许目录。 */
     private static void testDeriveBackupRootFromInstallDir() {
-        check("/data/soft/qxci → /data/qxci-backup",
-                "/data/qxci-backup".equals(NodeExecutor.deriveBackupRootFromInstallDir("/data/soft/qxci")));
-        check("/mnt/qxci/ → /mnt/qxci-backup",
-                "/mnt/qxci-backup".equals(NodeExecutor.deriveBackupRootFromInstallDir("/mnt/qxci/")));
-        check("/opt/app/qxci → /opt/qxci-backup",
-                "/opt/qxci-backup".equals(NodeExecutor.deriveBackupRootFromInstallDir("/opt/app/qxci")));
-        check("/var 第一层不推", NodeExecutor.deriveBackupRootFromInstallDir("/var/qxci") == null);
+        check("/data/soft/release → /data/release-backup",
+                "/data/release-backup".equals(NodeExecutor.deriveBackupRootFromInstallDir("/data/soft/release")));
+        check("/mnt/release/ → /mnt/release-backup",
+                "/mnt/release-backup".equals(NodeExecutor.deriveBackupRootFromInstallDir("/mnt/release/")));
+        check("/opt/app/release → /opt/release-backup",
+                "/opt/release-backup".equals(NodeExecutor.deriveBackupRootFromInstallDir("/opt/app/release")));
+        check("/var 第一层不推", NodeExecutor.deriveBackupRootFromInstallDir("/var/release") == null);
         check("根目录不推", NodeExecutor.deriveBackupRootFromInstallDir("/") == null);
         check("/. 不推", NodeExecutor.deriveBackupRootFromInstallDir("/.") == null);
         check("/.. 不推", NodeExecutor.deriveBackupRootFromInstallDir("/..") == null);
-        check("/./qxci 不推", NodeExecutor.deriveBackupRootFromInstallDir("/./qxci") == null);
-        check("/qxci-backup 算挂在根下", NodeExecutor.isDirectlyUnderUnixRoot("/qxci-backup"));
+        check("/./release 不推", NodeExecutor.deriveBackupRootFromInstallDir("/./release") == null);
+        check("/release-backup 算挂在根下", NodeExecutor.isDirectlyUnderUnixRoot("/release-backup"));
         check("/ 算挂在根下", NodeExecutor.isDirectlyUnderUnixRoot("/"));
-        check("/data/qxci-backup 不是根下", !NodeExecutor.isDirectlyUnderUnixRoot("/data/qxci-backup"));
-        check("/var/qxci/backup 不是根下", !NodeExecutor.isDirectlyUnderUnixRoot("/var/qxci/backup"));
+        check("/data/release-backup 不是根下", !NodeExecutor.isDirectlyUnderUnixRoot("/data/release-backup"));
+        check("/var/release/backup 不是根下", !NodeExecutor.isDirectlyUnderUnixRoot("/var/release/backup"));
     }
 
     /** `.` / `..` 会让备份父目录爬出备份根，清理时可能删到站点或盘符。 */
@@ -559,7 +559,7 @@ public final class NodeSafetyTest {
         String[] names = dir.list();
         if (names != null) {
             for (String n : names) {
-                if (n.endsWith(".qxci-tmp")) {
+                if (n.endsWith(".rp-tmp")) {
                     out.add(n);
                 }
             }
@@ -693,7 +693,7 @@ public final class NodeSafetyTest {
     }
 
     private static File tempDir(String label) throws Exception {
-        File base = File.createTempFile("qxci-" + label + "-", "");
+        File base = File.createTempFile("rp-" + label + "-", "");
         base.delete();
         File dir = new File(base, "root");
         if (!dir.mkdirs()) {

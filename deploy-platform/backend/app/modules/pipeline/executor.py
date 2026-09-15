@@ -76,7 +76,7 @@ def exec_docker_compile(params: dict) -> tuple[bool, list[str]]:
     toolchain = params.get("toolchain") or "custom"
     logs = [
         f"→ 工具链：{toolchain}",
-        f"$ docker run --rm -v $QXCI_SRC:/code -w /code {image} {command!r}",
+        f"$ docker run --rm -v $RELEASE_SRC:/code -w /code {image} {command!r}",
         "✓ 容器内编译完成，产物已写回工作区",
     ]
     return True, logs

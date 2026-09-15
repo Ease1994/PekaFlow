@@ -74,7 +74,7 @@ function readInitialEditorView(pipelineId: string | undefined): 'form' | 'canvas
   const q = new URLSearchParams(window.location.search).get('mode')
   if (q === 'canvas' || q === 'form') return q
   try {
-    const stored = localStorage.getItem(`qxci-editor-view:${pipelineId || ''}`)
+    const stored = localStorage.getItem(`rp-editor-view:${pipelineId || ''}`)
     if (stored === 'canvas' || stored === 'form') return stored
   } catch {
     /* 隐私模式读不了就走默认列表 */
@@ -159,7 +159,7 @@ export default function PipelineEditor() {
     nextParams.set('mode', next)
     setSearchParams(nextParams, { replace: true })
     try {
-      localStorage.setItem(`qxci-editor-view:${pipelineId || ''}`, next)
+      localStorage.setItem(`rp-editor-view:${pipelineId || ''}`, next)
     } catch {
       /* 写不了本机也不挡当次切换 */
     }

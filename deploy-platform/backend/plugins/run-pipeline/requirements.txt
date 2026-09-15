@@ -1,1 +1,1 @@
-# run-pipeline 仅使用标准库 + 随包 qxci_atom_sdk；构建机需 Python3
+# run-pipeline 仅使用标准库 + 随包 release_atom_sdk；构建机需 Python3

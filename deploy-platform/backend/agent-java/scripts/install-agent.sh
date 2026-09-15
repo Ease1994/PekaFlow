@@ -7,13 +7,13 @@
 # 可用环境变量：SERVER / NAME / TAGS / WORK_DIR / WORKSPACE / CONCURRENCY
 #
 #   ENROLL_TOKEN  接入凭证，平台「构建机 → 新增构建机」页面复制。jar 下载和首次注册都用它，
-#                 之后凭据落在 ~/.qx-agent/enrolled/，升级重跑不用再带。
+#                 之后凭据落在 ~/.release-agent/enrolled/，升级重跑不用再带。
 #   SERVER        平台地址。从平台下载本脚本时已自动填好，一般不用管。
 #   WORKSPACE     工作空间目录，拉代码和编译产物都放这儿，很吃磁盘。
-#                 默认在安装目录下，系统盘紧张时指到数据盘，如 WORKSPACE=/data/qxci-workspace
+#                 默认在安装目录下，系统盘紧张时指到数据盘，如 WORKSPACE=/data/release-workspace
 set -e
 
-SERVER="${SERVER:-__QXCI_SERVER__}"
+SERVER="${SERVER:-__RELEASE_SERVER__}"
 NAME="${NAME:-$(hostname 2>/dev/null | cut -d. -f1)}"
 TAGS="${TAGS:-}"                 # 留空则由 Agent 按当前系统自动打标签
 # 生产 / 测试 / UAT / 预发 / 开发，或自定义小写码。决定这台能构建哪种环境的流水线。
@@ -25,7 +25,7 @@ if ! printf '%s' "$ENV" | grep -Eq '^[a-z][a-z0-9_-]{0,15}$'; then
     exit 1
 fi
 CONCURRENCY="${CONCURRENCY:-8}"
-WORK_DIR="${WORK_DIR:-${HOME}/qxci-agent}"
+WORK_DIR="${WORK_DIR:-${HOME}/release-agent}"
 
 # 平台地址由下载脚本时回填到上面的默认值。这里只判断它像不像个地址，
 # 不能出现占位符字面量——回填是全文替换，写在这儿会被一起换掉
@@ -95,7 +95,7 @@ ask() {
 cred_file() {
     local key
     key=$(printf '%s|%s' "$SERVER" "$NAME" | sed 's/[^A-Za-z0-9._-]/_/g')
-    printf '%s/.qx-agent/enrolled/%s.token' "$HOME" "$key"
+    printf '%s/.release-agent/enrolled/%s.token' "$HOME" "$key"
 }
 
 echo "==> 构建机 ${NAME} → ${SERVER}"
@@ -147,7 +147,7 @@ if [ -f "$(cred_file)" ]; then
     echo "      本机已登记过，Agent 会用本地凭据续期"
 fi
 # 凭证走环境变量传给 Agent，不出现在进程命令行里
-export QXCI_ENROLL_TOKEN="$ENROLL_TOKEN"
+export RELEASE_ENROLL_TOKEN="$ENROLL_TOKEN"
 
 # 有 systemd 就交给 systemd 管：开机自启、崩溃自动重启、升级后自动拉起，
 # 都是它现成的能力，比自己写守护脚本靠谱
@@ -169,9 +169,9 @@ if [ "$USE_SYSTEMD" = "1" ]; then
     for a in "${ARGS[@]}"; do
         quoted="$quoted \"$a\""
     done
-    cat > /etc/systemd/system/qxci-agent.service <<UNITEOF
+    cat > /etc/systemd/system/release-agent.service <<UNITEOF
 [Unit]
-Description=QXCI Build Agent
+Description=RELEASE Build Agent
 After=network-online.target
 Wants=network-online.target
 
@@ -191,22 +191,22 @@ TimeoutStopSec=1800
 WantedBy=multi-user.target
 UNITEOF
     systemctl daemon-reload
-    systemctl enable qxci-agent >/dev/null 2>&1 || true
+    systemctl enable release-agent >/dev/null 2>&1 || true
     pkill -f 'java.*deploy-agent' >/dev/null 2>&1 || true
     sleep 2
-    systemctl restart qxci-agent
+    systemctl restart release-agent
     sleep 3
 fi
 
 echo "[4/4] 检查"
 if [ "$USE_SYSTEMD" = "1" ]; then
-    if systemctl is-active --quiet qxci-agent; then
-        echo "启动成功，已注册为 systemd 服务 qxci-agent（开机自启、崩溃自动重启）"
-        echo "  看日志：journalctl -u qxci-agent -f"
+    if systemctl is-active --quiet release-agent; then
+        echo "启动成功，已注册为 systemd 服务 release-agent（开机自启、崩溃自动重启）"
+        echo "  看日志：journalctl -u release-agent -f"
         echo "  新版本 jar 会在空闲时自动升级，不用再上这台机器"
     else
         echo "启动失败，日志末尾："
-        journalctl -u qxci-agent -n 30 --no-pager 2>/dev/null || true
+        journalctl -u release-agent -n 30 --no-pager 2>/dev/null || true
         exit 1
     fi
 elif pgrep -f 'java.*deploy-agent' >/dev/null 2>&1; then

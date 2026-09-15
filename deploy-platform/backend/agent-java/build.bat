@@ -5,12 +5,12 @@ REM mangled into stray characters that split the command lines apart.
 cd /d %~dp0
 if exist out rmdir /s /q out
 mkdir out
-javac -encoding UTF-8 -d out src\com\qxci\agent\*.java
+javac -encoding UTF-8 -d out src\com\release\agent\*.java
 if errorlevel 1 (
   echo BUILD FAILED
   exit /b 1
 )
-jar cfe deploy-agent.jar com.qxci.agent.AgentMain -C out .
+jar cfe deploy-agent.jar com.release.agent.AgentMain -C out .
 if errorlevel 1 (
   echo PACKAGING FAILED
   exit /b 1

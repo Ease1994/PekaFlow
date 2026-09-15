@@ -54,7 +54,7 @@ _DRAFT_PARAMS = {
             "description": (
                 "源码，键是文件名值是完整内容，如 {\"task.py\": \"...\"}。"
                 "不要放 task.json（由上面的字段生成），也不要放 SDK（平台会打包进去）。"
-                "Python 插件用 import qxci_atom_sdk as sdk 读参数 sdk.get_input()、"
+                "Python 插件用 import release_atom_sdk as sdk 读参数 sdk.get_input()、"
                 "打日志 sdk.log.info()、写输出 sdk.set_output()，需要回调平台时用 sdk.get_task_token()"
             ),
         },

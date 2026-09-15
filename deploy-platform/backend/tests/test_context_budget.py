@@ -76,7 +76,7 @@ def test_stub_keeps_pipeline_ids() -> None:
 
 
 def test_collapse_does_not_stub_skill_content() -> None:
-    body = "<skill_content name=\"qxci-release\">\n<skill_instructions>\n点名流水线就出确认卡\n</skill_instructions>\n</skill_content>"
+    body = "<skill_content name=\"rp-release\">\n<skill_instructions>\n点名流水线就出确认卡\n</skill_instructions>\n</skill_content>"
     messages = [
         {"role": "system", "content": "sys"},
         {"role": "user", "content": "发布"},

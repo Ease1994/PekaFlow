@@ -59,7 +59,7 @@ GOOD_MD = """# 查询流水线发布状态
 
 
 def test_lint_rejects_pipeline_plugin_source() -> None:
-    errors = _lint("demo-skill", "import qxci_atom_sdk as sdk\n## 何时使用\n")
+    errors = _lint("demo-skill", "import release_atom_sdk as sdk\n## 何时使用\n")
     assert any("流水线插件" in item for item in errors)
 
 
@@ -78,11 +78,11 @@ def test_status_skill_body_overrides_history_dump() -> None:
     text = body_for_model("query-pipeline-status", old)
     assert "最近一次" in text
     assert "list_pipelines" in text
-    assert body_for_model("qxci-release", old) == old
+    assert body_for_model("rp-release", old) == old
 
 
 def test_lint_rejects_invented_tools_and_reserved_name() -> None:
-    assert any("内置" in item or "qxci" in item for item in _lint("qxci-release", "## 何时使用\n调用 `get_release_status`"))
+    assert any("内置" in item or "release" in item for item in _lint("rp-release", "## 何时使用\n调用 `get_release_status`"))
     errors = _lint("query-running", "## 何时使用\n先调 `query_running_pipelines`")
     assert any("发明" in item for item in errors)
 
@@ -253,7 +253,7 @@ def test_unread_query_inlines_personal_skill_and_hides_unrelated() -> None:
         assert "nightly-release-digest" not in prompt
         other = harness_skills.system_prompt(db, viewer_id=7, message="帮我发布 order-service")
         assert "read-unread-notifications" not in other
-        assert "`qxci-release`" in other
+        assert "`rp-release`" in other
     finally:
         db.close()
 

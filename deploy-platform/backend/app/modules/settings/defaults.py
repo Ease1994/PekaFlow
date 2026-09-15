@@ -4,7 +4,7 @@ from __future__ import annotations
 DEFAULT_SETTINGS: dict[str, str] = {
     "log_storage": "es",                     # 固定 Redis 实时 + ES 归档；禁止 mysql 回退
     "es_hosts": "http://localhost:9200",     # ES 地址；生产/测试用环境变量 ES_HOSTS 覆盖
-    "es_index": "qxci-build-logs",           # 日志索引前缀，实际写入 qxci-build-logs-YYYY-MM-DD
+    "es_index": "release-build-logs",           # 日志索引前缀，实际写入 release-build-logs-YYYY-MM-DD
     "es_username": "",                       # ES 用户名（环境变量 ES_USERNAME）
     "es_password": "",                       # ES 密码（环境变量 ES_PASSWORD，勿写进仓库）
     "task_poll_interval": "2",               # Agent 拉取任务间隔（秒）

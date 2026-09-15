@@ -39,7 +39,7 @@ def update_settings(db: Session, updates: dict) -> dict:
         if key not in DEFAULT_SETTINGS or key in FILE_BACKED_KEYS:
             continue
         if key == "es_index" and (value is None or str(value).strip() == ""):
-            value = "qxci-build-logs"
+            value = "release-build-logs"
         if key.startswith("redis_") and str(value) != get_setting(db, key):
             redis_changed = True
         if key.startswith("es_") and str(value) != get_setting(db, key):

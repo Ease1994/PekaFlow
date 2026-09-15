@@ -61,7 +61,7 @@ pipeline:
                 script: echo live-func-test
 """
 DRAFT_TASK_PY = (
-    "import qxci_atom_sdk as sdk\n"
+    "import release_atom_sdk as sdk\n"
     "params = sdk.get_input()\n"
     "sdk.log.info('live functional test plugin')\n"
     "sdk.set_output('ok', '1')\n"

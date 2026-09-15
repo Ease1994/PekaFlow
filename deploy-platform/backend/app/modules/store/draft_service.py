@@ -179,14 +179,14 @@ def pack_draft(draft: PluginDraft) -> bytes:
 
 def _bundle_python_sdk(zf: zipfile.ZipFile) -> None:
     """把 SDK 一起打进去，插件包才能在构建机上离线跑起来（无 pip 依赖）。"""
-    sdk_root = plugin_service.PLUGIN_SRC_ROOT / "sdk" / "python" / "qxci_atom_sdk"
+    sdk_root = plugin_service.PLUGIN_SRC_ROOT / "sdk" / "python" / "release_atom_sdk"
     if not sdk_root.is_dir():
         return
     for path in sorted(sdk_root.rglob("*.py")):
         if "__pycache__" in path.parts:
             continue
         zf.writestr(
-            f"qxci_atom_sdk/{path.relative_to(sdk_root).as_posix()}",
+            f"release_atom_sdk/{path.relative_to(sdk_root).as_posix()}",
             path.read_text(encoding="utf-8"),
         )
 

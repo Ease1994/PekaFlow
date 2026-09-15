@@ -1,5 +1,5 @@
 'use strict'
-const sdk = require('./qxci_atom_sdk')
+const sdk = require('./release_atom_sdk')
 
 const input = sdk.getInput()
 sdk.log.info('workspace=' + sdk.getWorkspace())

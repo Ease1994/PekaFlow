@@ -175,12 +175,12 @@ def _audit_view(row: HarnessLifecycleAudit) -> dict:
 
 @router.get("/templates/agent-skill", summary="下载 Agent 技能包开发模板")
 def download_skill_template(_: CurrentUser = Depends(get_current_user)):
-    return templates.download("qxci-agent-skill-template.zip", templates.skill_package())
+    return templates.download("release-agent-skill-template.zip", templates.skill_package())
 
 
 @router.get("/templates/agent-tool", summary="下载第三方 Agent 工具包开发模板")
 def download_tool_template(_: CurrentUser = Depends(get_current_user)):
-    return templates.download("qxci-agent-tool-template.zip", templates.tool_package())
+    return templates.download("release-agent-tool-template.zip", templates.tool_package())
 
 
 @router.get("/components", summary="组件列表")

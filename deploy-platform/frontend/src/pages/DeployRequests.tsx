@@ -448,7 +448,7 @@ export default function DeployRequests() {
           <Form.Item label="影响范围" name="impact_scope">
             <Input placeholder="如：全部订单用户 / 仅华南商户" />
           </Form.Item>
-          <div className="qxci-field-row">
+          <div className="rp-field-row">
             <Form.Item label="迭代标签" name="iteration_tag" style={{ flex: 1 }}>
               <Input placeholder="如：8 月迭代" />
             </Form.Item>
@@ -457,7 +457,7 @@ export default function DeployRequests() {
             </Form.Item>
           </div>
           <Form.Item label="受众 / 要不要通知用户" style={{ marginBottom: 0 }}>
-            <div className="qxci-field-row">
+            <div className="rp-field-row">
               <Form.Item name="audience" style={{ flex: 1, marginBottom: 0 }}>
                 <Input placeholder="影响谁，如：C 端用户" />
               </Form.Item>

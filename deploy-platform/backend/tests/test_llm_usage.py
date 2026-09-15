@@ -23,7 +23,7 @@ def test_authoring_tools_only_when_asked() -> None:
     assert "authoring" in categories_for_turn("安装一下读取未读通知")
     assert "authoring" not in categories_for_turn("查一下我的未读消息")
     assert "access" in categories_for_turn("申请 test-C 的执行权限")
-    assert "authoring" in categories_for_turn("继续", selected_skills=["qxci-plugin-draft"])
+    assert "authoring" in categories_for_turn("继续", selected_skills=["rp-plugin-draft"])
     assert "authoring" in categories_for_turn(
         "改一下名字",
         history=[{"role": "user", "content": "写一个查询发布状态的技能"}],

@@ -41,7 +41,7 @@ def _load_runner_token() -> str:
 
 RUNNER_TOKEN = _load_runner_token()
 
-app = FastAPI(title="QXCI Harness Runner", docs_url=None, redoc_url=None)
+app = FastAPI(title="RELEASE Harness Runner", docs_url=None, redoc_url=None)
 
 
 class ExecuteRequest(BaseModel):

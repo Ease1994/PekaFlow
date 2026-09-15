@@ -4,7 +4,7 @@ set -e
 
 SERVER="${1:-http://127.0.0.1:8080}"
 AGENT_NAME="${2:-linux-test}"
-WORK_DIR="${HOME}/qxci-agent"
+WORK_DIR="${HOME}/release-agent"
 
 mkdir -p "$WORK_DIR"
 cd "$WORK_DIR"

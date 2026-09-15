@@ -14,7 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import qxci_atom_sdk as sdk  # noqa: E402
+import release_atom_sdk as sdk  # noqa: E402
 
 
 class DeployError(Exception):
@@ -175,7 +175,7 @@ def main() -> int:
         if kubeconfig.strip():
             # 落成临时文件而不是走环境变量：kubectl 只认文件路径。
             # 权限收到 600，跑完立刻删，别让集群凭证留在构建机上
-            tmp_dir = tempfile.mkdtemp(prefix="qxci-kube-")
+            tmp_dir = tempfile.mkdtemp(prefix="rp-kube-")
             kube_path = os.path.join(tmp_dir, "config")
             with open(kube_path, "w", encoding="utf-8") as f:
                 f.write(kubeconfig)

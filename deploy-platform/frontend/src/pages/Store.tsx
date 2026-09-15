@@ -694,7 +694,7 @@ export default function Store() {
                               <Button
                                 icon={<DownloadOutlined />}
                                 onClick={() =>
-                                  downloadTemplate('/store/plugins/template', 'qxci-pipeline-plugin-template.zip')
+                                  downloadTemplate('/store/plugins/template', 'rp-pipeline-plugin-template.zip')
                                 }
                               >
                                 下载插件开发模板
@@ -762,7 +762,7 @@ export default function Store() {
                     <Button
                       icon={<DownloadOutlined />}
                       onClick={() =>
-                        downloadTemplate('/harness/templates/agent-skill', 'qxci-agent-skill-template.zip')
+                        downloadTemplate('/harness/templates/agent-skill', 'release-agent-skill-template.zip')
                       }
                     >
                       下载技能包模板
@@ -839,7 +839,7 @@ export default function Store() {
                             <Button
                               icon={<DownloadOutlined />}
                               onClick={() =>
-                                downloadTemplate('/harness/templates/agent-tool', 'qxci-agent-tool-template.zip')
+                                downloadTemplate('/harness/templates/agent-tool', 'release-agent-tool-template.zip')
                               }
                             >
                               下载工具包模板

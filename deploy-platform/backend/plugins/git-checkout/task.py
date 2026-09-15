@@ -16,7 +16,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-import qxci_atom_sdk as sdk
+import release_atom_sdk as sdk
 
 # 拉取策略（对齐 task.json 的选项）
 REVERT_UPDATE = "REVERT_UPDATE"        # fetch + reset --hard + clean，回到干净工作树
@@ -190,7 +190,7 @@ def _is_unusable_mirror(mirror: Path) -> bool:
 
 
 def _ensure_mirror(repo_key: str, repo_url: str, ref: str, token: str) -> Path | None:
-    home = Path.home() / ".qx-agent" / "git-cache"
+    home = Path.home() / ".release-agent" / "git-cache"
     home.mkdir(parents=True, exist_ok=True)
     mirror = home / f"{_sha1(repo_key)}.git"
     commit_ref = _is_commit_sha(ref)

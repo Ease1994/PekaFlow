@@ -394,11 +394,11 @@ export default function Nodes() {
             ` INSTALL_DIR=$(pwd)` +
             ` ENV=${shSingleQuote(envArgs.value)}${svcEnv}${tokenEnv} bash install-node.sh`,
           note:
-            '先 cd 到大盘上的 qxci 目录再执行这两行，例如 /data/soft/qxci 或 /mnt/qxci。\n' +
-            '备份会建在该路径第一层下的 qxci-backup（/data/soft/qxci → /data/qxci-backup），安装脚本会交给 qxci 账号，不必再手工赋权。\n' +
+            '先 cd 到大盘上的 release 目录再执行这两行，例如 /data/soft/release 或 /mnt/release。\n' +
+            '备份会建在该路径第一层下的 release-backup（/data/soft/release → /data/release-backup），安装脚本会交给 release 账号，不必再手工赋权。\n' +
             '需要 systemd。没有可用 JDK 时会从平台自动安装 JDK 8，校验 java -version 通过后才继续装 Agent。\n' +
             'JDK 包在「节点管理」上传一次即可，重建平台也不会丢。\n' +
-            'Agent 会以专用普通账号 qxci 运行，不是 root；要停的服务通过 sudoers 白名单精确放行。\n' +
+            'Agent 会以专用普通账号 release 运行，不是 root；要停的服务通过 sudoers 白名单精确放行。\n' +
             '想复用已有的部署账号，在命令里加 RUN_USER=你的账号。' +
             envNote +
             rerunNote,
@@ -1132,7 +1132,7 @@ export default function Nodes() {
             label="允许操作的目录（一行一个）"
             name="allowPaths"
             rules={[{ required: true }]}
-            extra="节点只能在这些目录里覆盖站点文件。备份不在这个名单里：安装时会按执行命令的目录第一层另建 qxci-backup（例如 /data/soft/qxci → /data/qxci-backup）"
+            extra="节点只能在这些目录里覆盖站点文件。备份不在这个名单里：安装时会按执行命令的目录第一层另建 release-backup（例如 /data/soft/release → /data/release-backup）"
           >
             <Input.TextArea
               rows={3}

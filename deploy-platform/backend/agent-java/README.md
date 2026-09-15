@@ -37,7 +37,7 @@ Linux 节点安装脚本在目标机没有可用 Java 8+ 时，会用接入凭�
 构建任务里带着仓库凭证，所以注册不是匿名的：**新构建机首次注册必须带接入凭证**，
 在平台「构建机 → 新增构建机」页面复制（生成的启动命令里已经带上）。
 
-注册成功后凭据存在 `~/.qx-agent/enrolled/`，之后重启、升级 jar 都不用再带凭证。
+注册成功后凭据存在 `~/.release-agent/enrolled/`，之后重启、升级 jar 都不用再带凭证。
 凭证外泄时在页面上点「轮换接入凭证」，已登记的构建机不受影响。
 
 jar 包下载（`GET /api/v1/agents/download`）需要管理员身份，脚本里用
@@ -54,7 +54,7 @@ java -jar deploy-agent.jar --server http://localhost:8080 --name linux-build-01 
 java -jar deploy-agent.jar --server http://localhost:8080 --name linux-build-01 --tags linux,maven,docker
 
 # 凭证也可以走环境变量，避免写进命令历史
-export QXCI_ENROLL_TOKEN=<凭证>
+export RELEASE_ENROLL_TOKEN=<凭证>
 java -jar deploy-agent.jar --server http://localhost:8080 --name my-pc --tags windows,dotnet
 
 # 指定轮询间隔（秒）+ 工作空间根目录
@@ -71,7 +71,7 @@ java -jar deploy-agent.jar --server http://localhost:8080 --name agent-01 --poll
 | `--poll` | 拉任务间隔（秒） | 2 |
 | `--concurrency` | 同时执行的任务数（1~32） | 8 |
 | `--workspace` | 工作空间根目录 | ./workspace |
-| `--enroll-token` | 接入凭证，首次注册必填（或用 `QXCI_ENROLL_TOKEN`） | 空 |
+| `--enroll-token` | 接入凭证，首次注册必填（或用 `RELEASE_ENROLL_TOKEN`） | 空 |
 
 ## 部署脚本示例
 
@@ -80,11 +80,11 @@ java -jar deploy-agent.jar --server http://localhost:8080 --name agent-01 --poll
 set -e
 SERVER="http://platform.example.com:8080"
 NAME="linux-test"
-ENROLL_TOKEN="${QXCI_ENROLL_TOKEN:?请先在平台构建机页面复制接入凭证}"
-ADMIN_USER="${QXCI_ADMIN_USER:-admin}"
-ADMIN_PASS="${QXCI_ADMIN_PASS:?请设置管理员密码，用于下载 jar}"
+ENROLL_TOKEN="${RELEASE_ENROLL_TOKEN:?请先在平台构建机页面复制接入凭证}"
+ADMIN_USER="${RELEASE_ADMIN_USER:-admin}"
+ADMIN_PASS="${RELEASE_ADMIN_PASS:?请设置管理员密码，用于下载 jar}"
 
-WORK_DIR="${HOME}/qxci-agent"
+WORK_DIR="${HOME}/release-agent"
 mkdir -p "$WORK_DIR" && cd "$WORK_DIR"
 
 pkill -f 'java.*deploy-agent' 2>/dev/null || true

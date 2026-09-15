@@ -30,12 +30,12 @@ def load() -> None:
                 "properties": {
                     "name": {
                         "type": "string",
-                        "description": "技能目录里的精确 name，如 qxci-release",
+                        "description": "技能目录里的精确 name，如 rp-release",
                     }
                 },
                 "required": ["name"],
             },
             handler=_load_skill,
-            examples=["加载发布技能", "把 qxci-release 说明书调出来"],
+            examples=["加载发布技能", "把 rp-release 说明书调出来"],
         )
     )

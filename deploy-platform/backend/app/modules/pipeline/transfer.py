@@ -25,7 +25,7 @@ from app.modules.pipeline.service import (
 from app.modules.pipeline.sub_pipeline import rewrite_run_pipeline_ids, sync_yaml_pipeline_name
 from app.modules.project.models import Group, Project
 
-FORMAT = "qxci-catalog"
+FORMAT = "rp-catalog"
 FORMAT_VERSION = 1
 
 # 导入决策：覆盖、按 duplicate 规则新建 name_copy、或跳过这条重名流水线

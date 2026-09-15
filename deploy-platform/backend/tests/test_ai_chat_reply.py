@@ -580,7 +580,7 @@ def test_text_confirm_without_button_is_not_nagged() -> None:
 def test_failed_propose_replaces_fake_yellow_button() -> None:
     """起草失败时正文必须是失败原因，不能还让人去点不存在的黄按钮。"""
     traces = [
-        {"name": "skill", "result": {"name": "qxci-agent-skill", "content": "# 写技能"}},
+        {"name": "skill", "result": {"name": "rp-agent-skill", "content": "# 写技能"}},
         {"name": "list_platform_tools", "result": {"tools": []}},
         {
             "name": "propose_agent_skill",

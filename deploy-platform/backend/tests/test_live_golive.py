@@ -114,7 +114,7 @@ def test_non_admin_cannot_export_or_import(token: str) -> None:
             "POST",
             "/pipelines/import/preview",
             weak,
-            {"bundle": {"format": "qxci-catalog", "format_version": 1, "projects": []}},
+            {"bundle": {"format": "rp-catalog", "format_version": 1, "projects": []}},
         )
         assert st == 403 or prev.get("code") == 403, (st, prev)
     finally:
@@ -139,7 +139,7 @@ def test_catalog_export_preview_import_copy_and_cleanup(token: str, catalog: dic
     imported_id = None
     try:
         bundle = _ok(token, "POST", "/pipelines/export", {"pipeline_ids": [pipe_id]})
-        assert bundle.get("format") == "qxci-catalog", bundle
+        assert bundle.get("format") == "rp-catalog", bundle
         projects = bundle.get("projects") or []
         assert projects, bundle
         assert not any(

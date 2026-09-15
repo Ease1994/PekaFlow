@@ -389,7 +389,7 @@ export default function Agents() {
             <>
               构建任务里带着仓库凭证，所以新构建机必须持凭证才能注册。
               凭证只有<b>首次注册</b>要带，之后 Agent 会把登记凭据存在
-              <code>~/.qx-agent/enrolled/</code>，重启和升级 jar 都不用再带。
+              <code>~/.release-agent/enrolled/</code>，重启和升级 jar 都不用再带。
               凭证外泄时点「轮换接入凭证」，已登记的构建机不受影响。
             </>
           }
@@ -438,8 +438,8 @@ export default function Agents() {
             <Input
               placeholder={
                 form.getFieldValue('os') === 'windows'
-                  ? '如 D:\\qxci-workspace，留空用默认'
-                  : '如 /data/qxci-workspace，留空用默认'
+                  ? '如 D:\\rp-workspace，留空用默认'
+                  : '如 /data/release-workspace，留空用默认'
               }
             />
           </Form.Item>

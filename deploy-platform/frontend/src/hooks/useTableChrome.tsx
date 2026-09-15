@@ -5,7 +5,7 @@ import TableColumnSettings, {
   type TableSize,
 } from '@/components/TableColumnSettings'
 
-const STORAGE_PREFIX = 'qxci.table.v2.'
+const STORAGE_PREFIX = 'release.table.v2.'
 export const LIST_PAGE_SIZES = [10, 20, 50, 100]
 const DEFAULT_PAGE_SIZE = 20
 

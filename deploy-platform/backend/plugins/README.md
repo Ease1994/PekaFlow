@@ -1,4 +1,4 @@
-# qxci 插件开发规范与对接说明
+# release 插件开发规范与对接说明
 
 > Agent（`deploy-agent.jar`）**只执行命令**：下载已安装的插件 zip → 注入环境变量 → 跑 `task.json` 里的 `entrypoint` → 采集 stdout/stderr。  
 > **业务逻辑全部写在插件包内**，不要改 Agent。
@@ -17,9 +17,9 @@
                                       ↓
 流水线步骤 plugin: <name>  →  后端下发 package{entrypoint, download_path}
                                       ↓
-Agent 下载 zip 到 ~/.qx-agent/plugins/<name>/<version>/
+Agent 下载 zip 到 ~/.release-agent/plugins/<name>/<version>/
       设置环境变量，在插件目录执行 entrypoint
-      回传日志；解析 .qxci_atom_output.json / ##[set-output]
+      回传日志；解析 .release_atom_output.json / ##[set-output]
 ```
 
 构建机需按语言安装运行时：
@@ -42,13 +42,13 @@ Windows 上 Agent 会把入口里的 `python3` 自动换成 `python`。
 my-plugin.zip
 ├── task.json          # 必填：清单
 ├── task.py / task.js / *.class  # 入口（与 entrypoint 一致）
-├── qxci_atom_sdk/     # Python：把 SDK 拷进包
-├── com/qxci/atom/     # Java：把 SDK class/源码打进包
-├── qxci_atom_sdk.js   # Node.js：拷贝 SDK
+├── release_atom_sdk/     # Python：把 SDK 拷进包
+├── com/release/atom/     # Java：把 SDK class/源码打进包
+├── release_atom_sdk.js   # Node.js：拷贝 SDK
 └── 其它业务文件
 ```
 
-升级插件时请改 `version`，否则 Agent 会继续用本机缓存 `~/.qx-agent/plugins/<name>/<version>/`。
+升级插件时请改 `version`，否则 Agent 会继续用本机缓存 `~/.release-agent/plugins/<name>/<version>/`。
 
 ---
 
@@ -96,7 +96,7 @@ my-plugin.zip
 | `placeholder` | 占位提示 |
 | `options` | `select`：`[{"label":"...","value":"..."}]` |
 
-平台会把用户填写的 `with` 整份 JSON 注入环境变量 `QXCI_ATOM_INPUT_JSON`（**值以字符串为主**）。
+平台会把用户填写的 `with` 整份 JSON 注入环境变量 `RELEASE_ATOM_INPUT_JSON`（**值以字符串为主**）。
 
 ---
 
@@ -106,26 +106,26 @@ my-plugin.zip
 
 | 变量 | 含义 |
 |------|------|
-| `QXCI_WORKSPACE` | 流水线工作区根目录（其下有 `src/`） |
-| `QXCI_SRC` | 代码目录 `.../src` |
-| `QXCI_ATOM_INPUT_JSON` | 步骤 `with` 的 JSON |
-| `QXCI_PIPELINE_ID` | 流水线数字 ID |
-| `QXCI_BUILD_ID` | 本次任务 ID |
-| `QXCI_JOB_NAME` | Job 名称 |
-| `QXCI_RELEASE_ID` | 本次发布 ID |
-| `QXCI_SERVER_URL` | 平台地址（需要回调平台时用） |
-| `QXCI_TASK_TOKEN` | **本次任务的凭证**，回调平台时放在 `X-Task-Token` 头里 |
-| `QXCI_SENSITIVE_<KEY>` | 插件私有配置（若平台注入） |
+| `RELEASE_WORKSPACE` | 流水线工作区根目录（其下有 `src/`） |
+| `RELEASE_SRC` | 代码目录 `.../src` |
+| `RELEASE_ATOM_INPUT_JSON` | 步骤 `with` 的 JSON |
+| `RELEASE_PIPELINE_ID` | 流水线数字 ID |
+| `RELEASE_BUILD_ID` | 本次任务 ID |
+| `RELEASE_JOB_NAME` | Job 名称 |
+| `RELEASE_RELEASE_ID` | 本次发布 ID |
+| `RELEASE_SERVER_URL` | 平台地址（需要回调平台时用） |
+| `RELEASE_TASK_TOKEN` | **本次任务的凭证**，回调平台时放在 `X-Task-Token` 头里 |
+| `RELEASE_SENSITIVE_<KEY>` | 插件私有配置（若平台注入） |
 | `BK_CI_WORKSPACE` 等 | 与蓝鲸命名兼容的别名 |
 
-工作目录（cwd）= **插件解压目录**，不是 `src/`。需要改仓库时请拼 `QXCI_SRC` 或 `QXCI_WORKSPACE/src`。
+工作目录（cwd）= **插件解压目录**，不是 `src/`。需要改仓库时请拼 `RELEASE_SRC` 或 `RELEASE_WORKSPACE/src`。
 
-### 关于 `QXCI_TASK_TOKEN`
+### 关于 `RELEASE_TASK_TOKEN`
 
 插件拿到的凭证**只代表当前这一个任务**，任务结束即失效，能调的接口只有 `/api/v1/plugin-api/*`
 （目前是启动子流水线和查子流水线状态）。构建机自己的长期 token 不再注入插件进程 ——
 插件代码来源不完全可控，拿到构建机身份就等于能领走别的任务、伪造任务状态。
-老的 `QXCI_AGENT_TOKEN` 和 `sdk.get_agent_token()` 仅为兼容未升级的 Agent 保留，新插件不要用。
+老的 `RELEASE_AGENT_TOKEN` 和 `sdk.get_agent_token()` 仅为兼容未升级的 Agent 保留，新插件不要用。
 
 ---
 
@@ -150,7 +150,7 @@ my-plugin.zip
 
 写文件（工作区或插件 cwd）：
 
-`QXCI_WORKSPACE/.qxci_atom_output.json`
+`RELEASE_WORKSPACE/.release_atom_output.json`
 
 ```json
 {
@@ -175,16 +175,16 @@ my-plugin.zip
 
 ## 6. Python 插件
 
-SDK：`plugins/sdk/python/qxci_atom_sdk/`  
+SDK：`plugins/sdk/python/release_atom_sdk/`  
 完整示例：`plugins/git-checkout/`
 
-1. 把 `qxci_atom_sdk` 目录拷进插件包根目录。  
+1. 把 `release_atom_sdk` 目录拷进插件包根目录。  
 2. `task.py`：
 
 ```python
 # -*- coding: utf-8 -*-
 import sys
-import qxci_atom_sdk as sdk
+import release_atom_sdk as sdk
 
 def main():
     inp = sdk.get_input()
@@ -212,23 +212,23 @@ if __name__ == "__main__":
 4. 打包（在插件目录内）：
 
 ```bash
-zip -r hello-python-1.0.0.zip task.json task.py qxci_atom_sdk
+zip -r hello-python-1.0.0.zip task.json task.py release_atom_sdk
 ```
 
 ---
 
 ## 7. Java 插件（JDK 8）
 
-SDK：`plugins/sdk/java/src/com/qxci/atom/QxciAtomSdk.java`（无第三方依赖）  
+SDK：`plugins/sdk/java/src/com/release/atom/ReleaseAtomSdk.java`（无第三方依赖）  
 骨架：`plugins/examples/hello-java/`
 
-1. 将 `com/qxci/atom/QxciAtomSdk.java` 与业务入口一起编译进包。  
-2. 入口类读取 `System.getenv("QXCI_ATOM_INPUT_JSON")`，或调用 SDK。  
+1. 将 `com/release/atom/ReleaseAtomSdk.java` 与业务入口一起编译进包。  
+2. 入口类读取 `System.getenv("RELEASE_ATOM_INPUT_JSON")`，或调用 SDK。  
 3. 本地编译示例：
 
 ```bash
 cd plugins/examples/hello-java
-javac -encoding UTF-8 com/qxci/atom/QxciAtomSdk.java com/example/HelloAtom.java
+javac -encoding UTF-8 com/release/atom/ReleaseAtomSdk.java com/example/HelloAtom.java
 ```
 
 4. zip 内需包含 `.class`（Agent 不会帮你 javac）：
@@ -236,7 +236,7 @@ javac -encoding UTF-8 com/qxci/atom/QxciAtomSdk.java com/example/HelloAtom.java
 ```
 task.json
 com/example/HelloAtom.class
-com/qxci/atom/QxciAtomSdk.class
+com/release/atom/ReleaseAtomSdk.class
 ```
 
 5. `entrypoint` 示例：`java -cp . com.example.HelloAtom`  
@@ -248,15 +248,15 @@ com/qxci/atom/QxciAtomSdk.class
 
 ## 8. Node.js 插件
 
-SDK：`plugins/sdk/nodejs/qxci_atom_sdk.js`  
+SDK：`plugins/sdk/nodejs/release_atom_sdk.js`  
 骨架：`plugins/examples/hello-nodejs/`
 
-1. 把 `qxci_atom_sdk.js` 拷到插件根目录。  
+1. 把 `release_atom_sdk.js` 拷到插件根目录。  
 2. `task.js`：
 
 ```javascript
 'use strict'
-const sdk = require('./qxci_atom_sdk')
+const sdk = require('./release_atom_sdk')
 const input = sdk.getInput()
 sdk.log.info('message=' + (input.message || ''))
 sdk.setOutput({
@@ -309,12 +309,12 @@ HTTP API（需登录 JWT）：
 在插件目录模拟 Agent 注入：
 
 ```bash
-export QXCI_WORKSPACE=/tmp/ws
-export QXCI_SRC=/tmp/ws/src
-mkdir -p "$QXCI_SRC"
-export QXCI_ATOM_INPUT_JSON='{"message":"hello","ref":"master"}'
-export QXCI_PIPELINE_ID=1
-export QXCI_BUILD_ID=100
+export RELEASE_WORKSPACE=/tmp/ws
+export RELEASE_SRC=/tmp/ws/src
+mkdir -p "$RELEASE_SRC"
+export RELEASE_ATOM_INPUT_JSON='{"message":"hello","ref":"master"}'
+export RELEASE_PIPELINE_ID=1
+export RELEASE_BUILD_ID=100
 
 # Python
 python3 task.py
@@ -326,7 +326,7 @@ node task.js
 java -cp . com.example.HelloAtom
 ```
 
-看 stdout 与 `.qxci_atom_output.json`。
+看 stdout 与 `.release_atom_output.json`。
 
 ---
 
@@ -336,9 +336,9 @@ java -cp . com.example.HelloAtom
 backend/plugins/
 ├── README.md                 # 本规范
 ├── sdk/
-│   ├── python/qxci_atom_sdk/
-│   ├── java/src/com/qxci/atom/QxciAtomSdk.java
-│   └── nodejs/qxci_atom_sdk.js
+│   ├── python/release_atom_sdk/
+│   ├── java/src/com/release/atom/ReleaseAtomSdk.java
+│   └── nodejs/release_atom_sdk.js
 ├── git-checkout/             # 生产示例（Python，平台启动时自动打包安装）
 ├── run-pipeline/             # 子流水线调用（平台编排执行，启动时自动安装）
 └── examples/
@@ -353,7 +353,7 @@ backend/plugins/
 ## 12. 常见问题
 
 **Q: 改了插件代码流水线还是旧逻辑？**  
-升 `version` 后重新上传并安装；或删除构建机 `~/.qx-agent/plugins/<name>/`。
+升 `version` 后重新上传并安装；或删除构建机 `~/.release-agent/plugins/<name>/`。
 
 **Q: zip 上传失败「缺少 task.json」？**  
 保证解压后第一层就能看到 `task.json`。

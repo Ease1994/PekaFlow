@@ -36,13 +36,13 @@ MAX_TOTAL_BYTES = 2 * 1024 * 1024
 
 # (级别, 代码, 正则, 说明)
 CODE_PATTERNS: list[tuple[str, str, re.Pattern[str], str]] = [
-    (LEVEL_HIGH, "agent_token", re.compile(r"QXCI_AGENT_TOKEN|get_agent_token"),
-     "试图获取构建机长期凭证，插件只应使用 QXCI_TASK_TOKEN"),
+    (LEVEL_HIGH, "agent_token", re.compile(r"RELEASE_AGENT_TOKEN|get_agent_token"),
+     "试图获取构建机长期凭证，插件只应使用 RELEASE_TASK_TOKEN"),
     (LEVEL_HIGH, "dynamic_exec", re.compile(r"\beval\s*\(|\bexec\s*\(|__import__\s*\(|pickle\.loads"),
      "动态执行代码，无法审阅实际行为"),
     (LEVEL_HIGH, "pipe_to_shell", re.compile(r"(curl|wget)[^\n|]*\|\s*(ba)?sh"),
      "从网络下载脚本直接执行"),
-    (LEVEL_HIGH, "agent_home", re.compile(r"\.qx-agent"),
+    (LEVEL_HIGH, "agent_home", re.compile(r"\.release-agent"),
      "读写 Agent 自身目录（插件缓存、凭证都在这里）"),
     (LEVEL_HIGH, "destructive_fs", re.compile(r"rm\s+-rf\s+[/~]|shutil\.rmtree\s*\(\s*[\"']?[/~]"),
      "对根目录或用户目录做递归删除"),

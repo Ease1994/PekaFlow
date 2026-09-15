@@ -13,9 +13,9 @@ from pathlib import Path
 from fastapi.responses import Response
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[3]
-_PLUGIN_SDK = _BACKEND_ROOT / "plugins" / "sdk" / "python" / "qxci_atom_sdk"
+_PLUGIN_SDK = _BACKEND_ROOT / "plugins" / "sdk" / "python" / "release_atom_sdk"
 
-SKILL_README = """# QXCI Agent 技能包开发说明书（给开发者和 AI）
+SKILL_README = """# RELEASE Agent 技能包开发说明书（给开发者和 AI）
 
 先读完本文件再改其它文件。技能包**不含可执行代码**，不能改平台数据。
 它只是一份给模型看的说明书：什么时候用、怎么问、禁止做什么。
@@ -218,7 +218,7 @@ SKILL_EXAMPLES = """# 对话样例
 助手：apply_pipeline_execute，不要强行 propose_release。
 """
 
-TOOL_README = """# QXCI 第三方 Agent 工具包开发说明书（给开发者和 AI）
+TOOL_README = """# RELEASE 第三方 Agent 工具包开发说明书（给开发者和 AI）
 
 本模板是**会执行代码**的助手工具。代码不在 API 进程里跑，只在 harness-runner 隔离容器里跑。
 没签名、没登记公钥、隔离 Runner 不健康，平台都会拒绝安装或拒绝执行。
@@ -651,7 +651,7 @@ if __name__ == "__main__":
     raise SystemExit(main())
 '''
 
-PLUGIN_README = """# QXCI 流水线插件包开发说明书（给开发者和 AI）
+PLUGIN_README = """# RELEASE 流水线插件包开发说明书（给开发者和 AI）
 
 本模板做的是**流水线步骤**，不是 AI 技能。
 用户在编排器里拖一个步骤 → 构建机下载本 zip → 在插件目录执行 entrypoint。
@@ -666,7 +666,7 @@ hello-echo-1.0.0.zip
 ├── task.py            # 与 entrypoint 一致
 ├── sign.py            # 第三方上传前必须用它签名
 ├── manifest.sig       # sign.py 写入，Ed25519 JSON
-└── qxci_atom_sdk/     # Python 必带，平台模板已放好，不要删
+└── release_atom_sdk/     # Python 必带，平台模板已放好，不要删
 ```
 
 不要外套 `hello-echo/` 这一层。解压后第一层就是 task.json。
@@ -713,17 +713,17 @@ Windows 构建机会把入口里的 python3 换成 python。
 
 | 环境变量 | 含义 |
 |----------|------|
-| QXCI_WORKSPACE | 流水线工作区 |
-| QXCI_SRC | 代码目录，通常是工作区下的 src |
-| QXCI_ATOM_INPUT_JSON | 步骤 with 的 JSON 字符串 |
-| QXCI_PIPELINE_ID | 流水线 ID |
-| QXCI_BUILD_ID | 构建任务 ID |
-| QXCI_RELEASE_ID | 发布 ID |
-| QXCI_SERVER_URL | 平台地址 |
-| QXCI_TASK_TOKEN | **仅当前任务**有效的回调凭证，放请求头 X-Task-Token |
+| RELEASE_WORKSPACE | 流水线工作区 |
+| RELEASE_SRC | 代码目录，通常是工作区下的 src |
+| RELEASE_ATOM_INPUT_JSON | 步骤 with 的 JSON 字符串 |
+| RELEASE_PIPELINE_ID | 流水线 ID |
+| RELEASE_BUILD_ID | 构建任务 ID |
+| RELEASE_RELEASE_ID | 发布 ID |
+| RELEASE_SERVER_URL | 平台地址 |
+| RELEASE_TASK_TOKEN | **仅当前任务**有效的回调凭证，放请求头 X-Task-Token |
 
 读入参请用 SDK：`inp = sdk.get_input()`，不要自己 parse 一半环境变量。
-需要碰仓库文件时用 `sdk.get_workspace()` 或环境变量 QXCI_SRC。
+需要碰仓库文件时用 `sdk.get_workspace()` 或环境变量 RELEASE_SRC。
 
 禁止使用构建机长期 Token。老接口 get_agent_token() 不要在新插件里用。
 
@@ -731,7 +731,7 @@ Windows 构建机会把入口里的 python3 换成 python。
 
 - 进程退出码 0 = 步骤成功；非 0 = 步骤失败，Job 终止。
 - 日志打 stdout/stderr，建议前缀 [INFO]: [ERROR]:
-- 结构化输出（推荐）用 SDK set_output，或写 QXCI_WORKSPACE/.qxci_atom_output.json
+- 结构化输出（推荐）用 SDK set_output，或写 RELEASE_WORKSPACE/.release_atom_output.json
 - 也可以打一行 `##[set-output]key=value`
 
 ## 5. 改这个模板时你最小要动哪些地方
@@ -740,7 +740,7 @@ Windows 构建机会把入口里的 python3 换成 python。
 2. task.py 里读取的 inp["..."] 键，必须和 fields.key 一致
 3. 打包前按 CHECKLIST.md 勾完
 
-不要改 qxci_atom_sdk 目录里的文件。
+不要改 release_atom_sdk 目录里的文件。
 
 ## 6. 打包与签名
 
@@ -773,7 +773,7 @@ PLUGIN_CHECKLIST = """# 流水线插件提交检查清单
 - [ ] entrypoint 与包内脚本文件名一致
 - [ ] language 与入口命令匹配
 - [ ] config_schema.fields.key 和 task.py 读取的 inp 键一致
-- [ ] 用 SDK 读输入、写输出，没有改 qxci_atom_sdk
+- [ ] 用 SDK 读输入、写输出，没有改 release_atom_sdk
 - [ ] 退出码 0 表示成功
 - [ ] 没有把密钥写进源码
 - [ ] 第三方包根目录有 manifest.sig（用本目录 sign.py 生成）
@@ -804,12 +804,12 @@ PLUGIN_TASK_JSON = {
 }
 
 PLUGIN_TASK_PY = '''# -*- coding: utf-8 -*-
-"""流水线步骤入口。cwd 是插件解压目录，仓库代码在 QXCI_SRC。"""
+"""流水线步骤入口。cwd 是插件解压目录，仓库代码在 RELEASE_SRC。"""
 from __future__ import annotations
 
 import sys
 
-import qxci_atom_sdk as sdk
+import release_atom_sdk as sdk
 
 
 def main() -> int:
@@ -855,7 +855,7 @@ def _add_plugin_sdk(files: dict[str, str | bytes]) -> None:
         return
     for path in _PLUGIN_SDK.rglob("*"):
         if path.is_file() and path.suffix == ".py":
-            relative = Path("qxci_atom_sdk") / path.relative_to(_PLUGIN_SDK)
+            relative = Path("release_atom_sdk") / path.relative_to(_PLUGIN_SDK)
             files[relative.as_posix()] = path.read_bytes()
 
 

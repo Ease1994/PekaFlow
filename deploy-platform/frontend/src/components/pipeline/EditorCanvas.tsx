@@ -225,7 +225,7 @@ function makeEdge(source: string, target: string): Edge {
     updatable: false,
     deletable: true,
     focusable: true,
-    className: 'qxci-seq-edge',
+    className: 'rp-seq-edge',
     interactionWidth: 24,
     style: { stroke: '#cbd5e1', strokeWidth: 2 },
   }
@@ -357,7 +357,7 @@ function CanvasBoard({
 
   return (
     <ReactFlow
-      className="qxci-flow"
+      className="rp-flow"
       nodes={nodes}
       edges={edges}
       nodeTypes={nodeTypes}
@@ -473,7 +473,7 @@ export default function EditorCanvas({
   }
 
   return (
-    <div className="qxci-flow" style={{ width: '100%', height: '100%', background: '#f3f5f8' }}>
+    <div className="rp-flow" style={{ width: '100%', height: '100%', background: '#f3f5f8' }}>
       <ReactFlowProvider>
         <CanvasBoard
           graph={graph}
@@ -502,7 +502,7 @@ function HoverPlus({
   return (
     <button
       type="button"
-      className="nodrag nopan qxci-hover-plus"
+      className="nodrag nopan rp-hover-plus"
       title={title}
       style={style}
       onMouseDown={(e) => e.stopPropagation()}
@@ -540,7 +540,7 @@ function PlusSourceHandle({
     <Handle
       type="source"
       position={Position.Right}
-      className="nodrag nopan qxci-plus-handle"
+      className="nodrag nopan rp-plus-handle"
       title={title}
       style={{ width: 32, height: 32, pointerEvents: 'all' }}
       onPointerDownCapture={(e) => {
@@ -566,7 +566,7 @@ function PlusSourceHandle({
         onAdd()
       }}
     >
-      <PlusOutlined className="qxci-plus-handle-icon" />
+      <PlusOutlined className="rp-plus-handle-icon" />
     </Handle>
   )
 }
@@ -615,7 +615,7 @@ function EditorStageNode({ data }: { data: EditorNodeData }) {
       }}
     >
       <div
-        className="qxci-editor-node"
+        className="rp-editor-node"
         style={{
           width: STAGE_W - 8,
           padding: '10px 12px',
@@ -652,7 +652,7 @@ function EditorJobNode({ data }: { data: EditorNodeData }) {
       }}
     >
       <div
-        className="qxci-editor-node"
+        className="rp-editor-node"
         style={{
           width: 120,
           padding: '8px 10px',
@@ -662,7 +662,7 @@ function EditorJobNode({ data }: { data: EditorNodeData }) {
           color: '#fff',
         }}
       >
-        <Handle type="target" position={Position.Left} className="qxci-target-handle" />
+        <Handle type="target" position={Position.Left} className="rp-target-handle" />
         <div style={{ fontSize: 11, color: '#93c5fd' }}>{job.id}</div>
         <div
           style={{
@@ -716,7 +716,7 @@ function EditorStepNode({ data }: { data: EditorNodeData }) {
       }}
     >
       <div
-        className="qxci-editor-node"
+        className="rp-editor-node"
         style={{
           width: NODE_W,
           background: '#fff',
@@ -728,7 +728,7 @@ function EditorStepNode({ data }: { data: EditorNodeData }) {
           overflow: 'visible',
         }}
       >
-        <Handle type="target" position={Position.Left} className="qxci-target-handle" />
+        <Handle type="target" position={Position.Left} className="rp-target-handle" />
         <div style={{ height: 4, background: '#1677ff', borderRadius: '12px 12px 0 0' }} />
         <div style={{ padding: '10px 12px 12px', display: 'flex', gap: 8, alignItems: 'flex-start' }}>
           <span style={{ fontSize: 16 }}>{step.icon || '🔧'}</span>

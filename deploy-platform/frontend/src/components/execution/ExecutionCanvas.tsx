@@ -223,7 +223,7 @@ function CanvasBoard({
   return (
     <div ref={wrapRef} style={{ width: '100%', height: '100%' }}>
       <ReactFlow
-        className="qxci-flow"
+        className="rp-flow"
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
@@ -286,7 +286,7 @@ export default function ExecutionCanvas({
     [sequence, selected, onSelect],
   )
   return (
-    <div className="qxci-flow" style={{ flex: 1, minWidth: 0, height: '100%', background: '#f3f5f8' }}>
+    <div className="rp-flow" style={{ flex: 1, minWidth: 0, height: '100%', background: '#f3f5f8' }}>
       <ReactFlowProvider>
         <CanvasBoard incomingNodes={nodes} incomingEdges={edges} onSelect={onSelect} onDeselect={onDeselect} />
       </ReactFlowProvider>

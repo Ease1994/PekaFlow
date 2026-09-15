@@ -1,4 +1,4 @@
-"""把 plugins/sdk/python/qxci_atom_sdk 同步到各个 Python 插件目录。
+"""把 plugins/sdk/python/release_atom_sdk 同步到各个 Python 插件目录。
 
 插件包是独立下发到构建机的，运行时没有共享依赖，所以每个插件目录都得自带一份 SDK。
 手工复制迟早漏掉某个插件，改完 SDK 后一半插件是新的一半是旧的，排查起来极费劲。
@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent / "plugins"
-SRC = ROOT / "sdk" / "python" / "qxci_atom_sdk"
+SRC = ROOT / "sdk" / "python" / "release_atom_sdk"
 SKIP = {"sdk", "examples"}
 
 
@@ -30,7 +30,7 @@ def main() -> int:
         if not (plugin / "task.py").is_file():
             skipped.append(plugin.name)
             continue
-        dest = plugin / "qxci_atom_sdk"
+        dest = plugin / "release_atom_sdk"
         if dest.exists():
             shutil.rmtree(dest)
         shutil.copytree(SRC, dest, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))

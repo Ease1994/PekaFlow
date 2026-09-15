@@ -97,10 +97,10 @@ export default function CatalogTransferButtons({
         return
       }
       const name = pipelineIds?.length
-        ? `qxci-pipelines-${stamp()}.json`
+        ? `rp-pipelines-${stamp()}.json`
         : projectId
-          ? `qxci-project-${stamp()}.json`
-          : `qxci-catalog-${stamp()}.json`
+          ? `rp-project-${stamp()}.json`
+          : `rp-catalog-${stamp()}.json`
       downloadJson(name, data)
       message.success('已开始下载导出文件')
     } finally {

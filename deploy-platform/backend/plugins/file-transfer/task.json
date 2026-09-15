@@ -31,8 +31,8 @@
         "label": "备份根目录",
         "type": "text",
         "default": "",
-        "placeholder": "/var/qxci/backup  或  D:\\backup",
-        "help": "节点会在这个根下自动建 项目名/流水线名/日期时间/，只备份本次会被覆盖的文件。请留空，用安装节点时定下的备份根。Linux：安装目录第一层下的 qxci-backup；Windows：站点盘上的 qxci-backup。不要填在「允许操作的目录」里面。"
+        "placeholder": "/var/release/backup  或  D:\\backup",
+        "help": "节点会在这个根下自动建 项目名/流水线名/日期时间/，只备份本次会被覆盖的文件。请留空，用安装节点时定下的备份根。Linux：安装目录第一层下的 release-backup；Windows：站点盘上的 release-backup。不要填在「允许操作的目录」里面。"
       },
       {
         "key": "keepBackups",

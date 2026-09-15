@@ -48,7 +48,7 @@ def _authed(
 def download_plugin_template(_: CurrentUser = Depends(get_current_user)):
     from app.modules.harness import templates
 
-    return templates.download("qxci-pipeline-plugin-template.zip", templates.plugin_package())
+    return templates.download("rp-pipeline-plugin-template.zip", templates.plugin_package())
 
 
 @router.get("/store/plugins", summary="插件列表")

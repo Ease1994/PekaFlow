@@ -14,21 +14,21 @@ from tests.test_harness_isolation import _memory_db
 def test_builtin_playbooks_cover_the_jobs() -> None:
     names = {item.name for item in all_playbooks()}
     assert names == {
-        "qxci-catalog",
-        "qxci-release",
-        "qxci-release-control",
-        "qxci-access",
-        "qxci-node-push",
-        "qxci-observe",
-        "qxci-diagnose",
-        "qxci-inbox",
-        "qxci-approve",
-        "qxci-pm",
-        "qxci-agent-skill",
-        "qxci-plugin-draft",
-        "qxci-skill-lifecycle",
+        "rp-catalog",
+        "rp-release",
+        "rp-release-control",
+        "rp-access",
+        "rp-node-push",
+        "rp-observe",
+        "rp-diagnose",
+        "rp-inbox",
+        "rp-approve",
+        "rp-pm",
+        "rp-agent-skill",
+        "rp-plugin-draft",
+        "rp-skill-lifecycle",
     }
-    release = get("qxci-release")
+    release = get("rp-release")
     assert release is not None
     assert "propose_release" in release.body
     assert "apply_pipeline_execute" in release.body
@@ -43,11 +43,11 @@ def test_system_prompt_is_index_not_playbook_body() -> None:
     with _memory_db() as db:
         prompt = skills.system_prompt(db)
     assert "<available_skills>" in prompt
-    assert "`qxci-release`" in prompt
+    assert "`rp-release`" in prompt
     assert "没有滚动 / 蓝绿 / 灰度可选" not in prompt
-    loaded = skills.load_for_model(db, "qxci-release")
+    loaded = skills.load_for_model(db, "rp-release")
     assert "没有滚动 / 蓝绿 / 灰度可选" in loaded["skill_content"]
-    assert loaded["skill_content"].startswith("<skill_content name=\"qxci-release\">")
+    assert loaded["skill_content"].startswith("<skill_content name=\"rp-release\">")
 
 
 def test_assemble_system_drops_the_old_intent_essay(monkeypatch) -> None:
@@ -56,7 +56,7 @@ def test_assemble_system_drops_the_old_intent_essay(monkeypatch) -> None:
         text = assemble_system(db, SimpleNamespace(id=1), {})
     assert "不要理解成申请权限" not in text
     assert "skill({name})" in text
-    assert "`qxci-release`" in text
+    assert "`rp-release`" in text
     assert "没有滚动 / 蓝绿 / 灰度可选" not in text
     assert "向用户确认后使用" not in text
 
@@ -83,12 +83,12 @@ def test_matching_turn_inlines_skill_then_skips_reload(monkeypatch) -> None:
         )
         entries = entries_for_turn(db, message="把订单服务发到测试")
     loaded = {item["name"] for item in entries if item.get("inlined")}
-    assert "qxci-release" in loaded
+    assert "rp-release" in loaded
     assert "propose_release" in text
     assert "已加载" in text
-    skipped = _skip_already_loaded_skill("skill", {"name": "qxci-release"}, loaded)
+    skipped = _skip_already_loaded_skill("skill", {"name": "rp-release"}, loaded)
     assert "已在系统提示中加载" in skipped
-    assert not _skip_already_loaded_skill("skill", {"name": "qxci-inbox"}, loaded)
+    assert not _skip_already_loaded_skill("skill", {"name": "rp-inbox"}, loaded)
 
 
 def test_skill_tool_is_in_the_model_catalog() -> None:
@@ -97,7 +97,7 @@ def test_skill_tool_is_in_the_model_catalog() -> None:
         names = [item["function"]["name"] for item in tools.openai_tools(db)]
     assert "skill" in names
     assert names[0] == "skill"
-    loaded = tools.dispatch(db, "skill", {"name": "qxci-release"}, SimpleNamespace(id=1))
+    loaded = tools.dispatch(db, "skill", {"name": "rp-release"}, SimpleNamespace(id=1))
     assert "skill_content" in loaded
     assert "propose_release" in loaded["skill_content"]
     missing = tools.dispatch(db, "skill", {"name": "no-such-skill"}, SimpleNamespace(id=1))
@@ -108,19 +108,19 @@ def test_skill_tool_result_caps_giant_body() -> None:
     from app.modules.ai.budget import SKILL_RESULT_MAX_TOKENS, estimate_tokens
 
     small = "hello playbook"
-    rendered = skills.render_skill_content("qxci-release", small, provider="builtin")
+    rendered = skills.render_skill_content("rp-release", small, provider="builtin")
     text = tool_result_for_model(
         "skill",
-        {"name": "qxci-release", "content": small, "skill_content": rendered},
+        {"name": "rp-release", "content": small, "skill_content": rendered},
         max_tokens=200,
     )
     assert small in text
 
     body = "正文" * 8000
-    rendered = skills.render_skill_content("qxci-release", body, provider="builtin")
+    rendered = skills.render_skill_content("rp-release", body, provider="builtin")
     text = tool_result_for_model(
         "skill",
-        {"name": "qxci-release", "content": body, "skill_content": rendered},
+        {"name": "rp-release", "content": body, "skill_content": rendered},
     )
     assert estimate_tokens(text) <= SKILL_RESULT_MAX_TOKENS + 80
     assert "正文" in text

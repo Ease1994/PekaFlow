@@ -101,7 +101,7 @@ def test_playbook_named_tools_exist() -> None:
         for token in _TOOL_TOKEN.findall(playbook.body):
             if token in known:
                 continue
-            if token.startswith(("qxci-", "list_", "get_", "propose_", "apply_", "lint_", "cancel_", "pm_", "diagnose_")):
+            if token.startswith(("rp-", "list_", "get_", "propose_", "apply_", "lint_", "cancel_", "pm_", "diagnose_")):
                 invented.append(f"{playbook.name}: `{token}`")
     assert not invented, "说明书点名了不存在的工具：\n" + "\n".join(invented)
 

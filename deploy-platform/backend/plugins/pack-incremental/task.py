@@ -15,7 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import qxci_atom_sdk as sdk  # noqa: E402
+import release_atom_sdk as sdk  # noqa: E402
 from manifest import ManifestError, collect  # noqa: E402
 
 PACKAGE_TYPE = "iis-package"
@@ -172,7 +172,7 @@ def main() -> int:
         return 0
 
     version = _safe_version(str(inp.get("version") or sdk.get_release_id() or ""))
-    dest = workspace / "_qxci_pack" / f"incremental-{version}.zip"
+    dest = workspace / "_release_pack" / f"incremental-{version}.zip"
     _build_zip(root, files, dest)
     sdk.log.info(f"已打包：{dest.name}（{dest.stat().st_size / 1024:.1f} KB）")
 

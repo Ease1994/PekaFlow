@@ -36,7 +36,7 @@ iwr http://平台地址:8080/api/v1/agents/install-script?role=node -OutFile ins
 脚本会停掉旧进程、下载 jar、生成启动器并拉起。升级时重跑同样的命令即可。
 
 平台地址在下载脚本时就烤进去了，不用再传 `-Server`。接入凭证在节点管理页复制，
-用于下载 jar 和首次注册；注册后凭据落在 `%USERPROFILE%\.qx-agent\enrolled\`，
+用于下载 jar 和首次注册；注册后凭据落在 `%USERPROFILE%\.release-agent\enrolled\`，
 Agent 之后靠它自己续期。**装节点不需要平台管理员密码**——生产服务器上不该出现它。
 
 前置条件：
@@ -46,7 +46,7 @@ Agent 之后靠它自己续期。**装节点不需要平台管理员密码**—�
 - `-AllowPaths` 是这台机器的安全边界：节点只会在这些目录里写文件，其它路径一律拒绝。
   多个目录用逗号分隔。**只填站点根目录**——脚本会拒绝盘符根目录，也会校验目录是否真的存在。
 
-装完后机器重启需要手动拉起 `%USERPROFILE%\qxci-node\start-node.cmd`（同样要管理员身份）。
+装完后机器重启需要手动拉起 `%USERPROFILE%\rp-node\start-node.cmd`（同样要管理员身份）。
 想开机自启，用 nssm 之类的工具把它注册成 Windows 服务（服务默认以 SYSTEM 运行，权限足够）。
 
 不想用脚本的话，节点管理页的安装弹窗切到「手动命令」能拿到等价的 java 命令。

@@ -16,7 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import qxci_atom_sdk as sdk  # noqa: E402
+import release_atom_sdk as sdk  # noqa: E402
 
 # 每个 goal 参数只允许 Maven 认的形态，避免 `package; rm` 进 argv。
 _GOAL_TOKEN = re.compile(r"^(?:[A-Za-z0-9][A-Za-z0-9._:-]*|-[A-Za-z][A-Za-z0-9._=-]*)$")

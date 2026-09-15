@@ -245,7 +245,7 @@ def test_sln_for_nuget_restore_writes_sibling(tmp_path: Path):
     target, tmp = mod._sln_for_nuget_restore(sln)
     assert tmp is not None
     assert target.parent == sln.parent
-    assert target.name.endswith(".qxci-restore.sln")
+    assert target.name.endswith(".release-restore.sln")
     assert "NuGet.exe" not in target.read_text(encoding="utf-8")
     tmp.unlink()
     plain = tmp_path / "plain.sln"

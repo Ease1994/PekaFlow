@@ -7,26 +7,26 @@
     .\install-agent.ps1 -EnrollToken <接入凭证>
 
   -EnrollToken  接入凭证，平台「构建机 → 新增构建机」页面复制。jar 下载和首次注册都用它，
-                之后凭据落在 C:\ProgramData\qxci-agent\builder\enrolled\，重跑不用再带。
+                之后凭据落在 C:\ProgramData\release-agent\builder\enrolled\，重跑不用再带。
   -Server       平台地址。从平台下载本脚本时已自动填好，一般不用管。
   -Workspace    工作空间目录，拉代码和编译产物都放这儿，很吃磁盘。
-                默认在安装目录下（C 盘），C 盘紧张时务必指到数据盘，如 -Workspace D:\qxci-workspace。
+                默认在安装目录下（C 盘），C 盘紧张时务必指到数据盘，如 -Workspace D:\rp-workspace。
 
-装完会注册一个名为 QXCI-Build-Agent 的计划任务：开机自动拉起，进程挂了 2 分钟内自愈。
+装完会注册一个名为 RELEASE-Build-Agent 的计划任务：开机自动拉起，进程挂了 2 分钟内自愈。
 平台发布新版 jar 后，构建机会在空闲时（没有任务在跑）自动升级，不用再挨台机器重装。
 #>
 [CmdletBinding()]
 param(
-    [string]   $Server      = '__QXCI_SERVER__',
+    [string]   $Server      = '__RELEASE_SERVER__',
     [string]   $Name        = $env:COMPUTERNAME,
     [string[]] $Tags        = @(),          # 留空则由 Agent 按当前系统自动打标签
     # 环境码：prod / test / uat / staging / dev，或自定义小写码。
     # 决定这台能构建哪种环境的流水线。只在首次接入时生效，之后以页面为准
     [string]   $Env         = 'prod',
     [int]      $Concurrency = 8,
-    [string]   $WorkDir     = (Join-Path $env:USERPROFILE 'qxci-agent'),
+    [string]   $WorkDir     = (Join-Path $env:USERPROFILE 'release-agent'),
     [string]   $Workspace   = '',       # 留空则用安装目录下的 workspace
-    [string]   $EnrollToken = $env:QXCI_ENROLL_TOKEN
+    [string]   $EnrollToken = $env:RELEASE_ENROLL_TOKEN
 )
 
 $ErrorActionPreference = 'Stop'
@@ -44,7 +44,7 @@ if ($Server -notmatch '^https?://.+') { throw "平台地址不对：$Server" }
 
 # 与 Agent 的 Config.credentialFile() 保持一致：判断这台机器是否已登记过
 $credKey  = ($Server + '|' + $Name) -replace '[^A-Za-z0-9._-]', '_'
-$credFile = Join-Path $env:USERPROFILE ".qx-agent\enrolled\$credKey.token"
+$credFile = Join-Path $env:USERPROFILE ".release-agent\enrolled\$credKey.token"
 $enrolled = Test-Path $credFile
 
 Write-Host "==> 构建机 $Name -> $Server"
@@ -89,7 +89,7 @@ Set-Location -LiteralPath $WorkDir
 
 Write-Host '[1/5] 停掉旧 agent'
 # 先停守护，否则我们刚杀掉旧进程它就用旧配置给拉回来了
-Disable-ScheduledTask -TaskName 'QXCI-Build-Agent' -ErrorAction SilentlyContinue | Out-Null
+Disable-ScheduledTask -TaskName 'RELEASE-Build-Agent' -ErrorAction SilentlyContinue | Out-Null
 Get-CimInstance Win32_Process -Filter "Name='java.exe' OR Name='javaw.exe'" |
     Where-Object { $_.CommandLine -like '*deploy-agent*' } |
     ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
@@ -127,7 +127,7 @@ Remove-Item deploy-agent.jar.new, deploy-agent.jar.bak, deploy-agent.upgrade-att
 Write-Host '[3/5] 生成启动器与守护脚本'
 # --home 必须显式指定：守护进程拉起时的账户可能和现在不同，user.home 一变
 # 登记凭据就找不着了，Agent 会退化成每次都要接入凭证
-$agentHome = 'C:\ProgramData\qxci-agent\builder'
+$agentHome = 'C:\ProgramData\release-agent\builder'
 New-Item -ItemType Directory -Force -Path $agentHome | Out-Null
 # --role builder 显式写出来，守护脚本靠它认自己的进程（节点用 --role node）
 $agentArgs = "-jar deploy-agent.jar --server $Server --name `"$Name`" --role builder --env $Env" `
@@ -148,7 +148,7 @@ try {
     $free = (Get-PSDrive -Name $wsDrive[0] -ErrorAction Stop).Free / 1GB
     Write-Host ("      工作空间 {0}（{1} 剩余 {2:N1} GB）" -f $Workspace, $wsDrive, $free)
     if ($free -lt 20) {
-        Write-Warning "工作空间所在盘剩余不足 20 GB，建议重跑并加 -Workspace D:\qxci-workspace 指到数据盘"
+        Write-Warning "工作空间所在盘剩余不足 20 GB，建议重跑并加 -Workspace D:\rp-workspace 指到数据盘"
     }
 } catch {
     Write-Host "      工作空间 $Workspace"
@@ -158,7 +158,7 @@ if ($enrolled) {
     Write-Host '      本机已登记过，Agent 会用本地凭据续期'
 }
 # 走环境变量传给子进程，凭证就不会落进 start-agent.cmd
-$env:QXCI_ENROLL_TOKEN = $EnrollToken
+$env:RELEASE_ENROLL_TOKEN = $EnrollToken
 
 # 启动器：注释保持纯 ASCII —— cmd 按控制台代码页解析，中文注释里的字节会被当成管道符；
 # 机器名可能含中文，所以按 OEM（控制台代码页）落盘，名字本身在引号里是安全的
@@ -169,7 +169,7 @@ cd /d "%~dp0"
 rem javaw detaches from the console, so closing the window won't kill the agent.
 rem The absolute path is baked in at install time on purpose: resolving it via PATH
 rem breaks under the scheduled-task account and on boxes with stale Oracle javapath links.
-start "qxci-agent" /b "$javawExe" $agentArgs >> agent.log 2>&1
+start "release-agent" /b "$javawExe" $agentArgs >> agent.log 2>&1
 "@ | Set-Content -Path $launcher -Encoding OEM
 
 # 守护脚本：计划任务反复调用它，所以必须幂等。它还负责升级时的换包和日志滚动
@@ -273,7 +273,7 @@ Write-Host '[4/5] 注册守护（开机自启 + 掉线自愈）'
 # 用系统自带的计划任务，不引入 nssm 之类的额外二进制。
 # 构建机优先用当前账户跑（S4U 不需要存密码）：编译工具链常依赖用户级的 PATH、
 # npm/nuget 缓存和 git 配置，换成 SYSTEM 容易出现"手动能编、自动编不了"。
-$taskName = 'QXCI-Build-Agent'
+$taskName = 'RELEASE-Build-Agent'
 $me = [Security.Principal.WindowsIdentity]::GetCurrent().Name
 $registered = $false
 try {

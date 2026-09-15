@@ -19,7 +19,7 @@ PLUGINS = Path(__file__).resolve().parents[1] / "plugins"
 def _load(plugin: str, module: str = "task"):
     """按文件路径加载插件模块。
 
-    各插件目录里都内嵌了一份 qxci_atom_sdk，import 时要让插件目录在 sys.path 上；
+    各插件目录里都内嵌了一份 release_atom_sdk，import 时要让插件目录在 sys.path 上；
     模块名带上插件名，避免几个插件的 task.py 在 sys.modules 里互相覆盖。
     """
     root = PLUGINS / plugin
@@ -28,7 +28,7 @@ def _load(plugin: str, module: str = "task"):
         pytest.skip(f"插件不存在：{path}")
     sys.path.insert(0, str(root))
     try:
-        name = f"qxci_{plugin.replace('-', '_')}_{module}"
+        name = f"release_{plugin.replace('-', '_')}_{module}"
         spec = importlib.util.spec_from_file_location(name, path)
         assert spec is not None and spec.loader is not None
         mod = importlib.util.module_from_spec(spec)
@@ -422,7 +422,7 @@ def test_python_exec_rejects_escape_and_writes_inline(tmp_path):
         task.resolve_script(ws, str(Path("/etc/passwd")), "")
 
     written = task.resolve_script(ws, "", "print('hi')")
-    assert written == (ws / "_qxci_python_exec.py").resolve()
+    assert written == (ws / "_release_python_exec.py").resolve()
     assert written.read_text(encoding="utf-8") == "print('hi')"
 
 

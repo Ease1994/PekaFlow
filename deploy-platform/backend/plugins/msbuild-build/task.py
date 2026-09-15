@@ -15,7 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import qxci_atom_sdk as sdk  # noqa: E402
+import release_atom_sdk as sdk  # noqa: E402
 
 # 从新到旧探测：优先用机器上最新的 MSBuild，最后兜底到 .NET Framework 自带的
 VSWHERE = r"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
@@ -173,7 +173,7 @@ def _sln_for_nuget_restore(solution: Path) -> tuple[Path, Path | None]:
     filtered = _filtered_sln_text(text)
     if not filtered:
         return solution, None
-    tmp = solution.with_name(solution.stem + ".qxci-restore.sln")
+    tmp = solution.with_name(solution.stem + ".release-restore.sln")
     tmp.write_text(filtered, encoding="utf-8")
     return tmp, tmp
 

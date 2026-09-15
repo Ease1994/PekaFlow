@@ -31,7 +31,7 @@ export default function ResizableTitle({ width, onResize, children, style, ...re
     }
     const onUp = () => {
       dragging.current = false
-      document.body.classList.remove('qxci-col-resizing')
+      document.body.classList.remove('rp-col-resizing')
       document.body.style.userSelect = ''
     }
     document.addEventListener('mousemove', onMove)
@@ -39,7 +39,7 @@ export default function ResizableTitle({ width, onResize, children, style, ...re
     return () => {
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup', onUp)
-      document.body.classList.remove('qxci-col-resizing')
+      document.body.classList.remove('rp-col-resizing')
     }
   }, [onResize])
 
@@ -58,7 +58,7 @@ export default function ResizableTitle({ width, onResize, children, style, ...re
         role="separator"
         aria-orientation="vertical"
         aria-label="拖动调整列宽"
-        className="qxci-col-resize-handle"
+        className="rp-col-resize-handle"
         style={HANDLE}
         onClick={(e) => e.stopPropagation()}
         onMouseDown={(e) => {
@@ -67,7 +67,7 @@ export default function ResizableTitle({ width, onResize, children, style, ...re
           dragging.current = true
           startX.current = e.clientX
           startW.current = width || thRef.current?.offsetWidth || 120
-          document.body.classList.add('qxci-col-resizing')
+          document.body.classList.add('rp-col-resizing')
           document.body.style.userSelect = 'none'
         }}
       />

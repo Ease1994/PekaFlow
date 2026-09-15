@@ -908,13 +908,13 @@ export default function AssistantPage() {
   const user = useAuthStore((s) => s.user)
   const welcome: ChatMessage = {
     role: 'assistant',
-    content: `你好${user?.display_name ? `，${user.display_name}` : ''}！我是 qxci 发布助手。\n会话会记住你正在做的事。申请执行权时直接说流水线名称或「第N个」，我会马上提交。`,
+    content: `你好${user?.display_name ? `，${user.display_name}` : ''}！我是 release 发布助手。\n会话会记住你正在做的事。申请执行权时直接说流水线名称或「第N个」，我会马上提交。`,
   }
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     const name = useAuthStore.getState().user?.display_name
     const boot: ChatMessage = {
       role: 'assistant',
-      content: `你好${name ? `，${name}` : ''}！我是 qxci 发布助手。\n会话会记住你正在做的事。申请执行权时直接说流水线名称或「第N个」，我会马上提交。`,
+      content: `你好${name ? `，${name}` : ''}！我是 release 发布助手。\n会话会记住你正在做的事。申请执行权时直接说流水线名称或「第N个」，我会马上提交。`,
     }
     return restoreTranscript(readStoredSessionId(), boot)
   })

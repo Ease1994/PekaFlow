@@ -62,7 +62,7 @@ def test_export_includes_empty_project() -> None:
     db = _db()
     proj, _, _ = _project(db)
     bundle = export_catalog(db, ADMIN, project_ids=[proj.id])
-    assert bundle["format"] == "qxci-catalog"
+    assert bundle["format"] == "rp-catalog"
     assert bundle["projects"][0]["code"] == "B2C"
     assert bundle["projects"][0]["pipelines"] == []
     assert [g["name"] for g in bundle["projects"][0]["groups"]] == ["生产", "测试"]

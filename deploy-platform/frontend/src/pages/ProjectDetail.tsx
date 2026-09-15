@@ -1209,7 +1209,7 @@ export default function ProjectDetail() {
               </span>
             }
             placeholder="选择项目"
-            className="qxci-project-switch"
+            className="rp-project-switch"
             style={{ minWidth: isMobile ? 0 : 280, width: isMobile ? '100%' : undefined, maxWidth: '100%', fontWeight: 600, fontSize: 16, cursor: 'pointer' }}
             dropdownStyle={{ minWidth: isMobile ? undefined : 320 }}
           />
@@ -1374,7 +1374,7 @@ export default function ProjectDetail() {
               size={tableSize}
               columns={pipelineColumns}
               dataSource={visiblePipelines}
-              rootClassName="qxci-table"
+              rootClassName="rp-table"
               components={{ header: { cell: ResizableTitle } }}
               rowSelection={{
                 selectedRowKeys: selectedIds,

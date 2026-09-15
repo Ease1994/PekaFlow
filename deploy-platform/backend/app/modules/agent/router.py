@@ -519,7 +519,7 @@ def download_install_script(
 
     server = public_platform_url(request, db)
     if server:
-        content = content.replace("__QXCI_SERVER__", server)
+        content = content.replace("__RELEASE_SERVER__", server)
 
     if filename.endswith(".ps1"):
         # PowerShell 5.1 不认无 BOM 的 UTF-8，中文注释会被按 GBK 解析成语法错误

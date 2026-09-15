@@ -25,7 +25,7 @@ import SystemHealthBar from '@/components/SystemHealthBar'
 import AdminEmailGate from '@/components/AdminEmailGate'
 
 const { Sider, Header, Content } = Layout
-const SIDER_COLLAPSE_KEY = 'qxci-sider-collapsed'
+const SIDER_COLLAPSE_KEY = 'rp-sider-collapsed'
 
 export default function MainLayout() {
   const navigate = useNavigate()
@@ -161,11 +161,11 @@ export default function MainLayout() {
       )}
 
       <Layout>
-        <Header className="qxci-header">
+        <Header className="rp-header">
           {isMobile && (
             <Button
               type="text"
-              className="qxci-header-menu"
+              className="rp-header-menu"
               icon={<MenuOutlined />}
               aria-label="打开菜单"
               onClick={() => setMenuOpen(true)}
@@ -230,7 +230,7 @@ export default function MainLayout() {
           </Space>
         </Header>
 
-        <Content className="qxci-content">
+        <Content className="rp-content">
           <Outlet />
         </Content>
       </Layout>

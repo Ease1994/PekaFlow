@@ -2,7 +2,7 @@
 
 对话正文、工具续聊、会话生命周期是数据，走 MySQL。
 步骤/请求上下文/工具流水是日志：ES 挂了丢这一条，聊天照常跑。
-索引前缀固定 qxci-ai-logs，不和构建日志 qxci-build-logs 混在一起。
+索引前缀固定 release-ai-logs，不和构建日志 release-build-logs 混在一起。
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from app.modules.agent.log_store import LogStore, NullLogStore, _build_es_store
 
 logger = logging.getLogger(__name__)
 
-AI_LOG_INDEX = "qxci-ai-logs"
+AI_LOG_INDEX = "release-ai-logs"
 
 _store_lock = threading.Lock()
 _cached_store: LogStore | None = None

@@ -27,7 +27,7 @@ def test_create_log_store_never_uses_mysql_or_memory() -> None:
         lambda: {
             "log_storage": "mysql",
             "es_hosts": "http://127.0.0.1:1",
-            "es_index": "qxci-build-logs",
+            "es_index": "release-build-logs",
         },
     )
     name = store.name().lower()
@@ -41,7 +41,7 @@ def test_create_log_store_never_uses_mysql_or_memory() -> None:
 def test_es_build_never_raises_or_writes_mysql() -> None:
     from app.modules.agent.log_store import _build_es_store
 
-    store = _build_es_store({"es_hosts": "http://127.0.0.1:1", "es_index": "qxci-build-logs"})
+    store = _build_es_store({"es_hosts": "http://127.0.0.1:1", "es_index": "release-build-logs"})
     store.append_batch(9, ["es-down-must-not-raise"])
     assert store.get(9) == [] or store.name() == "none"
     assert store.name() != "memory"
@@ -171,7 +171,7 @@ def test_get_merges_archive_and_redis_tail() -> None:
     archive = MemoryLogStore()
     archive.append_batch(8, ["old-es"])
     fake = _FakeRedis()
-    fake.xadd("qxci:task:8:logs", {"line": "new-redis"})
+    fake.xadd("release:task:8:logs", {"line": "new-redis"})
     store = RedisStreamLogStore(archive)
     store._try_redis = lambda: fake  # type: ignore[method-assign]
     store._skip_redis_until = 0

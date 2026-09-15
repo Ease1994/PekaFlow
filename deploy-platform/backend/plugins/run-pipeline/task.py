@@ -12,7 +12,7 @@ import time
 import urllib.error
 import urllib.request
 
-import qxci_atom_sdk as sdk
+import release_atom_sdk as sdk
 
 TERMINAL = {"success", "failed", "cancelled", "rolled_back"}
 
@@ -35,13 +35,13 @@ def _auth() -> tuple[str, str]:
     legacy = sdk.get_agent_token()
     if legacy:
         return "X-Agent-Token", legacy
-    raise RuntimeError("缺少 QXCI_TASK_TOKEN，无法调用平台")
+    raise RuntimeError("缺少 RELEASE_TASK_TOKEN，无法调用平台")
 
 
 def _http(method: str, path: str, body: dict | None = None, timeout: int = 30) -> dict:
     server = sdk.get_server_url()
     if not server:
-        raise RuntimeError("缺少 QXCI_SERVER_URL，无法调用平台")
+        raise RuntimeError("缺少 RELEASE_SERVER_URL，无法调用平台")
     header, token = _auth()
     url = server.rstrip("/") + path
     data = None if body is None else json.dumps(body, ensure_ascii=False).encode("utf-8")

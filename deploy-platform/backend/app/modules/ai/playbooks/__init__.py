@@ -1,4 +1,4 @@
-"""内置 Agent 技能：仓库里每份 qxci-*.md 就是一份 SKILL.md。
+"""内置 Agent 技能：仓库里每份 rp-*.md 就是一份 SKILL.md。
 
 对齐 Cursor / Agent Skills：YAML frontmatter 提供 name + description（做什么、何时用、不是什么），
 正文写流程、反例和例子。系统提示只放摘要，正文由 `skill` 工具按需加载。
@@ -55,8 +55,8 @@ def _from_file(path: Path) -> Playbook:
 
 
 def _load() -> tuple[Playbook, ...]:
-    """加载本目录全部 qxci-*.md，按 name 排序，保证目录稳定。"""
-    items = [_from_file(path) for path in sorted(_DIR.glob("qxci-*.md"))]
+    """加载本目录全部 rp-*.md，按 name 排序，保证目录稳定。"""
+    items = [_from_file(path) for path in sorted(_DIR.glob("rp-*.md"))]
     names = [item.name for item in items]
     if len(names) != len(set(names)):
         raise ValueError("内置技能 name 重复：" + "、".join(names))
