@@ -56,14 +56,14 @@ cd deploy-platform
 docker compose up -d --build
 ```
 
-前端 http://localhost:8000 ，API 默认不暴露 `/docs`。
+前端 http://localhost:8000 ，API 默认不暴露 `/docs`。从零装到生产、装构建机 / 节点、HTTPS、备份升级见 [部署文档](deploy-platform/docs/部署文档.md)。
 
 ## 文档
 
 | 文档 | 内容 |
 |------|------|
 | [功能说明书](deploy-platform/docs/功能说明书.md) | 每个模块做什么、亮点；[Word 版](deploy-platform/docs/发布部署平台-功能说明书.docx) |
-| [部署文档](deploy-platform/docs/部署文档.md) | 环境、Compose、生产配置 |
+| [部署文档](deploy-platform/docs/部署文档.md) | 从零安装、Compose、Agent、HTTPS、备份升级 |
 | [开发者手册](docs/开发者手册.md) | 架构对照、模块表、数据库、踩坑 |
 | [贡献指南](CONTRIBUTING.md) | 怎么跑测试、提交约定 |
 | [安全披露](SECURITY.md) | 漏洞请走 GitHub Advisory，不要开公开 Issue |
