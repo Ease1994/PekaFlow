@@ -1,0 +1,173 @@
+# ============================================================
+# 发布部署平台 · 完整部署编排（MySQL + Redis + 后端 + 前端）
+#
+# 一次性启动全部服务：
+#   docker compose up -d --build
+#
+# 服务与端口（默认不把 MySQL / Redis 打到宿主机）：
+#   - mysql     : 仅容器网（库 deploy_platform）
+#   - redis     : 仅容器网（定时触发延迟队列，必须设 REDIS_PASSWORD）
+#   - backend   : 8080
+#   - frontend  : 8000（容器内 Nginx 监听 80，反代 /api 到 backend）
+#
+# 调试要在宿主机连库时用：docker compose -f docker-compose.yml -f docker-compose.debug.yml up -d
+#
+# 首次启动：secrets-init 写密钥 → 后端等 MySQL 就绪后建表、补管理员、写默认配置。
+# JWT_SECRET / AES_KEY / HARNESS_RUNNER_TOKEN / MYSQL_ROOT_PASSWORD / REDIS_PASSWORD / DATABASE_URL
+# 从同级 .env 读入。连接串整段写在 .env，compose 不再拼接。密钥空则首次自动生成；
+# 换机必须带上原来的 JWT/AES，否则库里的凭证解不开。
+# ============================================================
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: deploy-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_DATABASE: deploy_platform
+      TZ: Asia/Shanghai
+    volumes:
+      - mysql-data:/var/lib/mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: deploy-redis
+    restart: always
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+    volumes:
+      - redis-data:/data
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  secrets-init:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: deploy-secrets-init
+    command: ["python", "-m", "app.db.bootstrap"]
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-}
+      AES_KEY: ${AES_KEY:-}
+      HARNESS_RUNNER_TOKEN: ${HARNESS_RUNNER_TOKEN:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+    volumes:
+      - backend-data:/app/data
+    restart: "no"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: deploy-backend
+    restart: always
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      TZ: Asia/Shanghai
+      HARNESS_RUNNER_URL: http://harness-runner:8090
+      HARNESS_RUNNER_TOKEN: ${HARNESS_RUNNER_TOKEN:-}
+      JWT_SECRET: ${JWT_SECRET:-}
+      AES_KEY: ${AES_KEY:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+    volumes:
+      # 制品、上传的插件包、公共安装包（shared-packs/jdk-linux 等）落在这里。不挂卷的话，
+      # 重建一次容器文件就没了；JDK 包没了则装 Linux 节点会 404。
+      - backend-data:/app/data
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        # 只等容器起来，不等 ping。Redis 挂了后端仍要能启动，定时触发/实时日志自行降级。
+        condition: service_started
+      secrets-init:
+        condition: service_completed_successfully
+    ports:
+      - "8080:8080"
+    networks:
+      - default
+      - harness-internal
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8080/api/v1/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  harness-runner:
+    build:
+      context: ./harness-runner
+      dockerfile: Dockerfile
+    container_name: deploy-harness-runner
+    restart: always
+    user: "65532:65532"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    # 只限内存和进程数。不要写 cpus：不少测试机是 cgroup v1 或没挂 cpu 控制器，
+    # runc 会去写 /sys/fs/cgroup/.../cpu.max，容器直接起不来。
+    pids_limit: 64
+    mem_limit: 256m
+    tmpfs:
+      - /tmp:size=128m,mode=1770,uid=65532,gid=65532
+    environment:
+      HARNESS_RUNNER_TOKEN: ${HARNESS_RUNNER_TOKEN:-}
+      HARNESS_PACKAGE_ROOT: /packages
+      HARNESS_BROKER_URL: http://backend:8080/api/v1/harness/broker
+      HARNESS_TOOL_TIMEOUT_SEC: "60"
+    volumes:
+      - backend-data:/packages:ro
+    depends_on:
+      secrets-init:
+        condition: service_completed_successfully
+    networks:
+      - harness-internal
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8090/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: deploy-frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "8000:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mysql-data:
+  redis-data:
+  backend-data:
+
+networks:
+  harness-internal:
+    internal: true

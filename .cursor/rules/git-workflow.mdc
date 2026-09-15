@@ -1,0 +1,13 @@
+---
+description: 本仓库完成后默认提交并推送到远程
+alwaysApply: true
+---
+
+# Git 默认动作
+
+功能做完、缺陷修好后，默认 `git commit` 并 `git push` 到当前分支的远程，不必再问。
+
+- 提交说明用中文，写清为什么改。
+- 不要提交缓存、编译产物、密钥和 `.env`。
+- 用户明确说不要提交、不要推送时，以当次指令为准。
+- 不要 `push --force` 到 `main`/`master`，不要改 git config。
