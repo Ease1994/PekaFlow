@@ -4,7 +4,7 @@ import { ArrowLeftOutlined, RobotOutlined, ApartmentOutlined, UnorderedListOutli
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
-import { get, post } from '@/api/client'
+import { get, post, isHttpNotFound, retryUnlessNotFound } from '@/api/client'
 import type { Pipeline } from '@/api/types'
 import { useAuthStore } from '@/stores/auth'
 import { useIsMobile } from '@/hooks/useIsMobile'
@@ -211,20 +211,33 @@ export default function ExecutionDetail() {
     enabled: !!pipelineId,
   })
 
-  // 序列化（实时刷新）
-  const { data: sequence } = useQuery({
+  // 序列化（实时刷新）。清库后旧书签 /executions/1/1 还在，404 不要连弹「发布任务不存在」。
+  const {
+    data: sequence,
+    error: sequenceError,
+  } = useQuery({
     queryKey: ['release-sequence', releaseId],
-    queryFn: () => get<SequenceData>(`/releases/${releaseId}/sequence`),
+    queryFn: () =>
+      get<SequenceData>(`/releases/${releaseId}/sequence`, undefined, { skipErrorToast: true }),
     enabled: !!releaseId,
+    retry: retryUnlessNotFound,
     refetchInterval: (q) => (q.state.data?.is_running ? 2000 : false),
   })
 
   // 代码变更
   const { data: commitsData } = useQuery({
     queryKey: ['release-commits', releaseId],
-    queryFn: () => get<CommitsData>(`/releases/${releaseId}/commits`),
+    queryFn: () =>
+      get<CommitsData>(`/releases/${releaseId}/commits`, undefined, { skipErrorToast: true }),
     enabled: !!releaseId,
+    retry: retryUnlessNotFound,
   })
+
+  // 发布单已经没了（空库、过期链接）：回到这条流水线的执行历史，不要停在空白明细页。
+  useEffect(() => {
+    if (!pipelineId || !isHttpNotFound(sequenceError)) return
+    navigate(`/executions/${pipelineId}`, { replace: true })
+  }, [sequenceError, pipelineId, navigate])
 
   // 换发布单时清空选中。不清的话，下面那个 effect 见 selectedStep 有值就直接
   // return，页面标题已经是新的一单，左边还高亮着旧步骤

@@ -48,6 +48,22 @@ client.interceptors.response.use(
   },
 )
 
+/** HTTP 404：资源没了，不是网络抖一下，不要重试、也不要连弹错误。 */
+export function isHttpNotFound(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error &&
+    (error as { response?: { status?: number } }).response?.status === 404
+  )
+}
+
+/** react-query：404 停手，其它错误最多再试两次。 */
+export function retryUnlessNotFound(failureCount: number, error: unknown): boolean {
+  if (isHttpNotFound(error)) return false
+  return failureCount < 2
+}
+
 // 泛型请求辅助
 export async function get<T>(
   url: string,
