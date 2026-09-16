@@ -9,25 +9,26 @@ import { useAuthStore } from '@/stores/auth'
 import type { ReleaseApproval } from '@/api/types'
 import { envColor, envLabel } from '@/env'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import { t as translate, useT } from '@/i18n'
+import { releaseStatusMeta } from '@/utils/releaseStatus'
 
 /** 审批弹窗要处理哪一张单、通过还是驳回、技术审批还是业务确认。 */
 type DecideTarget = { id: number; approved: boolean; kind?: 'tech' | 'pm'; action?: string }
 
-const STATUS: Record<string, { color: string; text: string }> = {
-  pending: { color: 'orange', text: '待审批' },
-  approved: { color: 'success', text: '已通过' },
-  rejected: { color: 'error', text: '已驳回' },
-  cancelled: { color: 'default', text: '已失效' },
+/** 审批单状态码对应 Tag 颜色；句子按码现取。 */
+const STATUS_COLOR: Record<string, string> = {
+  pending: 'orange',
+  approved: 'success',
+  rejected: 'error',
+  cancelled: 'default',
 }
 
-const RELEASE_STATUS: Record<string, { color: string; text: string }> = {
-  pending: { color: 'orange', text: '待审批' },
-  queued: { color: 'cyan', text: '排队中' },
-  running: { color: 'processing', text: '执行中' },
-  success: { color: 'success', text: '成功' },
-  failed: { color: 'error', text: '失败' },
-  rejected: { color: 'error', text: '已驳回' },
-  cancelled: { color: 'default', text: '已取消' },
+/** 审批单状态码 → i18n 键。pending/rejected/cancelled 复用 status.*。 */
+const STATUS_I18N: Record<string, string> = {
+  pending: 'status.pending',
+  approved: 'approval.approved',
+  rejected: 'status.rejected',
+  cancelled: 'status.cancelled',
 }
 
 const ACTION_COLOR: Record<string, string> = {
@@ -40,9 +41,14 @@ const ACTION_COLOR: Record<string, string> = {
  * 审批列表上的操作类型文案。回滚、Rebuild、普通发布必须一眼能分开。
  */
 function actionNoun(action?: string) {
-  if (action === 'rollback') return '回滚'
-  if (action === 'rebuild') return 'Rebuild'
-  return '发布'
+  if (action === 'rollback') return translate('pipe.actionRollback')
+  if (action === 'rebuild') return translate('approval.actionRebuild')
+  return translate('approval.actionRelease')
+}
+
+/** 审批单状态文案：有码就翻译，没有码回落到原值。 */
+function approvalStatusText(code: string): string {
+  return STATUS_I18N[code] ? translate(STATUS_I18N[code]) : code
 }
 
 /**
@@ -53,8 +59,8 @@ function changeText(row: ReleaseApproval) {
   const title = (row.commit_title || '').trim()
   if (row.action === 'rollback') {
     const undo = row.rollback_of_build_number
-      ? `撤销构建 #${row.rollback_of_build_number}`
-      : '撤销上次发布'
+      ? translate('approval.undoBuild', { n: row.rollback_of_build_number })
+      : translate('approval.undoLast')
     const extra = title ? [hash, title].filter(Boolean).join('  ') : (row.undo_summary || '').trim() || hash
     return extra ? `${undo} · ${extra}` : undo
   }
@@ -86,7 +92,8 @@ function ApprovalMobileCards({
   onDecide: (row: ReleaseApproval, approved: boolean) => void
   onOpenRelease: (row: ReleaseApproval) => void
 }) {
-  if (rows.length === 0) return <Empty description="暂无记录" />
+  const t = useT()
+  if (rows.length === 0) return <Empty description={t('approval.noRecords')} />
   return (
     <div className="mobile-entity-list">
       {rows.map((row) => {
@@ -100,28 +107,32 @@ function ApprovalMobileCards({
             <div className="mobile-entity-meta">
               <Tag color={ACTION_COLOR[row.action || 'release']}>{row.action_label || actionNoun(row.action)}</Tag>
               {row.group_type ? <Tag color={envColor(row.group_type)}>{row.group_name || envLabel(row.group_type)}</Tag> : null}
-              <Tag color={STATUS[row.status]?.color}>{STATUS[row.status]?.text || row.status}</Tag>
+              <Tag color={STATUS_COLOR[row.status]}>{approvalStatusText(row.status)}</Tag>
             </div>
             <div className="mobile-entity-meta">{changeText(row)}</div>
             <div className="mobile-entity-meta">
               {row.project_name ? <span>{row.project_name} · </span> : null}
-              <span>发起人 {row.requester || '-'}</span>
-              {row.is_self_approval ? <Tag color="blue">自审</Tag> : null}
+              <span>{t('approval.requesterName', { name: row.requester || '-' })}</span>
+              {row.is_self_approval ? <Tag color="blue">{t('approval.selfReview')}</Tag> : null}
             </div>
             {row.status === 'pending' && !ended && canDecide ? (
               <div className="mobile-entity-actions">
                 <Space>
                   <Button type="primary" size="small" icon={<CheckOutlined />} onClick={() => onDecide(row, true)}>
-                    通过
+                    {t('approval.pass')}
                   </Button>
                   <Button danger size="small" icon={<CloseOutlined />} onClick={() => onDecide(row, false)}>
-                    驳回
+                    {t('approval.reject')}
                   </Button>
                 </Space>
               </div>
             ) : (
               <div className="mobile-entity-meta">
-                {ended ? `${actionNoun(row.action)}已结束` : canDecide ? null : `待 ${row.approver || '审批人'} 处理`}
+                {ended
+                  ? t('approval.actionEnded', { action: actionNoun(row.action) })
+                  : canDecide
+                    ? null
+                    : t('approval.waitingApprover', { name: row.approver || t('approval.approver') })}
               </div>
             )}
           </div>
@@ -141,10 +152,11 @@ function PmMobileCards({
   rows: any[]
   onDecide: (row: any, approved: boolean) => void
 }) {
+  const t = useT()
   if (rows.length === 0) {
     return (
       <div style={{ color: '#999', padding: 16 }}>
-        没有待确认的上线。这道闸默认关着，项目打开「项目经理参与」后才会出现。
+        {t('approval.pmEmpty')}
       </div>
     )
   }
@@ -152,17 +164,21 @@ function PmMobileCards({
     <div className="mobile-entity-list">
       {rows.map((r) => (
         <div key={r.id} className="mobile-entity-card">
-          <div className="mobile-entity-title">{r.release?.pipeline_name || '待确认上线'}</div>
+          <div className="mobile-entity-title">{r.release?.pipeline_name || t('approval.pendingOnline')}</div>
           <div className="mobile-entity-meta">{r.release?.project_name}</div>
-          <div className="mobile-entity-meta">说明：{r.release?.business_summary || '未填写'}</div>
-          <div className="mobile-entity-meta">窗口：{r.release?.planned_window || '未约'}</div>
+          <div className="mobile-entity-meta">
+            {t('approval.summary', { text: r.release?.business_summary || t('approval.notFilled') })}
+          </div>
+          <div className="mobile-entity-meta">
+            {t('approval.window', { text: r.release?.planned_window || t('approval.notScheduled') })}
+          </div>
           <div className="mobile-entity-actions">
             <Space>
               <Button type="primary" size="small" icon={<CheckOutlined />} onClick={() => onDecide(r, true)}>
-                确认
+                {t('common.confirm')}
               </Button>
               <Button danger size="small" icon={<CloseOutlined />} onClick={() => onDecide(r, false)}>
-                驳回
+                {t('approval.reject')}
               </Button>
             </Space>
           </div>
@@ -173,6 +189,7 @@ function PmMobileCards({
 }
 
 export default function ReleaseApprovalPage() {
+  const t = useT()
   const qc = useQueryClient()
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
@@ -229,9 +246,9 @@ export default function ReleaseApprovalPage() {
       // 这种情况后端返回成功 + 原因，别报「已进入执行」把人骗了
       const started = res.data?.status === 'running' || res.data?.status === 'queued'
       if (vars.approved && !started) {
-        message.warning(res.message || `审批已通过，但${actionNoun(vars.action)}未能启动`, 8)
+        message.warning(res.message || t('approval.passStartWarn', { action: actionNoun(vars.action) }), 8)
       } else {
-        message.success(vars.approved ? `已通过，${actionNoun(vars.action)}进入执行` : '已驳回')
+        message.success(vars.approved ? t('approval.passedQueued', { action: actionNoun(vars.action) }) : t('approval.rejectedMsg'))
       }
       setTarget(null)
       setComment('')
@@ -246,9 +263,9 @@ export default function ReleaseApprovalPage() {
   })
 
   const columns = (opts: { review?: boolean }) => [
-    { title: '单号', dataIndex: 'id', width: 70 },
+    { title: t('approval.colId'), dataIndex: 'id', width: 70 },
     {
-      title: '构建号',
+      title: t('approval.colBuild'),
       dataIndex: 'build_number',
       width: 90,
       render: (_: number | null | undefined, row: ReleaseApproval) =>
@@ -260,10 +277,10 @@ export default function ReleaseApprovalPage() {
           `#${row.build_number || row.release_id}`
         ),
     },
-    { title: '项目', dataIndex: 'project_name', ellipsis: true },
-    { title: '流水线', dataIndex: 'pipeline_name', ellipsis: true },
+    { title: t('acl.project'), dataIndex: 'project_name', ellipsis: true },
+    { title: t('acl.pipeline'), dataIndex: 'pipeline_name', ellipsis: true },
     {
-      title: '环境',
+      title: t('common.environment'),
       dataIndex: 'group_type',
       width: 100,
       render: (v: string, row: ReleaseApproval) => (
@@ -271,7 +288,7 @@ export default function ReleaseApprovalPage() {
       ),
     },
     {
-      title: '类型',
+      title: t('common.type'),
       dataIndex: 'action',
       width: 90,
       render: (v: string, row: ReleaseApproval) => (
@@ -279,7 +296,7 @@ export default function ReleaseApprovalPage() {
       ),
     },
     {
-      title: '变更',
+      title: t('approval.colChange'),
       key: 'change',
       width: 280,
       ellipsis: true,
@@ -288,45 +305,48 @@ export default function ReleaseApprovalPage() {
       ),
     },
     {
-      title: '发起人',
+      title: t('approval.colRequester'),
       dataIndex: 'requester',
       width: 130,
       render: (v: string, row: ReleaseApproval) => (
         <Space size={4}>
           <span>{v || '-'}</span>
-          {row.is_self_approval && <Tag color="blue">自审</Tag>}
+          {row.is_self_approval && <Tag color="blue">{t('approval.selfReview')}</Tag>}
         </Space>
       ),
     },
-    { title: '审批人', dataIndex: 'approver', width: 180, ellipsis: true },
+    { title: t('approval.colApprover'), dataIndex: 'approver', width: 180, ellipsis: true },
     {
-      title: '审批状态',
+      title: t('approval.colApprovalStatus'),
       dataIndex: 'status',
       width: 100,
-      render: (v: string) => <Tag color={STATUS[v]?.color}>{STATUS[v]?.text || v}</Tag>,
+      render: (v: string) => <Tag color={STATUS_COLOR[v]}>{approvalStatusText(v)}</Tag>,
     },
     {
-      title: '发布状态',
+      title: t('approval.colReleaseStatus'),
       dataIndex: 'release_status',
       width: 100,
-      render: (v: string) => <Tag color={RELEASE_STATUS[v]?.color}>{RELEASE_STATUS[v]?.text || v}</Tag>,
+      render: (v: string) => {
+        const meta = releaseStatusMeta(v)
+        return <Tag color={meta.color}>{meta.text}</Tag>
+      },
     },
-    { title: '提交时间', dataIndex: 'created_at', width: 180 },
-    { title: '审批意见', dataIndex: 'comment', ellipsis: true },
+    { title: t('approval.colCreated'), dataIndex: 'created_at', width: 180 },
+    { title: t('approval.colComment'), dataIndex: 'comment', ellipsis: true },
     ...(opts.review
       ? [
           {
-            title: '操作',
+            title: t('common.action'),
             width: 170,
             fixed: 'right' as const,
                   render: (_: unknown, row: ReleaseApproval) => {
                     if (row.status !== 'pending') return null
                     // 发布已取消/结束时后端也会拒绝，别给一个必然报错的按钮
-                    if (row.release_status !== 'pending') return <span style={{ color: '#999' }}>{actionNoun(row.action)}已结束</span>
+                    if (row.release_status !== 'pending') return <span style={{ color: '#999' }}>{t('approval.actionEnded', { action: actionNoun(row.action) })}</span>
                     const canDecide =
                       row.can_decide ?? (!!user?.is_admin || row.approver_id === user?.id)
                     if (!canDecide) {
-                      return <span style={{ color: '#999' }}>待 {row.approver || '审批人'} 处理</span>
+                      return <span style={{ color: '#999' }}>{t('approval.waitingApprover', { name: row.approver || t('approval.approver') })}</span>
                     }
               return (
                 <Space>
@@ -336,7 +356,7 @@ export default function ReleaseApprovalPage() {
                     icon={<CheckOutlined />}
                     onClick={() => setTarget({ id: row.id, approved: true, action: row.action })}
                   >
-                    通过
+                    {t('approval.pass')}
                   </Button>
                   <Button
                     danger
@@ -344,7 +364,7 @@ export default function ReleaseApprovalPage() {
                     icon={<CloseOutlined />}
                     onClick={() => setTarget({ id: row.id, approved: false, action: row.action })}
                   >
-                    驳回
+                    {t('approval.reject')}
                   </Button>
                 </Space>
               )
@@ -390,15 +410,12 @@ export default function ReleaseApprovalPage() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="生产发布审批"
+        message={t('approval.alertTitle')}
         description={
           <>
-            生产分组的发布会先进入待审批。同一发布是或签：有审批权的人谁先批谁算，
-            待办里只出现一张单，审批人列会写上所有可批的人。分组开了「允许发起人自审」时，
-            有审批权的发起人也能批自己的单。关掉则只能由其他人批。管理员在「待我审批」里能看到并处理所有还停着的单子。
-            紧急情况可在执行流水线时勾选
+            {t('approval.alertDesc')}
             <ThunderboltOutlined style={{ color: '#fa8c16', margin: '0 4px' }} />
-            应急跳审并填写原因，跳审会记录审计并通知审批人。
+            {t('approval.alertEmergency')}
           </>
         }
       />
@@ -416,12 +433,12 @@ export default function ReleaseApprovalPage() {
           items={[
             {
               key: 'pending',
-              label: `待我审批（${pending.length}）`,
+              label: t('approval.tabPending', { n: pending.length }),
               children: renderApprovals(pending, 'approval-pending'),
             },
             {
               key: 'pm',
-              label: `待我业务确认（${pmPending.length}）`,
+              label: t('approval.tabPm', { n: pmPending.length }),
               children: isMobile ? (
                 <PmMobileCards
                   rows={pmPending}
@@ -429,7 +446,7 @@ export default function ReleaseApprovalPage() {
                 />
               ) : pmPending.length === 0 ? (
                   <div style={{ color: '#999', padding: 16 }}>
-                    没有待确认的上线。这道闸默认关着，项目打开「项目经理参与」后才会出现。
+                    {t('approval.pmEmpty')}
                   </div>
                 ) : (
                   <DataTable
@@ -438,12 +455,12 @@ export default function ReleaseApprovalPage() {
                     size="small"
                     dataSource={pmPending}
                     columns={[
-                      { title: '项目', render: (_: unknown, r: any) => r.release?.project_name },
-                      { title: '流水线', render: (_: unknown, r: any) => r.release?.pipeline_name },
-                      { title: '业务说明', render: (_: unknown, r: any) => r.release?.business_summary || '未填写' },
-                      { title: '窗口', render: (_: unknown, r: any) => r.release?.planned_window || '未约' },
+                      { title: t('acl.project'), render: (_: unknown, r: any) => r.release?.project_name },
+                      { title: t('acl.pipeline'), render: (_: unknown, r: any) => r.release?.pipeline_name },
+                      { title: t('approval.colSummary'), render: (_: unknown, r: any) => r.release?.business_summary || t('approval.notFilled') },
+                      { title: t('approval.colWindow'), render: (_: unknown, r: any) => r.release?.planned_window || t('approval.notScheduled') },
                       {
-                        title: '操作',
+                        title: t('common.action'),
                         width: 180,
                         render: (_: unknown, r: any) => (
                           <Space>
@@ -453,7 +470,7 @@ export default function ReleaseApprovalPage() {
                               icon={<CheckOutlined />}
                               onClick={() => setTarget({ id: r.id, approved: true, kind: 'pm' })}
                             >
-                              确认
+                              {t('common.confirm')}
                             </Button>
                             <Button
                               danger
@@ -461,7 +478,7 @@ export default function ReleaseApprovalPage() {
                               icon={<CloseOutlined />}
                               onClick={() => setTarget({ id: r.id, approved: false, kind: 'pm' })}
                             >
-                              驳回
+                              {t('approval.reject')}
                             </Button>
                           </Space>
                         ),
@@ -472,14 +489,14 @@ export default function ReleaseApprovalPage() {
             },
             {
               key: 'mine',
-              label: `我发起的（${mine.length}）`,
+              label: t('approval.tabMine', { n: mine.length }),
               children: renderApprovals(mine, 'approval-mine'),
             },
             ...(user?.is_admin
               ? [
                   {
                     key: 'all',
-                    label: `全部记录（${allRows.length}）`,
+                    label: t('approval.tabAll', { n: allRows.length }),
                     children: renderApprovals(allRows, 'approval-all'),
                   },
                 ]
@@ -492,11 +509,11 @@ export default function ReleaseApprovalPage() {
         title={
           target?.kind === 'pm'
             ? target?.approved
-              ? '确认这次上线'
-              : '驳回这次上线'
+              ? t('approval.modalConfirmOnline')
+              : t('approval.modalRejectOnline')
             : target?.approved
-              ? `通过${actionNoun(target?.action)}`
-              : `驳回${actionNoun(target?.action)}`
+              ? t('approval.modalPassAction', { action: actionNoun(target?.action) })
+              : t('approval.modalRejectAction', { action: actionNoun(target?.action) })
         }
         open={!!target}
         styles={{ content: { maxWidth: 'calc(100vw - 24px)' } }}
@@ -510,7 +527,7 @@ export default function ReleaseApprovalPage() {
           danger: target?.approved === false,
           disabled: target?.approved === false && !comment.trim(),
         }}
-        okText={target?.approved ? '确认通过' : '确认驳回'}
+        okText={target?.approved ? t('approval.okPass') : t('approval.okReject')}
         onOk={() => {
           if (!target) return
           decideMut.mutate({
@@ -525,17 +542,17 @@ export default function ReleaseApprovalPage() {
         <p>
           {target?.kind === 'pm'
             ? target?.approved
-              ? '确认的是范围和窗口。技术审批仍按原流程；两边都过了才会进队列。'
-              : '驳回后这次发布结束。必须写原因。'
+              ? t('approval.pmPassHint')
+              : t('approval.pmRejectHint')
             : target?.approved
-              ? `通过后该${actionNoun(target?.action)}立即进入执行队列（若还开着项目经理确认，会先等那边）。`
-              : `驳回后该${actionNoun(target?.action)}结束，发起人需要重新发起。驳回必须填写原因。`}
+              ? t('approval.techPassHint', { action: actionNoun(target?.action) })
+              : t('approval.techRejectHint', { action: actionNoun(target?.action) })}
         </p>
         <Input.TextArea
           rows={3}
           value={comment}
           onChange={(e) => setComment(e.target.value)}
-          placeholder={target?.approved ? '审批意见（可选）' : '驳回原因（必填）'}
+          placeholder={target?.approved ? t('approval.commentOptional') : t('approval.rejectRequired')}
         />
       </Modal>
     </div>

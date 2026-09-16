@@ -457,7 +457,7 @@ def _playbook_entries() -> list[dict[str, Any]]:
 
 # 装了很多个人技能时，目录不能整表塞进每一轮。
 _DIR_LIMIT = 12
-# 和用户话重叠到这个分，就内联 SKILL.md（对齐 Cursor：相关技能先读再调工具）。
+# 和用户话重叠到这个分，就内联 SKILL.md（相关技能先读再调工具）。
 _MATCH_SCORE = 2
 # 一轮最多内联几份说明书，避免把全部正文都塞进上下文。
 _INLINE_LIMIT = 2
@@ -527,7 +527,7 @@ def entries_for_turn(
     """本轮真正塞进模型的技能。
 
     目录里保留全部内置技能的摘要（name + description）。
-    和 Cursor 一样：只把本轮最相关的 1～2 份 SKILL.md 正文内联，视为已经读过，然后直接调工具。
+    只把本轮最相关的 1～2 份 SKILL.md 正文内联，视为已经读过，然后直接调工具。
     已安装的个人技能同样按这句话检索，高分内联，其余最多留 12 条摘要。
     """
     visible = visible_entries(db, selected=selected, viewer_id=viewer_id)

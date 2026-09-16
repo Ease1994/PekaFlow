@@ -48,6 +48,7 @@ import { VariableEditor } from '@/components/pipeline/VariableEditor'
 import TriggerPanel from '@/components/pipeline/TriggerPanel'
 import EditorCanvas, { type EditorCanvasActions } from '@/components/pipeline/EditorCanvas'
 import ReleaseGateFields from '@/components/ReleaseGateFields'
+import { useT } from '@/i18n'
 import type { StartParam } from '@/components/pipeline/RunPipelineFields'
 import { applyCanvasLink, applyCanvasSplitParallel, applyCanvasUnlink, dropCut, isCanvasGraphErr, OPEN_CUTS_SAVE_ERROR, pruneOpenCuts } from '@/utils/canvasGraph'
 import {
@@ -59,11 +60,12 @@ import {
 } from '@/utils/releaseGate'
 
 const AGENT_ICON: Record<string, string> = { linux: '🐧', windows: '🪟', macos: '🍎', any: '🌐' }
-const AGENT_NAME: Record<string, string> = {
-  linux: '构建环境-Linux',
-  windows: '构建环境-Windows',
-  macos: '构建环境-macOS',
-  any: '构建环境-公共',
+/** 新建 Job 时的默认名称键，按操作系统取对应句子。 */
+const AGENT_NAME_KEY: Record<string, string> = {
+  linux: 'pipe.envLinux',
+  windows: 'pipe.envWindows',
+  macos: 'pipe.envMacos',
+  any: 'pipe.envAny',
 }
 
 /**
@@ -87,6 +89,7 @@ export default function PipelineEditor() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const user = useAuthStore((s) => s.user)
+  const t = useT()
 
   const [graph, setGraph] = useState<PipelineGraph | null>(null)
   const [configTarget, setConfigTarget] = useState<ConfigTarget | null>(null)
@@ -206,9 +209,9 @@ export default function PipelineEditor() {
     Modal.confirm({
       title,
       content,
-      okText: '删除',
+      okText: t('common.delete'),
       okButtonProps: { danger: true },
-      cancelText: '取消',
+      cancelText: t('common.cancel'),
       onOk,
     })
   }
@@ -223,8 +226,8 @@ export default function PipelineEditor() {
     if (jobCount === 0) return doRemove()
     const stepCount = stage?.jobs.reduce((n, j) => n + j.steps.length, 0) ?? 0
     confirmRemove(
-      `删除 Stage「${stage?.name}」？`,
-      `里面还有 ${jobCount} 个 Job、${stepCount} 个步骤，会一起删掉。`,
+      t('pipe.deleteStageTitle', { name: stage?.name ?? '' }),
+      t('pipe.deleteStageBody', { jobs: jobCount, steps: stepCount }),
       doRemove,
     )
   }
@@ -236,7 +239,7 @@ export default function PipelineEditor() {
         const jobId = `${s.order}-${s.jobs.length + 1}`
         const newJob: GraphJob = {
           id: jobId,
-          name: AGENT_NAME[agent],
+          name: t(AGENT_NAME_KEY[agent] || 'pipe.envAny'),
           agent,
           agent_icon: AGENT_ICON[agent],
           steps: [],
@@ -256,8 +259,8 @@ export default function PipelineEditor() {
     const job = graph?.stages.find((s) => s.id === stageId)?.jobs.find((j) => j.id === jobId)
     if (!job || job.steps.length === 0) return doRemove()
     confirmRemove(
-      `删除 Job「${job.name || job.id}」？`,
-      `里面还有 ${job.steps.length} 个步骤，会一起删掉。`,
+      t('pipe.deleteJobTitle', { name: job.name || job.id }),
+      t('pipe.deleteJobBody', { n: job.steps.length }),
       doRemove,
     )
   }
@@ -338,7 +341,7 @@ export default function PipelineEditor() {
               // 参数必须深拷贝：浅拷贝下两个步骤共用同一个 with 对象，
               // 改副本的应用池名会把原步骤一起改掉
               with: JSON.parse(JSON.stringify(src.with || {})),
-              name: `${(src.name || src.display_name || src.plugin).trim()} 副本`,
+              name: t('pipe.copyName', { name: (src.name || src.display_name || src.plugin).trim() }),
             }
             const steps = [...j.steps]
             steps.splice(stepIndex + 1, 0, copy)
@@ -347,7 +350,7 @@ export default function PipelineEditor() {
         }
       })
     )
-    message.success('已复制步骤，记得改名和参数')
+    message.success(t('pipe.stepCopied'))
   }
 
   const removeStep = (stageId: string, jobId: string, stepIndex: number) => {
@@ -379,8 +382,8 @@ export default function PipelineEditor() {
     // 删除图标就挨着步骤行，配过参数的步骤误删代价高，配过才拦
     if (!step || Object.keys(step.with || {}).length === 0) return doRemove()
     confirmRemove(
-      `删除步骤「${step.name || step.display_name || step.plugin}」？`,
-      '这个步骤已经配过参数，删除后需要重新填。',
+      t('pipe.deleteStepTitle', { name: step.name || step.display_name || step.plugin }),
+      t('pipe.deleteStepConfigured'),
       doRemove,
     )
   }
@@ -456,10 +459,10 @@ export default function PipelineEditor() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (basicDirty && !basic.name.trim()) throw new Error('流水线名称不能为空')
-      if (!graph) throw new Error('编排还没加载完')
+      if (basicDirty && !basic.name.trim()) throw new Error(t('pipe.nameRequired'))
+      if (!graph) throw new Error(t('pipe.graphNotReady'))
       const cuts = pruneOpenCuts(graph.stages, graph.open_cuts)
-      if (cuts.length) throw new Error(OPEN_CUTS_SAVE_ERROR)
+      if (cuts.length) throw new Error(OPEN_CUTS_SAVE_ERROR())
       // 把当前断开记录原样交给后端；有值时后端也会拒，避免只靠前端拦住
       await put<Pipeline>(`/pipelines/${pipelineId}/graph`, { ...graph, open_cuts: cuts })
       if (basicDirty) {
@@ -471,24 +474,24 @@ export default function PipelineEditor() {
       }
     },
     onSuccess: () => {
-      message.success(basicDirty ? '编排与基础信息已保存' : '编排已保存')
+      message.success(basicDirty ? t('pipe.savedWithBasic') : t('pipe.savedGraph'))
       queryClient.invalidateQueries({ queryKey: ['pipeline', pipelineId] })
       queryClient.invalidateQueries({ queryKey: ['pipelines'] })
     },
-    onError: (e: Error) => message.error(e.message || '保存失败'),
+    onError: (e: Error) => message.error(e.message || t('pipe.saveFailed')),
   })
 
   const confirmDelete = () => {
     Modal.confirm({
-      title: `删除流水线「${pipeline?.name || ''}」？`,
+      title: t('pipe.deletePipelineTitle', { name: pipeline?.name || '' }),
       content:
-        '会移入所属项目的「回收站」：立即停用、不能再执行。30 天内可一键恢复编排；超期后不能再跑这条线，执行记录和制品仍保留。',
-      okText: '确认删除',
+        t('pipe.deletePipelineBody'),
+      okText: t('pipe.confirmDelete'),
       okButtonProps: { danger: true },
-      cancelText: '取消',
+      cancelText: t('common.cancel'),
       onOk: async () => {
         await del(`/pipelines/${pipelineId}`)
-        message.success('已移入回收站，30 天内可在项目详情恢复编排')
+        message.success(t('pipe.trashed'))
         queryClient.invalidateQueries({ queryKey: ['pipelines'] })
         queryClient.invalidateQueries({ queryKey: ['recycled-pipelines'] })
         navigate(pipeline?.project_id ? `/projects/${pipeline.project_id}` : '/projects')
@@ -522,14 +525,14 @@ export default function PipelineEditor() {
       setReleaseBypassReason('')
       if (!r) return
       const num = r.build_number || r.id
-      if (r.status === 'failed' || (res.message && res.message !== 'ok' && res.message.includes('未能启动'))) {
-        message.error(res.message && res.message !== 'ok' ? res.message : '发布未能启动', 8)
+      if (r.status === 'failed' || (res.message && res.message !== 'ok' && res.message.includes(t('pipe.startFailedToken')))) {
+        message.error(res.message && res.message !== 'ok' ? res.message : t('pipe.publishStartFailed'), 8)
       } else if (r.status === 'pending') {
-        message.success(`已提交发布 #${num}，等待审批`)
+        message.success(t('pipe.submittedPending', { n: num }))
       } else if (releaseBypass) {
-        message.warning(`已应急跳审，发布 #${num} 直接执行`)
+        message.warning(t('pipe.emergencyRan', { n: num }))
       } else {
-        message.success('发布任务已进入队列')
+        message.success(t('pipe.queued'))
       }
       // 跳转到本流水线的发布记录/执行详情（不要进管理员用的「发布管理」）
       navigate(`/executions/${pipelineId}/${r.id}`)
@@ -599,7 +602,7 @@ export default function PipelineEditor() {
       onDeleteStep: (stageId, jobId, stepIndex) => removeStep(stageId, jobId, stepIndex),
       onMoveStep: (stageId, jobId, from, to) => reorderStep(stageId, jobId, from, to),
     }),
-    [graph],
+    [graph, t],
   )
 
   useEffect(() => {
@@ -648,18 +651,18 @@ export default function PipelineEditor() {
         <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
           <Space>
             <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
-              返回
+              {t('pipe.back')}
             </Button>
             <span style={{ fontWeight: 600, fontSize: 16 }}>
               {pipeline?.name}（v{graph.version}）
             </span>
-            <Tooltip title={viewMode === 'canvas' ? '点击切回列表编排' : '点击切换到画布编排'}>
+            <Tooltip title={viewMode === 'canvas' ? t('pipe.switchToList') : t('pipe.switchToCanvas')}>
               <Tag
                 color={viewMode === 'canvas' ? 'purple' : 'blue'}
                 style={{ cursor: 'pointer', userSelect: 'none' }}
                 onClick={() => persistView(viewMode === 'form' ? 'canvas' : 'form')}
               >
-                自由模式（{viewMode === 'canvas' ? '画布编排' : '列表式编排'}）
+                {t('pipe.freeMode')}（{viewMode === 'canvas' ? t('pipe.canvasArrange') : t('pipe.listArrange')}）
               </Tag>
             </Tooltip>
           </Space>
@@ -670,7 +673,7 @@ export default function PipelineEditor() {
               loading={saveMutation.isPending}
               onClick={() => saveMutation.mutate()}
             >
-              保存
+              {t('common.save')}
             </Button>
             <Button
               type="primary"
@@ -679,7 +682,7 @@ export default function PipelineEditor() {
               onClick={async () => {
                 const cuts = pruneOpenCuts(graph.stages, graph.open_cuts)
                 if (cuts.length) {
-                  message.error(OPEN_CUTS_SAVE_ERROR)
+                  message.error(OPEN_CUTS_SAVE_ERROR())
                   return
                 }
                 setReleaseBypass(false)
@@ -696,11 +699,11 @@ export default function PipelineEditor() {
                 setReleaseModalOpen(true)
               }}
             >
-              保存并执行
+              {t('pipe.saveAndRun')}
             </Button>
             <Dropdown
               menu={{
-                items: [{ key: 'delete', label: '删除流水线', danger: true }],
+                items: [{ key: 'delete', label: t('pipe.deletePipeline'), danger: true }],
                 onClick: ({ key }) => {
                   if (key === 'delete') confirmDelete()
                 },
@@ -718,7 +721,7 @@ export default function PipelineEditor() {
         items={[
           {
             key: 'pipeline',
-            label: '流水线编排',
+            label: t('pipe.graphTab'),
             children:
               viewMode === 'canvas' ? (
                 <div style={{ height: 'calc(100vh - 210px)', minHeight: 520 }}>
@@ -734,7 +737,7 @@ export default function PipelineEditor() {
                       icon={<PlusOutlined />}
                       onClick={() => addStageAfter(null)}
                     >
-                      添加第一个 Stage
+                      {t('pipe.addFirstStage')}
                     </Button>
                   ) : (
                     graph.stages.map((stage, sIdx) => (
@@ -763,7 +766,7 @@ export default function PipelineEditor() {
                             paddingTop: 32,
                           }}
                         >
-                          <span style={{ fontSize: 11, color: '#999' }}>串行</span>
+                          <span style={{ fontSize: 11, color: '#999' }}>{t('pipe.serial')}</span>
                           <span style={{ fontSize: 20, color: '#b0b7c3', margin: '2px 0' }}>→</span>
                           <Button
                             shape="circle"
@@ -771,7 +774,7 @@ export default function PipelineEditor() {
                             size="small"
                             type="dashed"
                             onClick={() => addStageAfter(stage.id)}
-                            title="在此后添加 Stage"
+                            title={t('pipe.addStageAfter')}
                           />
                         </div>
                       </div>
@@ -783,7 +786,7 @@ export default function PipelineEditor() {
           },
           {
             key: 'trigger',
-            label: '触发器',
+            label: t('pipe.triggersTab'),
             children: (
               <TriggerPanel
                 triggers={graph.triggers}
@@ -794,7 +797,7 @@ export default function PipelineEditor() {
           },
           {
             key: 'variables',
-            label: '变量',
+            label: t('pipe.varsTab'),
             children: (
               <div style={{ padding: '16px 20px 24px' }}>
                 <VariableEditor variables={graph.variables || []} onChange={updateVariables} />
@@ -803,67 +806,67 @@ export default function PipelineEditor() {
           },
           {
             key: 'setting',
-            label: basicDirty ? '基础设置 •' : '基础设置',
+            label: basicDirty ? t('pipe.basicTabDirty') : t('pipe.basicTab'),
             children: (
               <div style={{ padding: '24px 16px', maxWidth: 620 }}>
                 <Form layout="vertical">
                   <Form.Item
-                    label="流水线名称"
+                    label={t("pipe.pipelineName")}
                     required
                     validateStatus={basic.name.trim() ? undefined : 'error'}
-                    help={basic.name.trim() ? '' : '名称不能为空'}
+                    help={basic.name.trim() ? '' : t('pipe.nameEmpty')}
                   >
                     <Input
                       value={basic.name}
                       maxLength={64}
-                      placeholder="例如：订单服务-生产发布"
+                      placeholder={t("pipe.namePlaceholder")}
                       onChange={(e) => setBasic((b) => ({ ...b, name: e.target.value }))}
                     />
                   </Form.Item>
-                  <Form.Item label="描述">
+                  <Form.Item label={t("common.description")}>
                     <Input.TextArea
                       rows={3}
                       value={basic.description}
                       maxLength={255}
-                      placeholder="这条流水线做什么，给协作的人看"
+                      placeholder={t("pipe.descPlaceholder")}
                       onChange={(e) => setBasic((b) => ({ ...b, description: e.target.value }))}
                     />
                   </Form.Item>
-                  <Form.Item label="所属分组">
+                  <Form.Item label={t("pipe.group")}>
                     <Space>
                       <Tag color={envColor(pipeline?.group_type)}>
                         {pipeline?.group_type ? envLabel(pipeline.group_type) : '—'}
                       </Tag>
-                      {pipeline?.approval_required ? <Tag color="gold">需要审批</Tag> : <Tag>免审批</Tag>}
-                      {pipeline?.allow_emergency_bypass ? <Tag color="volcano">可应急跳审</Tag> : null}
+                      {pipeline?.approval_required ? <Tag color="gold">{t('pipe.needsApproval')}</Tag> : <Tag>{t('pipe.noApproval')}</Tag>}
+                      {pipeline?.allow_emergency_bypass ? <Tag color="volcano">{t('pipe.canBypass')}</Tag> : null}
                     </Space>
                     <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
-                      环境默认策略在项目详情的「环境分组」里调整，下面可以为这条流水线单独覆盖。
+                      {t('pipe.overrideEnvHint')}
                     </div>
                   </Form.Item>
-                  <Form.Item label="发布审批">
+                  <Form.Item label={t("pipe.releaseApproval")}>
                     <Radio.Group
                       value={basic.approval_mode}
                       onChange={(e) => setBasic((b) => ({ ...b, approval_mode: e.target.value }))}
                     >
                       <Radio value="inherit">
-                        跟随环境（
-                        {pipeline?.group_approval_required ? '当前需审批' : '当前免审批'}）
+                        {t('pipe.followEnv')}（
+                        {pipeline?.group_approval_required ? t('pipe.currentlyRequired') : t('pipe.currentlyExempt')}）
                       </Radio>
-                      <Radio value="force">强制审批</Radio>
+                      <Radio value="force">{t("pipe.forceApprove")}</Radio>
                       <Radio value="exempt" disabled={!pipeline?.can_exempt_approval}>
-                        豁免审批
+                        {t('pipe.exemptApprove')}
                       </Radio>
                     </Radio.Group>
                     <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
                       {pipeline?.can_exempt_approval
-                        ? '强制审批只会提高门槛，随时可设；豁免审批会跳过发布审批，请谨慎使用。'
-                        : '「豁免审批」需要单独的豁免权限，你当前没有，可以找管理员授权。'}
+                        ? t('pipe.overrideHint')
+                        : t('pipe.noExemptPerm')}
                     </div>
                   </Form.Item>
                 </Form>
                 <div style={{ color: '#999', fontSize: 12 }}>
-                  修改后点左上角「保存」，与编排一起提交。
+                  {t('pipe.saveWithGraphHint')}
                 </div>
               </div>
             ),
@@ -955,7 +958,7 @@ export default function PipelineEditor() {
 
       {/* 发布弹窗：先保存编排，再按执行弹窗同一套规则带清单和跳审 */}
       <Modal
-        title="保存并执行"
+        title={t("pipe.saveAndRun")}
         open={releaseModalOpen}
         onOk={() => {
           saveMutation.mutate(undefined, {
@@ -969,7 +972,7 @@ export default function PipelineEditor() {
         }}
         confirmLoading={saveMutation.isPending || releaseMutation.isPending}
         okText={
-          needReleaseApproval ? (releaseBypass ? '保存并应急跳审' : '保存并提交审批') : '保存并执行'
+          needReleaseApproval ? (releaseBypass ? t('pipe.saveEmergency') : t('pipe.saveSubmit')) : t('pipe.saveAndRun')
         }
         okButtonProps={{
           danger: releaseBypass,
@@ -978,16 +981,16 @@ export default function PipelineEditor() {
         width={needReleaseManifest || needReleaseApproval || releaseStartParams.length ? 560 : 520}
       >
         <div style={{ marginBottom: 16 }}>
-          制品版本：
+          {t('pipe.artifactVersion')}
           <Input
             value={releaseVersion}
             onChange={(e) => setReleaseVersion(e.target.value)}
             style={{ marginTop: 8 }}
-            placeholder="如 v1.0.0"
+            placeholder={t("pipe.versionPlaceholder")}
           />
         </div>
         <div style={{ marginBottom: 16, color: '#999', fontSize: 12 }}>
-          代码版本（commit SHA）由后端自动从流水线 git-checkout 步骤拉取并写入，Rebuild 时自动复用。
+          {t('pipe.commitHint')}
         </div>
         {releaseStartParams.length > 0 && (
           <Form layout="vertical" style={{ marginBottom: needReleaseApproval || needReleaseManifest ? 16 : 0 }}>
@@ -995,8 +998,8 @@ export default function PipelineEditor() {
               type="info"
               showIcon
               style={{ marginBottom: 12 }}
-              message="本次执行参数"
-              description="留空按流水线默认值执行；这些值会替换步骤里的 ${变量名} 占位符。"
+              message={t("pipe.runParams")}
+              description={t("pipe.runParamsHint")}
             />
             {releaseStartParams.map((p) => {
               const value = releaseRunParams[p.name] ?? ''
@@ -1066,6 +1069,7 @@ function StageColumn({
   onDuplicateStep: (jobId: string, stepIdx: number) => void
   onReorderStep: (jobId: string, fromIdx: number, toIdx: number) => void
 }) {
+  const t = useT()
   const totalSteps = useMemo(
     () => stage.jobs.reduce((sum, j) => sum + j.steps.length, 0),
     [stage.jobs]
@@ -1107,7 +1111,7 @@ function StageColumn({
             marginTop: 4,
           }}
         >
-          ⚡ Job 并行执行（相互独立）
+          ⚡ {t('pipe.jobsParallel')}
         </div>
       )}
 
@@ -1144,7 +1148,7 @@ function StageColumn({
           onClick={onAddJob}
           style={{ minWidth: 280 }}
         >
-          添加 Job（并行）
+          {t('pipe.addParallelJob')}
         </Button>
       </div>
 
@@ -1156,7 +1160,7 @@ function StageColumn({
         onClick={onDeleteStage}
         style={{ marginTop: 8, alignSelf: 'center' }}
       >
-        删除 Stage
+        {t('pipe.deleteStage')}
       </Button>
     </div>
   )
@@ -1181,6 +1185,7 @@ function JobCard({
   onClickStep: (step: GraphStep, idx: number) => void
   onReorderStep: (fromIdx: number, toIdx: number) => void
 }) {
+  const t = useT()
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [overIdx, setOverIdx] = useState<number | null>(null)
 
@@ -1213,7 +1218,7 @@ function JobCard({
           <span style={{ color: '#60a5fa' }}>{job.id}</span> {job.name}
         </span>
         <Tag color="cyan" style={{ marginRight: 0, fontSize: 11 }}>
-          {job.agent_icon} {job.steps.length}个
+          {job.agent_icon} {t('pipe.nItems', { n: job.steps.length })}
         </Tag>
       </div>
 
@@ -1221,7 +1226,7 @@ function JobCard({
       <div style={{ padding: '4px 0', background: '#1f2937' }}>
         {job.steps.length === 0 && (
           <div style={{ color: '#9ca3af', padding: 8, fontSize: 12, textAlign: 'center' }}>
-            暂无步骤
+            {t('pipe.noSteps')}
           </div>
         )}
         {job.steps.map((step, idx) => (
@@ -1278,7 +1283,7 @@ function JobCard({
               <span>{step.name || step.display_name || step.plugin}</span>
             </div>
             <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Tooltip title="复制这个步骤">
+              <Tooltip title={t("pipe.copyThisStep")}>
                 <CopyOutlined
                   onClick={(e) => {
                     e.stopPropagation()
@@ -1287,7 +1292,7 @@ function JobCard({
                   style={{ fontSize: 11, color: '#9ca3af' }}
                 />
               </Tooltip>
-              <Tooltip title="删除这个步骤">
+              <Tooltip title={t("pipe.deleteThisStep")}>
                 <DeleteOutlined
                   onClick={(e) => {
                     e.stopPropagation()
@@ -1313,7 +1318,7 @@ function JobCard({
           onMouseEnter={(e) => (e.currentTarget.style.background = '#374151')}
           onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
         >
-          <PlusOutlined /> 添加步骤
+          <PlusOutlined /> {t('pipe.addStep')}
         </div>
       </div>
 
@@ -1329,7 +1334,7 @@ function JobCard({
           background: '#111827',
         }}
       >
-        删除 Job
+        {t('pipe.deleteJob')}
       </div>
     </div>
   )

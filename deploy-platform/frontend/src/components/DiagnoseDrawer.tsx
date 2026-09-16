@@ -2,6 +2,7 @@ import { Drawer, Button, Alert, Spin, Typography, Empty } from 'antd'
 import { RobotOutlined } from '@ant-design/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { get, postLong } from '@/api/client'
+import { useT } from '@/i18n'
 
 const { Paragraph, Title, Text } = Typography
 
@@ -27,6 +28,7 @@ export default function DiagnoseDrawer({
   onClose: () => void
 }) {
   const queryClient = useQueryClient()
+  const t = useT()
   const { data, isFetching, isError, error } = useQuery({
     queryKey: ['diagnose', releaseId],
     queryFn: () =>
@@ -50,7 +52,7 @@ export default function DiagnoseDrawer({
       title={
         <span>
           <RobotOutlined style={{ marginRight: 8 }} />
-          AI 诊断 · 构建 #{releaseId ?? ''}
+          {t('diagnose.title', { id: releaseId ?? '' })}
         </span>
       }
       open={open}
@@ -58,22 +60,22 @@ export default function DiagnoseDrawer({
       width={560}
       extra={
         <Button size="small" onClick={() => regen.mutate()} loading={regen.isPending}>
-          重新诊断
+          {t('diagnose.again')}
         </Button>
       }
     >
       {busy && !data && (
         <div style={{ textAlign: 'center', padding: 48 }}>
           <Spin />
-          <div style={{ marginTop: 12, color: '#666' }}>正在读取已生成的诊断…</div>
+          <div style={{ marginTop: 12, color: '#666' }}>{t('diagnose.loading')}</div>
         </div>
       )}
       {isError && (
         <Alert
           type="error"
           showIcon
-          message="诊断失败"
-          description={(error as Error)?.message || '请检查「模型配置」是否已填写厂商 API Key'}
+          message={t('diagnose.failed')}
+          description={(error as Error)?.message || t('diagnose.needKey')}
         />
       )}
       {data && (
@@ -85,14 +87,14 @@ export default function DiagnoseDrawer({
             message={
               reused ? (
                 <span>
-                  与站内通知相同，未再次请求模型
+                  {t('diagnose.reused')}
                   <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
                     {data.model.provider_name} / {data.model.name}
                   </Text>
                 </span>
               ) : (
                 <span>
-                  已按失败日志生成摘要与建议
+                  {t('diagnose.generated')}
                   <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
                     {data.model.provider_name} / {data.model.name}
                   </Text>
@@ -128,7 +130,7 @@ export default function DiagnoseDrawer({
               })}
             </div>
           ) : (
-            <Empty description="还没有诊断内容" />
+            <Empty description={t('diagnose.empty')} />
           )}
         </>
       )}

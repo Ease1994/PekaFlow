@@ -3,6 +3,7 @@ import { Alert, Modal, Tabs, Empty, Button, Tooltip, Input } from 'antd'
 import { CopyOutlined, SearchOutlined } from '@ant-design/icons'
 import { copyText } from '@/utils/clipboard'
 import type { Variable } from '@/api/types'
+import { useT } from '@/i18n'
 
 interface VariableReferenceProps {
   open: boolean
@@ -19,6 +20,7 @@ interface VariableReferenceProps {
  * - 支持搜索过滤，每行右侧「复制」按钮把占位符写入剪贴板
  */
 export default function VariableReference({ open, onClose, variables = [] }: VariableReferenceProps) {
+  const t = useT()
   const [keyword, setKeyword] = useState('')
 
   const filter = (list: { name: string; desc: string; placeholder: string }[]) => {
@@ -36,12 +38,13 @@ export default function VariableReference({ open, onClose, variables = [] }: Var
   }))
 
   const copy = (text: string, label: string) => {
-    void copyText(text, `已复制 ${label}`)
+    void copyText(text, t('pipe.copiedVar', { label }))
   }
+  const sys = systemVars(t)
 
   return (
     <Modal
-      title="引用变量"
+      title={t("pipe.refVar")}
       open={open}
       onCancel={onClose}
       footer={null}
@@ -52,11 +55,11 @@ export default function VariableReference({ open, onClose, variables = [] }: Var
         type="info"
         showIcon
         style={{ marginBottom: 12 }}
-        message="占位符 ${{变量名}} 与 ${变量名} 都可以用，执行时由平台替换成真实值"
-        description="平台只替换下面列出的变量，认不出来的原样传给脚本，所以 ${HOME} 这类 shell 自己的变量不受影响。"
+        message={t("pipe.placeholderHint")}
+        description={t("pipe.placeholderShell")}
       />
       <Input
-        placeholder="搜索变量（按名称或描述）"
+        placeholder={t("pipe.searchVar")}
         prefix={<SearchOutlined />}
         value={keyword}
         onChange={(e) => setKeyword(e.target.value)}
@@ -67,15 +70,15 @@ export default function VariableReference({ open, onClose, variables = [] }: Var
         items={[
           {
             key: 'system',
-            label: `系统变量（${SYSTEM_VARS.length}）`,
-            children: <VariableList items={filter(SYSTEM_VARS)} onCopy={copy} />,
+            label: t('pipe.sysVars', { n: sys.length }),
+            children: <VariableList items={filter(sys)} onCopy={copy} />,
           },
           {
             key: 'custom',
-            label: `自定义变量（${customVars.length}）`,
+            label: t('pipe.customVars', { n: customVars.length }),
             children:
               customVars.length === 0 ? (
-                <Empty description="流水线尚未定义变量，请在「变量」页添加" />
+                <Empty description={t("pipe.noCustomVars")} />
               ) : (
                 <VariableList items={filter(customVars)} onCopy={copy} />
               ),
@@ -90,26 +93,25 @@ export default function VariableReference({ open, onClose, variables = [] }: Var
 // 系统变量：与后端 app/modules/pipeline/variables.py 的 system_variables() 一一对应。
 // 改后端记得同步这里，两边对不上用户就会拿到没被替换的占位符。
 // ============================================================
-const SYSTEM_VARS: { name: string; desc: string; placeholder: string }[] = [
-  { name: 'BK_CI_BUILD_NUM', desc: '构建号，按流水线各自从 1 自增', placeholder: '${{BK_CI_BUILD_NUM}}' },
-  { name: 'BK_CI_BUILD_NO', desc: '同构建号', placeholder: '${{BK_CI_BUILD_NO}}' },
-  { name: 'BK_CI_BUILD_ID', desc: '发布记录 ID，全局唯一', placeholder: '${{BK_CI_BUILD_ID}}' },
-  { name: 'BK_CI_BUILD_START_TIME', desc: '本次构建开始时间（毫秒时间戳）', placeholder: '${{BK_CI_BUILD_START_TIME}}' },
-  { name: 'BK_CI_VERSION', desc: '本次发布的版本号', placeholder: '${{BK_CI_VERSION}}' },
-  { name: 'BK_CI_PIPELINE_ID', desc: '流水线 ID', placeholder: '${{BK_CI_PIPELINE_ID}}' },
-  { name: 'BK_CI_PIPELINE_NAME', desc: '流水线名称', placeholder: '${{BK_CI_PIPELINE_NAME}}' },
-  { name: 'BK_CI_PIPELINE_VERSION', desc: '流水线保存时刻，形如 V20260826160732', placeholder: '${{BK_CI_PIPELINE_VERSION}}' },
-  { name: 'BK_CI_PROJECT_NAME', desc: '项目名称', placeholder: '${{BK_CI_PROJECT_NAME}}' },
-  { name: 'BK_CI_PROJECT_NAME_CN', desc: '项目名称（同上）', placeholder: '${{BK_CI_PROJECT_NAME_CN}}' },
-  { name: 'BK_CI_START_TYPE', desc: '启动方式：MANUAL / TIME_TRIGGER / WEB_HOOK / SERVICE / PIPELINE', placeholder: '${{BK_CI_START_TYPE}}' },
-  { name: 'BK_CI_START_USER_ID', desc: '发起人用户 ID', placeholder: '${{BK_CI_START_USER_ID}}' },
-  { name: 'BK_CI_START_USER_NAME', desc: '发起人用户名', placeholder: '${{BK_CI_START_USER_NAME}}' },
-  {
-    name: 'BK_CI_GIT_REPO_HEAD_COMMIT_ID',
-    desc: '本次构建的 commit（Rebuild / 回滚这类锁定了代码版本的构建才有值）',
-    placeholder: '${{BK_CI_GIT_REPO_HEAD_COMMIT_ID}}',
-  },
-]
+/** 系统变量列表：码与后端一致，说明文字走界面语言。 */
+function systemVars(t: (k: string) => string): { name: string; desc: string; placeholder: string }[] {
+  return [
+    { name: 'BK_CI_BUILD_NUM', desc: t('pipe.varBuildNum'), placeholder: '${{BK_CI_BUILD_NUM}}' },
+    { name: 'BK_CI_BUILD_NO', desc: t('pipe.varBuildNumAlias'), placeholder: '${{BK_CI_BUILD_NO}}' },
+    { name: 'BK_CI_BUILD_ID', desc: t('pipe.varReleaseId'), placeholder: '${{BK_CI_BUILD_ID}}' },
+    { name: 'BK_CI_BUILD_START_TIME', desc: t('pipe.varStartTime'), placeholder: '${{BK_CI_BUILD_START_TIME}}' },
+    { name: 'BK_CI_VERSION', desc: t('pipe.varVersion'), placeholder: '${{BK_CI_VERSION}}' },
+    { name: 'BK_CI_PIPELINE_ID', desc: t('pipe.varPipelineId'), placeholder: '${{BK_CI_PIPELINE_ID}}' },
+    { name: 'BK_CI_PIPELINE_NAME', desc: t('pipe.varPipelineName'), placeholder: '${{BK_CI_PIPELINE_NAME}}' },
+    { name: 'BK_CI_PIPELINE_VERSION', desc: t('pipe.varPipelineVersion'), placeholder: '${{BK_CI_PIPELINE_VERSION}}' },
+    { name: 'BK_CI_PROJECT_NAME', desc: t('pipe.varProject'), placeholder: '${{BK_CI_PROJECT_NAME}}' },
+    { name: 'BK_CI_PROJECT_NAME_CN', desc: t('pipe.varProjectAlias'), placeholder: '${{BK_CI_PROJECT_NAME_CN}}' },
+    { name: 'BK_CI_START_TYPE', desc: t('pipe.varTrigger'), placeholder: '${{BK_CI_START_TYPE}}' },
+    { name: 'BK_CI_START_USER_ID', desc: t('pipe.varUserId'), placeholder: '${{BK_CI_START_USER_ID}}' },
+    { name: 'BK_CI_START_USER_NAME', desc: t('pipe.varUser'), placeholder: '${{BK_CI_START_USER_NAME}}' },
+    { name: 'BK_CI_GIT_REPO_HEAD_COMMIT_ID', desc: t('pipe.varCommit'), placeholder: '${{BK_CI_GIT_REPO_HEAD_COMMIT_ID}}' },
+  ]
+}
 
 function VariableList({
   items,
@@ -118,8 +120,10 @@ function VariableList({
   items: { name: string; desc: string; placeholder: string }[]
   onCopy: (text: string, label: string) => void
 }) {
+  const t = useT()
+
   if (items.length === 0) {
-    return <Empty description="未找到匹配的变量" />
+    return <Empty description={t('pipe.noVarMatch')} />
   }
   return (
     <div style={{ maxHeight: 480, overflow: 'auto' }}>
@@ -138,7 +142,7 @@ function VariableList({
             <div style={{ fontWeight: 500, fontSize: 13, marginBottom: 2 }}>{it.name}</div>
             <div style={{ color: '#999', fontSize: 12 }}>{it.desc}</div>
           </div>
-          <Tooltip title="复制占位符，粘贴到任意步骤参数里">
+          <Tooltip title={t("pipe.copyPlaceholder")}>
             <Button
               type="text"
               icon={<CopyOutlined />}

@@ -4,6 +4,7 @@ import TableColumnSettings, {
   type ColumnOption,
   type TableSize,
 } from '@/components/TableColumnSettings'
+import { t } from '@/i18n'
 
 const STORAGE_PREFIX = 'release.table.v2.'
 export const LIST_PAGE_SIZES = [10, 20, 50, 100]
@@ -32,12 +33,12 @@ function colKey(c: ColumnType<unknown>, i: number): string {
 
 function colLabel(c: ColumnType<unknown>, key: string): string {
   if (typeof c.title === 'string' && c.title.trim()) return c.title.trim()
-  if (key === 'actions') return '操作'
+  if (key === 'actions') return t('common.action')
   return ''
 }
 
-function isLocked(key: string, label: string, index: number): boolean {
-  if (key === 'actions' || label === '操作') return true
+function isLocked(key: string, _label: string, index: number): boolean {
+  if (key === 'actions') return true
   return index === 0
 }
 

@@ -17,8 +17,8 @@ export default function ForgotPassword() {
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
   const { data: branding } = usePlatformBranding()
-  const displayName = resolveDisplayName(branding)
   const t = useT()
+  const displayName = resolveDisplayName(branding, t)
 
   const onFinish = async (values: { username: string }) => {
     setLoading(true)

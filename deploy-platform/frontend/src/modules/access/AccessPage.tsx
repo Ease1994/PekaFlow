@@ -17,9 +17,10 @@ import {
 import { AuditOutlined, CheckOutlined, CloseOutlined, StopOutlined } from '@ant-design/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { get, post } from '@/api/client'
-import { envLabel } from '@/env'
+import { envLabel, groupOptionLabel } from '@/env'
 import DataTable from '@/components/DataTable'
 import { useAuthStore } from '@/stores/auth'
+import { t as translate, useT } from '@/i18n'
 
 interface Catalog {
   projects: { id: number; name: string; code: string }[]
@@ -58,52 +59,87 @@ interface Application {
   source: string
 }
 
-const STATUS: Record<string, { color: string; text: string }> = {
-  pending: { color: 'orange', text: '待审批' },
-  approved: { color: 'success', text: '已通过' },
-  rejected: { color: 'error', text: '已驳回' },
-  cancelled: { color: 'default', text: '已撤销' },
+/** 申请单状态码对应 Tag 颜色；句子按码现取，approved 没有公共 status 键。 */
+const STATUS_COLOR: Record<string, string> = {
+  pending: 'orange',
+  approved: 'success',
+  rejected: 'error',
+  cancelled: 'default',
 }
 
-const SOURCE: Record<string, { color: string; text: string }> = {
-  web: { color: 'default', text: '手动' },
-  ai: { color: 'blue', text: 'AI助手' },
-  api: { color: 'cyan', text: 'API' },
-  cron: { color: 'purple', text: '定时' },
+/** 申请单状态码 → i18n 键。pending/rejected/cancelled 复用 status.*。 */
+const STATUS_I18N: Record<string, string> = {
+  pending: 'status.pending',
+  approved: 'access.approved',
+  rejected: 'status.rejected',
+  cancelled: 'status.cancelled',
+}
+
+/** 申请来源码 → i18n 键。 */
+const SOURCE_I18N: Record<string, string> = {
+  web: 'access.sourceWeb',
+  ai: 'access.sourceAi',
+  api: 'access.sourceApi',
+  cron: 'access.sourceCron',
+}
+
+const SOURCE_COLOR: Record<string, string> = {
+  web: 'default',
+  ai: 'blue',
+  api: 'cyan',
+  cron: 'purple',
 }
 
 /** 申请覆盖范围：整项目 / 环境分组 / 单条流水线。 */
 type ApplyScope = 'project' | 'group' | 'pipeline'
 
-/** 可申请的动作。默认勾查看+执行。 */
-const APPLY_ACTION_OPTIONS = [
-  { value: 'read', label: '查看' },
-  { value: 'create', label: '创建' },
-  { value: 'update', label: '更新' },
-  { value: 'delete', label: '删除' },
-  { value: 'execute', label: '执行' },
-  { value: 'approve', label: '审批' },
-  { value: 'approval_exempt', label: '豁免审批' },
-]
+/** 可申请的动作。默认勾查看+执行；标签走 acl.*。 */
+function applyActionOptions() {
+  return [
+    { value: 'read', label: translate('acl.view') },
+    { value: 'create', label: translate('acl.create') },
+    { value: 'update', label: translate('acl.update') },
+    { value: 'delete', label: translate('acl.delete') },
+    { value: 'execute', label: translate('acl.execute') },
+    { value: 'approve', label: translate('acl.approve') },
+    { value: 'approval_exempt', label: translate('acl.exempt') },
+  ]
+}
 
-/** 列表和审批弹窗用的范围名称。 */
+/** 列表和审批弹窗用的范围名称。后端 scope_label 原样展示。 */
 function scopeLabel(row: Application): string {
   if (row.scope_label) return row.scope_label
-  if (row.apply_type === 'project_execute') return '整项目'
-  if (row.apply_type === 'group_execute') return '环境分组'
-  return '流水线'
+  if (row.apply_type === 'project_execute') return translate('access.scopeProject')
+  if (row.apply_type === 'group_execute') return translate('access.scopeGroup')
+  return translate('access.scopePipeline')
 }
 
 /** 通过后实际授予的范围说明。 */
 function grantHint(row: Application | { apply_type?: string } | null, approved: boolean): string {
-  if (!approved) return '驳回后申请人仍可重新提交。'
+  if (!approved) return translate('access.grantRejectHint')
   const kind = row && 'apply_type' in row ? row.apply_type : ''
   const scope =
-    kind === 'project_execute' ? '该项目（含当前和以后新建的流水线）' : kind === 'group_execute' ? '该环境分组' : '该流水线'
-  return `通过后按拟授动作写入${scope}。单条流水线申请里的审批权会落到所属环境分组。`
+    kind === 'project_execute'
+      ? translate('access.grantScopeProject')
+      : kind === 'group_execute'
+        ? translate('access.grantScopeGroup')
+        : translate('access.grantScopePipeline')
+  return translate('access.grantHint', { scope })
+}
+
+/** 申请单状态文案：有码就翻译，没有码回落到原值。 */
+function applicationStatusText(code: string): string {
+  return STATUS_I18N[code] ? translate(STATUS_I18N[code]) : code
+}
+
+/** 申请来源文案。空值按手动。 */
+function applicationSourceText(code: string): string {
+  if (!code) return translate('access.sourceWeb')
+  return SOURCE_I18N[code] ? translate(SOURCE_I18N[code]) : code
 }
 
 export default function AccessPage() {
+  const t = useT()
   const qc = useQueryClient()
   const user = useAuthStore((s) => s.user)
   const [projectId, setProjectId] = useState<number>()
@@ -165,7 +201,7 @@ export default function AccessPage() {
       return post<Application>('/access/applications', { pipeline_id: pipelineId, reason, actions: applyActions })
     },
     onSuccess: (row) => {
-      message.success(`已提交申请 #${row.id}，等待审批`)
+      message.success(t('access.submitted', { n: row.id }))
       setReason('')
       invalidate()
     },
@@ -183,7 +219,7 @@ export default function AccessPage() {
     mutationFn: ({ id, action, comment: c }: { id: number; action: 'approve' | 'reject' | 'cancel'; comment?: string }) =>
       post<Application>(`/access/applications/${id}/${action}`, action === 'cancel' ? undefined : { comment: c || '' }),
     onSuccess: () => {
-      message.success('已处理')
+      message.success(t('access.processed'))
       setReviewTarget(null)
       setComment('')
       invalidate()
@@ -191,45 +227,47 @@ export default function AccessPage() {
   })
 
   const columns = (opts: { review?: boolean; mine?: boolean }) => [
-    { title: '单号', dataIndex: 'id', width: 70 },
-    { title: '申请人', dataIndex: 'applicant', width: 120 },
+    { title: t('access.colId'), dataIndex: 'id', width: 70 },
+    { title: t('access.colApplicant'), dataIndex: 'applicant', width: 120 },
     {
-      title: '范围',
+      title: t('access.colScope'),
       width: 110,
       render: (_: unknown, row: Application) => <Tag>{scopeLabel(row)}</Tag>,
     },
-    { title: '项目', dataIndex: 'project_name' },
-    { title: '分组', dataIndex: 'group_name', width: 140 },
-    { title: '流水线', dataIndex: 'pipeline_name' },
+    { title: t('acl.project'), dataIndex: 'project_name' },
+    { title: t('acl.group'), dataIndex: 'group_name', width: 140 },
+    { title: t('acl.pipeline'), dataIndex: 'pipeline_name' },
     {
-      title: '拟授',
+      title: t('access.colGranted'),
       dataIndex: 'granted_actions',
       width: 200,
       render: (v: string) => v || 'read,execute',
     },
-    { title: '申请说明', dataIndex: 'reason', ellipsis: true },
+    { title: t('access.colReason'), dataIndex: 'reason', ellipsis: true },
     {
-      title: '状态',
+      title: t('common.status'),
       dataIndex: 'status',
       width: 100,
       render: (s: string, row: Application) => (
         <Space>
-          <Tag color={STATUS[s]?.color}>{STATUS[s]?.text || s}</Tag>
-          {s === 'approved' && row.granted_actions && <Tag>已授 {row.granted_actions}</Tag>}
+          <Tag color={STATUS_COLOR[s]}>{applicationStatusText(s)}</Tag>
+          {s === 'approved' && row.granted_actions && (
+            <Tag>{t('access.grantedTag', { actions: row.granted_actions })}</Tag>
+          )}
         </Space>
       ),
     },
-    { title: '提交时间', dataIndex: 'created_at', width: 180 },
+    { title: t('access.colCreated'), dataIndex: 'created_at', width: 180 },
     {
-      title: '触发',
+      title: t('access.colSource'),
       dataIndex: 'source',
       width: 90,
-      render: (s: string) => <Tag color={SOURCE[s]?.color}>{SOURCE[s]?.text || s || '手动'}</Tag>,
+      render: (s: string) => <Tag color={SOURCE_COLOR[s] || 'default'}>{applicationSourceText(s)}</Tag>,
     },
-    { title: '审批人', dataIndex: 'reviewer', width: 100 },
-    { title: '审批意见', dataIndex: 'review_comment', ellipsis: true },
+    { title: t('access.colReviewer'), dataIndex: 'reviewer', width: 100 },
+    { title: t('access.colComment'), dataIndex: 'review_comment', ellipsis: true },
     {
-      title: '操作',
+      title: t('common.action'),
       width: 180,
       render: (_: unknown, row: Application) => {
         if (row.status !== 'pending') return null
@@ -242,7 +280,7 @@ export default function AccessPage() {
                 icon={<CheckOutlined />}
                 onClick={() => setReviewTarget({ id: row.id, approved: true, apply_type: row.apply_type })}
               >
-                通过
+                {t('access.pass')}
               </Button>
               <Button
                 danger
@@ -250,7 +288,7 @@ export default function AccessPage() {
                 icon={<CloseOutlined />}
                 onClick={() => setReviewTarget({ id: row.id, approved: false, apply_type: row.apply_type })}
               >
-                驳回
+                {t('access.reject')}
               </Button>
             </Space>
           )
@@ -262,7 +300,7 @@ export default function AccessPage() {
               icon={<StopOutlined />}
               onClick={() => actMut.mutate({ id: row.id, action: 'cancel' })}
             >
-              撤销
+              {t('access.revoke')}
             </Button>
           )
         }
@@ -277,29 +315,29 @@ export default function AccessPage() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="申请权限"
-        description="可选三种范围：整项目、某个环境分组、或某一条流水线。默认申请查看 + 执行；也可以勾选创建、更新、删除、审批、豁免审批。AI 助手里直接说「申请某某执行权限」或「申请某某全部权限」。"
+        message={t('access.alertTitle')}
+        description={t('access.alertDesc')}
       />
 
-      <Card title={<><AuditOutlined /> 提交申请</>} style={{ marginBottom: 16 }}>
+      <Card title={<><AuditOutlined /> {t('access.submitTitle')}</>} style={{ marginBottom: 16 }}>
         <Form layout="vertical">
-          <Form.Item label="申请范围" style={{ marginBottom: 16 }}>
+          <Form.Item label={t('access.applyScope')} style={{ marginBottom: 16 }}>
             <Radio.Group
               value={applyScope}
               onChange={(e) => setApplyScope(e.target.value)}
               optionType="button"
               options={[
-                { value: 'pipeline', label: '单条流水线' },
-                { value: 'group', label: '整个环境' },
-                { value: 'project', label: '整个项目' },
+                { value: 'pipeline', label: t('access.scopePipelineBtn') },
+                { value: 'group', label: t('access.scopeGroupBtn') },
+                { value: 'project', label: t('access.scopeProjectBtn') },
               ]}
             />
           </Form.Item>
           <Space wrap size="middle" style={{ width: '100%' }} align="start">
-            <Form.Item label="项目" style={{ marginBottom: 0, minWidth: 220 }}>
+            <Form.Item label={t('acl.project')} style={{ marginBottom: 0, minWidth: 220 }}>
               <Select
                 allowClear
-                placeholder="选择项目"
+                placeholder={t('access.selectProject')}
                 value={projectId}
                 onChange={(v) => {
                   setProjectId(v)
@@ -310,10 +348,10 @@ export default function AccessPage() {
               />
             </Form.Item>
             {applyScope !== 'project' ? (
-              <Form.Item label="分组" style={{ marginBottom: 0, minWidth: 220 }}>
+              <Form.Item label={t('acl.group')} style={{ marginBottom: 0, minWidth: 220 }}>
                 <Select
                   allowClear
-                  placeholder="选择分组"
+                  placeholder={t('access.selectGroup')}
                   value={groupId}
                   onChange={(v) => {
                     setGroupId(v)
@@ -321,18 +359,18 @@ export default function AccessPage() {
                   }}
                   options={groups.map((g) => ({
                     value: g.id,
-                    label: `${g.name}（${envLabel(g.type)}）`,
+                    label: groupOptionLabel(g),
                   }))}
                 />
               </Form.Item>
             ) : null}
             {applyScope === 'pipeline' ? (
-              <Form.Item label="流水线" style={{ marginBottom: 0, minWidth: 260 }}>
+              <Form.Item label={t('acl.pipeline')} style={{ marginBottom: 0, minWidth: 260 }}>
                 <Select
                   allowClear
                   showSearch
                   optionFilterProp="label"
-                  placeholder="选择流水线"
+                  placeholder={t('access.selectPipeline')}
                   value={pipelineId}
                   onChange={setPipelineId}
                   options={pipelines.map((p) => ({
@@ -343,9 +381,9 @@ export default function AccessPage() {
               </Form.Item>
             ) : null}
           </Space>
-          <Form.Item label="申请权限" style={{ marginTop: 16 }}>
+          <Form.Item label={t('access.applyPerms')} style={{ marginTop: 16 }}>
             <Checkbox.Group
-              options={APPLY_ACTION_OPTIONS}
+              options={applyActionOptions()}
               value={applyActions}
               onChange={(v) => {
                 const next = v as string[]
@@ -357,12 +395,12 @@ export default function AccessPage() {
               }}
             />
           </Form.Item>
-          <Form.Item label="申请说明" style={{ marginTop: 16, maxWidth: 720 }}>
+          <Form.Item label={t('access.colReason')} style={{ marginTop: 16, maxWidth: 720 }}>
             <Input.TextArea
               rows={3}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="说明用途，便于审批人判断"
+              placeholder={t('access.reasonPlaceholder')}
             />
           </Form.Item>
           <Button
@@ -371,7 +409,7 @@ export default function AccessPage() {
             loading={applyMut.isPending}
             onClick={() => applyMut.mutate()}
           >
-            提交申请
+            {t('access.submitApply')}
           </Button>
         </Form>
       </Card>
@@ -381,7 +419,7 @@ export default function AccessPage() {
           items={[
             {
               key: 'mine',
-              label: `我的申请（${mine.length}）`,
+              label: t('access.tabMine', { n: mine.length }),
               children: (
                 <DataTable
                   chromeKey="access-mine"
@@ -394,7 +432,7 @@ export default function AccessPage() {
             },
             {
               key: 'pending',
-              label: `待我审批（${pending.length}）`,
+              label: t('access.tabPending', { n: pending.length }),
               children: (
                 <DataTable
                   chromeKey="access-pending"
@@ -409,7 +447,7 @@ export default function AccessPage() {
               ? [
                   {
                     key: 'all',
-                    label: `全部记录（${allRows.length}）`,
+                    label: t('access.tabAll', { n: allRows.length }),
                     children: (
                       <DataTable
                         chromeKey="access-all"
@@ -427,7 +465,7 @@ export default function AccessPage() {
       </Card>
 
       <Modal
-        title={reviewTarget?.approved ? '通过申请' : '驳回申请'}
+        title={reviewTarget?.approved ? t('access.modalPass') : t('access.modalReject')}
         open={!!reviewTarget}
         onCancel={() => setReviewTarget(null)}
         onOk={() => {
@@ -440,14 +478,14 @@ export default function AccessPage() {
         }}
         confirmLoading={actMut.isPending}
         okButtonProps={{ danger: reviewTarget?.approved === false }}
-        okText={reviewTarget?.approved ? '确认通过' : '确认驳回'}
+        okText={reviewTarget?.approved ? t('access.okPass') : t('access.okReject')}
       >
         <p>{grantHint(reviewTarget, !!reviewTarget?.approved)}</p>
         <Input.TextArea
           rows={3}
           value={comment}
           onChange={(e) => setComment(e.target.value)}
-          placeholder="审批意见（可选）"
+          placeholder={t('access.commentPh')}
         />
       </Modal>
     </div>

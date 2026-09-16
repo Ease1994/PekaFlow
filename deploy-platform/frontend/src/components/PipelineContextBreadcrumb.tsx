@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { get } from '@/api/client'
 import type { Pipeline, Project } from '@/api/types'
+import { useT } from '@/i18n'
 
 type Props = {
   pipeline?: Pipeline
@@ -40,19 +41,20 @@ export default function PipelineContextBreadcrumb({
   pipelineLink = false,
   fontSize = 14,
 }: Props) {
+  const t = useT()
   const { data: project } = useQuery({
     queryKey: ['project', pipeline?.project_id],
     queryFn: () => get<Project>(`/projects/${pipeline!.project_id}`),
     enabled: !!pipeline?.project_id,
   })
 
-  const projectName = project?.name || (pipeline?.project_id ? `项目 #${pipeline.project_id}` : '...')
+  const projectName = project?.name || (pipeline?.project_id ? t('common.projectN', { id: pipeline.project_id }) : '...')
   const pipelineName = pipeline?.name || '...'
 
   return (
     <div style={{ fontSize, color: '#666', minWidth: 0, display: 'flex', alignItems: 'center' }}>
       <Link to="/projects" style={LINK}>
-        项目
+        {t('catalog.colProject')}
       </Link>
       <Sep />
       {pipeline?.project_id ? (

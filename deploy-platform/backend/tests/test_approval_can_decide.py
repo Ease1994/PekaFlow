@@ -24,7 +24,7 @@ def _db() -> Session:
 
 
 def _seed(db: Session) -> dict:
-    requester = User(username="peng", display_name="彭康", password_hash="x", is_admin=False)
+    requester = User(username="alice", display_name="Alice", password_hash="x", is_admin=False)
     admin = User(username="admin", display_name="系统管理员", password_hash="x", is_admin=True)
     db.add_all([requester, admin])
     db.flush()
@@ -56,7 +56,7 @@ def _seed(db: Session) -> dict:
 def test_initiator_cannot_decide_when_approver_is_someone_else():
     db = _db()
     ids = _seed(db)
-    me = CurrentUser(id=ids["requester"].id, username="peng", is_admin=False)
+    me = CurrentUser(id=ids["requester"].id, username="alice", is_admin=False)
     assert _can_decide(db, me, ids["row"], ids["rel"]) is False
 
 
@@ -222,7 +222,7 @@ def test_initiator_can_self_approve_when_switch_on():
         )
     )
     db.commit()
-    me = CurrentUser(id=ids["requester"].id, username="peng", is_admin=False)
+    me = CurrentUser(id=ids["requester"].id, username="alice", is_admin=False)
     assert _can_decide(db, me, ids["row"], ids["rel"]) is True
     assert pending_approval_for_reviewer(
         db, release_id=ids["rel"].id, reviewer_id=ids["requester"].id, is_admin=False

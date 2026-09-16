@@ -2,7 +2,8 @@
  * 编排画布拉线 / 删线 / 拆并行的回归：同一 Job 顺序执行，同一阶段 Job 并行。
  * 删相邻步骤的线只断开箭头、不新建 Job；阶段到 Job 的从属线不能删。
  */
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, beforeAll } from 'vitest'
+import { useI18nStore } from '@/i18n'
 import type { GraphJob, GraphStage, GraphStep } from '@/api/types'
 import {
   applyCanvasLink,
@@ -13,6 +14,10 @@ import {
   isCanvasGraphErr,
   type CanvasRef,
 } from './canvasGraph'
+
+beforeAll(() => {
+  useI18nStore.getState().setLocale('zh-CN')
+})
 
 /** 拼一个步骤，只填测试要用的字段。 */
 function step(plugin: string, order: number): GraphStep {

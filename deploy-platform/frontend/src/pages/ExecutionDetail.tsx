@@ -14,18 +14,10 @@ import ExecutionCanvas from '@/components/execution/ExecutionCanvas'
 import PipelineContextBreadcrumb from '@/components/PipelineContextBreadcrumb'
 import RiskActionButton from '@/components/RiskActionButton'
 import { TONE_COLOR, logTone, stepLogLines, type LogTone } from '@/utils/buildLog'
-import { sequenceHeaderMeta } from '@/utils/releaseStatus'
+import { sequenceHeaderMeta, releaseStatusMeta } from '@/utils/releaseStatus'
+import { useT } from '@/i18n'
 
 const { Text } = Typography
-
-const statusMap: Record<string, { color: string; text: string }> = {
-  pending: { color: 'orange', text: '待审批' },
-  queued: { color: 'cyan', text: '排队中' },
-  running: { color: 'processing', text: '执行中' },
-  success: { color: 'success', text: '成功' },
-  failed: { color: 'error', text: '失败' },
-  cancelled: { color: 'default', text: '已取消' },
-}
 
 interface PipelineVariable {
   name: string
@@ -189,6 +181,7 @@ function hasAnyTask(seq: SequenceData): boolean {
 }
 
 export default function ExecutionDetail() {
+  const t = useT()
   const { pipelineId, releaseId } = useParams<{ pipelineId: string; releaseId: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -375,7 +368,7 @@ export default function ExecutionDetail() {
     setCancelling(true)
     try {
       await post(`/releases/${releaseId}/cancel`)
-      message.success('已取消发布')
+      message.success(t('exec.cancelled'))
       queryClient.invalidateQueries({ queryKey: ['release-sequence', releaseId] })
     } finally {
       setCancelling(false)
@@ -417,11 +410,11 @@ export default function ExecutionDetail() {
             icon={<ArrowLeftOutlined />}
             onClick={() => navigate(`/executions/${pipelineId}`)}
           >
-            返回
+            {t('pipe.back')}
           </Button>
           {sequence?.is_running && (
             <Button danger loading={cancelling} onClick={handleCancel}>
-              取消执行
+              {t('exec.cancelRun')}
             </Button>
           )}
           <PipelineContextBreadcrumb
@@ -429,7 +422,7 @@ export default function ExecutionDetail() {
             pipelineId={pipelineId}
             pipelineLink
             fontSize={13}
-            current={`执行明细 #${sequence?.build_number || releaseId}`}
+            current={t('exec.detailN', { n: sequence?.build_number || releaseId || '' })}
           />
         </Space>
         {sequence && (
@@ -439,7 +432,7 @@ export default function ExecutionDetail() {
               icon={viewMode === 'canvas' ? <UnorderedListOutlined /> : <ApartmentOutlined />}
               onClick={toggleView}
             >
-              {viewMode === 'canvas' ? '列表视图' : '画布编排'}
+              {viewMode === 'canvas' ? t('exec.listView') : t('pipe.canvasArrange')}
             </Button>
             )}
             {canDiagnose && (
@@ -448,7 +441,7 @@ export default function ExecutionDetail() {
                 icon={<RobotOutlined />}
                 onClick={() => setDiagnoseOpen(true)}
               >
-                AI 诊断
+                {t('exec.aiDiagnose')}
               </Button>
             )}
             <RiskActionButton
@@ -463,8 +456,8 @@ export default function ExecutionDetail() {
               disabled={sequence.is_running || !sequence.source_ref}
               title={
                 !sequence.source_ref
-                  ? '该次发布未记录 commit，无法 Rebuild'
-                  : `用 ${sequence.source_ref.slice(0, 8)} 重建`
+                  ? t('exec.noCommit')
+                  : t('exec.rebuildWith', { ref: sequence.source_ref.slice(0, 8) })
               }
               onDone={(nr) => {
                 if (nr.status !== 'pending') navigate(`/executions/${pipelineId}/${nr.id}`)
@@ -474,7 +467,7 @@ export default function ExecutionDetail() {
               {headerMeta?.text}
             </Tag>
             {sequence.total_duration_label && (
-              <Tag color="blue" style={{ fontSize: 13 }}>⏱ 总耗时 {sequence.total_duration_label}</Tag>
+              <Tag color="blue" style={{ fontSize: 13 }}>⏱ {t('exec.totalDuration', { time: sequence.total_duration_label })}</Tag>
             )}
             {sequence.source_ref && (
               <Tooltip title={sequence.source_ref}>
@@ -509,7 +502,7 @@ export default function ExecutionDetail() {
           }}
         >
           {!sequence ? (
-            <Empty description="加载序列中..." />
+            <Empty description={t('exec.loadingSeq')} />
           ) : layoutMode === 'canvas' ? (
             <ExecutionCanvas
               sequence={sequence}
@@ -526,12 +519,12 @@ export default function ExecutionDetail() {
                   style={{ marginBottom: 12 }}
                   message={
                     sequence.status === 'rejected'
-                      ? '审批已驳回'
+                      ? t('exec.rejected')
                       : sequence.status === 'cancelled'
-                        ? '发布已取消'
+                        ? t('exec.cancelledRel')
                         : startupFailed
-                          ? '发布未能启动'
-                          : '失败原因'
+                          ? t('pipe.publishStartFailed')
+                          : t('exec.failReason')
                   }
                   description={
                     <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{sequence.error}</div>
@@ -542,15 +535,15 @@ export default function ExecutionDetail() {
               <Card size="small" style={{ marginBottom: 12 }}>
                 <Row gutter={8}>
                   <Col span={12}>
-                    <Text type="secondary" style={{ fontSize: 11 }}>开始</Text>
+                    <Text type="secondary" style={{ fontSize: 11 }}>{t('exec.started')}</Text>
                     <div style={{ fontSize: 12 }}>
                       {sequence.started_at ? dayjs(sequence.started_at).format('MM-DD HH:mm:ss') : '—'}
                     </div>
                   </Col>
                   <Col span={12}>
-                    <Text type="secondary" style={{ fontSize: 11 }}>结束</Text>
+                    <Text type="secondary" style={{ fontSize: 11 }}>{t('exec.ended')}</Text>
                     <div style={{ fontSize: 12 }}>
-                      {sequence.finished_at ? dayjs(sequence.finished_at).format('MM-DD HH:mm:ss') : '执行中…'}
+                      {sequence.finished_at ? dayjs(sequence.finished_at).format('MM-DD HH:mm:ss') : t('exec.runningEllipsis')}
                     </div>
                   </Col>
                 </Row>
@@ -558,7 +551,7 @@ export default function ExecutionDetail() {
 
               {sequence.pipeline_variables && sequence.pipeline_variables.length > 0 && (
                 <Card size="small" style={{ marginBottom: 12 }}>
-                  <Text type="secondary" style={{ fontSize: 11 }}>🔧 流水线变量</Text>
+                  <Text type="secondary" style={{ fontSize: 11 }}>🔧 {t('exec.vars')}</Text>
                   <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                     {sequence.pipeline_variables.map((v) => (
                       <Tag key={v.name} color="cyan" style={{ fontSize: 11, margin: 0 }}>
@@ -573,7 +566,7 @@ export default function ExecutionDetail() {
               {commitsData && (
                 <Card
                   size="small"
-                  title={<span style={{ fontSize: 12 }}>🔧 代码变更</span>}
+                  title={<span style={{ fontSize: 12 }}>🔧 {t('exec.commits')}</span>}
                   extra={<Tag>{commitsData.commits.length}</Tag>}
                   style={{ marginBottom: 12 }}
                 >
@@ -596,7 +589,7 @@ export default function ExecutionDetail() {
                       ))}
                     </div>
                   ) : (
-                    <Text type="secondary" style={{ fontSize: 11 }}>未取到 commit 区间</Text>
+                    <Text type="secondary" style={{ fontSize: 11 }}>{t('exec.noCommitRange')}</Text>
                   )}
                 </Card>
               )}
@@ -614,7 +607,7 @@ export default function ExecutionDetail() {
                   }
                   extra={
                     <span style={{ fontSize: 11, color: '#999' }}>
-                      {statusMap[stage.status]?.text || stage.status}
+                      {releaseStatusMeta(stage.status).text}
                     </span>
                   }
                 >
@@ -663,7 +656,7 @@ export default function ExecutionDetail() {
                                   {step.duration_label}
                                 </span>
                               ) : step.status === 'running' ? (
-                                <span style={{ fontSize: 11, color: '#1677ff' }}>进行中</span>
+                                <span style={{ fontSize: 11, color: '#1677ff' }}>{t('deploy.inProgress')}</span>
                               ) : null}
                             </span>
                           </Button>
@@ -680,7 +673,7 @@ export default function ExecutionDetail() {
                   block
                   onClick={() => setDiagnoseOpen(true)}
                 >
-                  AI 诊断失败原因
+                  {t('exec.diagnoseFail')}
                 </Button>
               )}
             </>
@@ -719,31 +712,31 @@ export default function ExecutionDetail() {
           >
             <span>
               {startupFailed
-                ? '发布未能启动'
+                ? t('pipe.publishStartFailed')
                 : currentStep
-                  ? `步骤 ${currentStep.step.order + 1} · ${stepLabel(currentStep.step)}`
+                  ? t('exec.stepN', { n: currentStep.step.order + 1, name: stepLabel(currentStep.step) })
                   : layoutMode === 'canvas'
-                    ? '点画布上的节点查看该步日志'
-                    : '选中左侧步骤查看日志'}
+                    ? t('exec.clickNode')
+                    : t('exec.pickStep')}
               {currentStep?.step.duration_label && (
                 <span style={{ marginLeft: 10, fontSize: 12, color: '#9ca3af' }}>
-                  耗时 {currentStep.step.duration_label}
+                  {t('exec.duration', { time: currentStep.step.duration_label })}
                 </span>
               )}
               {startupFailed && (
                 <Tag color="error" style={{ marginLeft: 10 }}>
-                  步骤未执行
+                  {t('exec.stepNotRun')}
                 </Tag>
               )}
               {currentStep && (currentStep.step.status === 'failed' || currentStep.step.status === 'timeout') && (
                 <Tag color="error" style={{ marginLeft: 10 }}>
-                  该步骤失败
+                  {t('exec.stepFailed')}
                 </Tag>
               )}
             </span>
             {sequence?.is_running &&
               (followLive ? (
-                <span style={{ fontSize: 12, color: '#4ec9b0' }}>◉ 跟随执行中</span>
+                <span style={{ fontSize: 12, color: '#4ec9b0' }}>◉ {t('exec.following')}</span>
               ) : (
                 // 不给这个入口的话，手动点过一次步骤就再也回不到「自动跟着跑」了
                 <Button
@@ -756,7 +749,7 @@ export default function ExecutionDetail() {
                   }}
                   style={{ fontSize: 12, padding: 0, height: 'auto' }}
                 >
-                  ↓ 回到当前步骤
+                  ↓ {t('exec.backToLive')}
                 </Button>
               ))}
           </div>
@@ -784,12 +777,12 @@ export default function ExecutionDetail() {
               ) : (
                 <span style={{ color: '#666' }}>
                   {currentStep && !currentStep.step.task_id
-                    ? '（该步骤还没开始执行，等排队/审批通过后会自动出现日志）'
+                    ? t('exec.notStartedLog')
                     : logLoading
-                      ? '正在加载日志 ...'
+                      ? t('exec.loadingLog')
                       : taskLogLines.length
-                        ? '（该步骤暂无日志）'
-                        : '（暂无日志）'}
+                        ? t('exec.noStepLog')
+                        : t('exec.noLog')}
                 </span>
               )
             ) : (
@@ -815,7 +808,7 @@ export default function ExecutionDetail() {
                     }}
                   >
                     <div style={{ color: '#fca5a5', fontSize: 12, marginBottom: 8 }}>
-                      报错汇总（共 {errorLines.length} 条，原文按编译顺序夹在上面的 warning 里）
+                      {t('exec.errorRecap', { n: errorLines.length })}
                     </div>
                     {errorLines.map((row, i) => (
                       <div key={i} style={LOG_ROW}>

@@ -17,6 +17,7 @@ import LanguageSwitch from '@/components/LanguageSwitch'
 import { useT } from '@/i18n'
 import {
   resolveDisplayName,
+  resolveUserDisplayName,
   resolveNoticeColor,
   HEADER_NOTICE_COLORS,
   usePlatformBranding,
@@ -34,13 +35,13 @@ export default function MainLayout() {
   const location = useLocation()
   const { user, logout } = useAuthStore()
   const { data: branding } = usePlatformBranding()
-  const displayName = resolveDisplayName(branding)
+  const t = useT()
+  const displayName = resolveDisplayName(branding, t)
   const headerImageUrl = (branding?.header_image_url || '').trim()
   const headerNoticeText = (branding?.header_notice_text || '').trim()
   const headerNoticeColor = resolveNoticeColor(branding?.header_notice_color)
   const headerNoticeTheme = HEADER_NOTICE_COLORS[headerNoticeColor]
   const isMobile = useIsMobile()
-  const t = useT()
   /** 手机上侧栏改成抽屉，点汉堡打开。 */
   const [menuOpen, setMenuOpen] = useState(false)
   const [tokenModalOpen, setTokenModalOpen] = useState(false)
@@ -223,7 +224,7 @@ export default function MainLayout() {
           >
             <Space style={{ cursor: 'pointer' }}>
               <Avatar size="small" icon={<UserOutlined />} />
-              <span className="header-user-name">{user?.display_name || user?.username || t('layout.notSignedIn')}</span>
+              <span className="header-user-name">{resolveUserDisplayName(user, t)}</span>
               {user?.is_admin && (
                 <Tag className="header-user-tag" color="gold">
                   {t('layout.admin')}

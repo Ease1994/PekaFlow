@@ -2,6 +2,7 @@
  * 界面语言：localStorage 记住选择，缺省按浏览器语言，再缺省简体中文。
  * 文案用点号路径取嵌套字段；缺键回落到简体。
  */
+import { useCallback } from 'react'
 import { create } from 'zustand'
 import type { AppLocale, Messages } from './types'
 import { zhCN } from './locales/zh-CN'
@@ -105,10 +106,25 @@ export function t(key: string, vars?: Record<string, string | number>): string {
   return text
 }
 
-/** 组件里用：订阅 locale，切换后自动重渲染。 */
+/** 组件里用：订阅 locale，切换后返回新函数，好让 useMemo 重新算菜单。 */
 export function useT(): (key: string, vars?: Record<string, string | number>) => string {
-  useI18nStore((s) => s.locale)
-  return t
+  const locale = useI18nStore((s) => s.locale)
+  return useCallback(
+    (key: string, vars?: Record<string, string | number>) => t(key, vars),
+    [locale],
+  )
+}
+
+/**
+ * 按当前界面语言格式化时间。
+ * 空值返回空串；解析失败原样返回，避免把坏数据显示成 Invalid Date。
+ */
+export function formatDateTime(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const locale = useI18nStore.getState().locale
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return iso
+  return date.toLocaleString(locale, { hour12: false })
 }
 
 export type { AppLocale, Messages }

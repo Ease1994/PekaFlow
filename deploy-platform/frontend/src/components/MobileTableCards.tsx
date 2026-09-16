@@ -2,6 +2,7 @@ import { Empty, Pagination } from 'antd'
 import type { ColumnsType, ColumnType } from 'antd/es/table'
 import type { TableProps } from 'antd'
 import type { Key, ReactNode } from 'react'
+import { t } from '@/i18n'
 
 /**
  * 把 antd 列定义收成窄屏卡片。
@@ -27,7 +28,7 @@ function colLabel<T>(c: ColumnType<T>): string {
 function isActionCol<T>(c: ColumnType<T>): boolean {
   const key = c.key != null ? String(c.key) : ''
   const label = colLabel(c)
-  if (key === 'actions' || label === '操作') return true
+  if (key === 'actions' || label === t('common.action') || label === '操作') return true
   // 有的表操作列标题留空，只挂了 render
   return !label && c.dataIndex == null && typeof c.render === 'function'
 }

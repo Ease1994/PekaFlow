@@ -1,6 +1,7 @@
 import { memo } from 'react'
 import { Handle, Position } from 'reactflow'
 import { CheckCircleFilled, CloseCircleFilled, LoadingOutlined, PauseCircleFilled, StopOutlined } from '@ant-design/icons'
+import { useT } from '@/i18n'
 
 /** 步骤节点上的选中回调参数，与执行页 StepPick 对齐。 */
 export type CanvasStepPick = {
@@ -57,6 +58,7 @@ function pluginTone(plugin: string): string {
  * 执行画布上的单个步骤，样式对齐 Dify 节点：色条、标题、状态角标。
  */
 function ExecStepNode({ data }: { data: ExecStepData }) {
+  const t = useT()
   const bar = STATUS_BAR[data.status] || '#cbd5e1'
   const tone = pluginTone(data.plugin)
   return (
@@ -112,9 +114,9 @@ function ExecStepNode({ data }: { data: ExecStepData }) {
           <StatusMark status={data.status} />
         </div>
         {data.duration ? (
-          <div style={{ marginTop: 8, fontSize: 11, color: '#6b7280' }}>耗时 {data.duration}</div>
+          <div style={{ marginTop: 8, fontSize: 11, color: '#6b7280' }}>{t('common.elapsed', { d: data.duration })}</div>
         ) : data.status === 'running' ? (
-          <div style={{ marginTop: 8, fontSize: 11, color: '#3b82f6' }}>进行中</div>
+          <div style={{ marginTop: 8, fontSize: 11, color: '#3b82f6' }}>{t('deploy.inProgress')}</div>
         ) : null}
       </div>
     </div>

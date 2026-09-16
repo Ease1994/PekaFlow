@@ -1,4 +1,5 @@
 import { message } from 'antd'
+import { t } from '@/i18n'
 
 /**
  * 复制文本到剪贴板。
@@ -9,9 +10,9 @@ import { message } from 'antd'
 export async function copyText(text: string, successTip?: string): Promise<boolean> {
   const ok = (await writeViaClipboardApi(text)) || writeViaExecCommand(text)
   if (ok) {
-    if (successTip !== '') message.success(successTip || '已复制到剪贴板')
+    if (successTip !== '') message.success(successTip || t('common.copied'))
   } else {
-    message.error('复制失败，请手动选中后按 Ctrl+C')
+    message.error(t('common.copyFailed'))
   }
   return ok
 }

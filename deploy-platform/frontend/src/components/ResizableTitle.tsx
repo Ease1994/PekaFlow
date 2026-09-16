@@ -1,4 +1,5 @@
 import { useEffect, useRef, type CSSProperties, type ReactNode, type ThHTMLAttributes } from 'react'
+import { t } from '@/i18n'
 
 const HANDLE: CSSProperties = {
   position: 'absolute',
@@ -57,7 +58,7 @@ export default function ResizableTitle({ width, onResize, children, style, ...re
       <span
         role="separator"
         aria-orientation="vertical"
-        aria-label="拖动调整列宽"
+        aria-label={t('common.resizeCol')}
         className="rp-col-resize-handle"
         style={HANDLE}
         onClick={(e) => e.stopPropagation()}

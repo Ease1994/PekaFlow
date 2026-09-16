@@ -5,9 +5,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { get, post } from '@/api/client'
 import { fromNow, kindTitle, noticeHref, type Notice } from './types'
+import { useT } from '@/i18n'
 
 export default function NoticeCenter() {
   const navigate = useNavigate()
+  const t = useT()
   const [params, setParams] = useSearchParams()
   const qc = useQueryClient()
   const tab = params.get('tab') === 'read' ? 'read' : 'unread'
@@ -59,7 +61,7 @@ export default function NoticeCenter() {
 
   const markAll = async () => {
     const r = await post<{ updated: number }>('/notifications/read-all')
-    message.success(r.updated ? `已将 ${r.updated} 条标为已读` : '没有未读通知')
+    message.success(r.updated ? t('notify.marked', { n: r.updated }) : t('notify.noneUnread'))
     refresh()
   }
 
@@ -73,10 +75,10 @@ export default function NoticeCenter() {
 
   return (
     <Card
-      title="全部通知"
+      title={t('notify.allTitle')}
       extra={
         <Button type="link" onClick={markAll} disabled={!unread?.count}>
-          全部已读
+          {t('notify.markAll')}
         </Button>
       }
     >
@@ -88,15 +90,15 @@ export default function NoticeCenter() {
           setParams(next)
         }}
         items={[
-          { key: 'unread', label: `未读${unread?.count ? ` ${unread.count}` : ''}` },
-          { key: 'read', label: '已读' },
+          { key: 'unread', label: unread?.count ? t('notify.unreadN', { n: unread.count }) : t('notify.unread') },
+          { key: 'read', label: t('notify.read') },
         ]}
       />
       <Space style={{ marginBottom: 12 }}>
         {[
-          { key: '', text: '全部' },
-          { key: 'release', text: '发布' },
-          { key: 'access', text: '权限' },
+          { key: '', text: t('notify.all') },
+          { key: 'release', text: t('notify.release') },
+          { key: 'access', text: t('notify.access') },
         ].map((x) => (
           <Tag.CheckableTag
             key={x.key}
@@ -113,7 +115,7 @@ export default function NoticeCenter() {
         ))}
       </Space>
       {notices.length === 0 ? (
-        <Empty description={tab === 'unread' ? '没有未读通知' : '没有已读通知'} />
+        <Empty description={tab === 'unread' ? t('notify.noneUnread') : t('notify.noneRead')} />
       ) : (
         <List
           dataSource={notices}
@@ -145,7 +147,7 @@ export default function NoticeCenter() {
                         openDetail(n)
                       }}
                     >
-                      查看详情
+                      {t('notify.viewDetail')}
                     </a>
                   </div>
                 }
@@ -156,7 +158,7 @@ export default function NoticeCenter() {
       )}
 
       <Drawer
-        title={detail?.title || focused?.title || '通知详情'}
+        title={detail?.title || focused?.title || t('notify.detail')}
         width={520}
         open={!!detail || !!focused}
         onClose={() => {
@@ -170,14 +172,14 @@ export default function NoticeCenter() {
         extra={
           (detail || focused) ? (
             <Button type="primary" onClick={() => goLink(detail || focused!)}>
-              打开相关页面
+              {t('notify.openRelated')}
             </Button>
           ) : null
         }
       >
         {(detail || focused) && (
           <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.8 }}>
-            {(detail || focused)!.content || '（无正文）'}
+            {(detail || focused)!.content || t('notify.noBody')}
           </div>
         )}
       </Drawer>

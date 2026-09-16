@@ -46,6 +46,7 @@ openclaw-main/
 # ===== IDE / 系统 =====
 .idea/
 .vscode/
+.cursor/
 .workbuddy/
 *.swp
 .DS_Store

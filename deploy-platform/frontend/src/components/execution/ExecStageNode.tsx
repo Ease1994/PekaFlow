@@ -1,8 +1,10 @@
 import { memo } from 'react'
 import { Handle, Position } from 'reactflow'
+import { useT } from '@/i18n'
 
 /** 阶段标签节点：挂在该阶段第一步左侧，表示编排从哪一段开始。 */
 function ExecStageNode({ data }: { data: { name: string; status: string } }) {
+  const t = useT()
   const failed = data.status === 'failed'
   return (
     <div
@@ -16,7 +18,7 @@ function ExecStageNode({ data }: { data: { name: string; status: string } }) {
       }}
     >
       <Handle type="source" position={Position.Right} style={{ background: '#94a3b8', width: 8, height: 8 }} />
-      <div style={{ fontSize: 11, color: '#9ca3af', letterSpacing: 1 }}>阶段</div>
+      <div style={{ fontSize: 11, color: '#9ca3af', letterSpacing: 1 }}>{t('common.stage')}</div>
       <div style={{ fontSize: 13, fontWeight: 700, color: '#111827', marginTop: 2 }}>{data.name}</div>
     </div>
   )

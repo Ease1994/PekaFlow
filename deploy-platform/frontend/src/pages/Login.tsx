@@ -38,8 +38,8 @@ export default function Login() {
   const [otpauthUri, setOtpauthUri] = useState('')
   const [hint, setHint] = useState('')
   const { data: branding } = usePlatformBranding()
-  const displayName = resolveDisplayName(branding)
   const t = useT()
+  const displayName = resolveDisplayName(branding, t)
 
   const { data: wecomStatus } = useQuery({
     queryKey: ['wecom-status'],

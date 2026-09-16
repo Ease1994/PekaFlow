@@ -45,6 +45,7 @@ import {
   skipNodePushApproval,
 } from '@/env'
 import { useAuthStore } from '@/stores/auth'
+import { formatDateTime, useT } from '@/i18n'
 
 const { Paragraph, Text } = Typography
 
@@ -72,6 +73,7 @@ type RunMode = 'script' | 'manual'
  * 而且所有写操作都被限制在允许目录内。目录安装时声明，之后可在列表里改，心跳下发给 Agent。
  */
 export default function Nodes() {
+  const t = useT()
   const queryClient = useQueryClient()
   const isAdmin = !!useAuthStore((s) => s.user?.is_admin)
   const [open, setOpen] = useState(false)
@@ -133,7 +135,7 @@ export default function Nodes() {
     const form = new FormData()
     form.append('file', file)
     await postForm('/agents/jdk-linux', form, 600000)
-    message.success('JDK 包已保存，重建平台也不会丢')
+    message.success(t('nodes.jdkSaved'))
     refetchJdkLinux()
     return false
   }
@@ -147,7 +149,7 @@ export default function Nodes() {
         return false
       }}
     >
-      <Button icon={<UploadOutlined />}>上传 JDK 包</Button>
+      <Button icon={<UploadOutlined />}>{t('nodes.uploadJdk')}</Button>
     </Upload>
   )
 
@@ -198,7 +200,7 @@ export default function Nodes() {
   const applyAssign = async (join: boolean) => {
     const target = groups.find((g) => g.id === assignGroupId)
     if (!target) {
-      message.warning('请先选择分组')
+      message.warning(t('nodes.pickGroupFirst'))
       return
     }
     const current = new Set(target.agent_ids)
@@ -207,7 +209,7 @@ export default function Nodes() {
     setAssignOpen(false)
     setSelectedIds([])
     refreshGroups()
-    message.success(join ? `已加入「${target.name}」` : `已移出「${target.name}」`)
+    message.success(join ? t('nodes.joinedGroup', { name: target.name }) : t('nodes.leftGroup', { name: target.name }))
   }
 
   /**
@@ -217,7 +219,7 @@ export default function Nodes() {
   const createAssignGroup = async () => {
     const name = newGroupName.trim()
     if (!name) {
-      message.warning('请填写分组名称')
+      message.warning(t('nodes.needGroupName'))
       return
     }
     setCreatingGroup(true)
@@ -231,7 +233,7 @@ export default function Nodes() {
       })
       setAssignGroupId(created.id)
       refreshGroups()
-      message.success(`已创建「${created.name}」，确认后点「加入该分组」`)
+      message.success(t('nodes.groupCreatedJoin', { name: created.name }))
     } finally {
       setCreatingGroup(false)
     }
@@ -241,10 +243,10 @@ export default function Nodes() {
     const v = await groupForm.validateFields()
     if (editingGroup) {
       await patch(`/node-groups/${editingGroup.id}`, { name: v.name, description: v.description })
-      message.success('已保存')
+      message.success(t('nodes.saved'))
     } else {
       await post('/node-groups', { name: v.name, description: v.description })
-      message.success('已创建')
+      message.success(t('common.created'))
     }
     setEditingGroup(null)
     groupForm.resetFields()
@@ -255,7 +257,7 @@ export default function Nodes() {
     const res = await del<{ revoked: number }>(`/node-groups/${g.id}`)
     refreshGroups()
     message.success(
-      res?.revoked ? `已删除，并撤销了 ${res.revoked} 条相关授权` : '已删除',
+      res?.revoked ? t('nodes.deletedWithRevokes', { n: res.revoked }) : t('nodes.deleted'),
     )
   }
 
@@ -269,21 +271,21 @@ export default function Nodes() {
       a.click()
       URL.revokeObjectURL(url)
     } catch {
-      message.error('下载失败，请确认已登录且能打开本页')
+      message.error(t('nodes.downloadFailed'))
     }
   }
 
   const rotateToken = () => {
     Modal.confirm({
-      title: '轮换接入凭证',
-      content: '轮换后旧凭证立即失效，新节点需用新凭证接入。已登记的节点和构建机不受影响。',
-      okText: '轮换',
+      title: t('nodes.rotateTitle'),
+      content: t('nodes.rotateBody'),
+      okText: t('nodes.rotateOk'),
       okButtonProps: { danger: true },
-      cancelText: '取消',
+      cancelText: t('common.cancel'),
       onOk: async () => {
         await post('/agents/enroll-token/rotate')
         queryClient.invalidateQueries({ queryKey: ['agent-enroll-token'] })
-        message.success('已轮换')
+        message.success(t('nodes.rotated'))
       },
     })
   }
@@ -341,7 +343,7 @@ export default function Nodes() {
         env: v.env,
         allow_paths: paths,
       })
-      message.success('已保存。目录和环境随心跳生效；Linux 服务名单要重跑安装脚本才会写入 sudoers')
+      message.success(t('nodes.savedPathsHeartbeat'))
       refresh()
     } finally {
       setSavingNode(false)
@@ -350,15 +352,15 @@ export default function Nodes() {
 
   const handleDelete = (node: BuildAgent) => {
     Modal.confirm({
-      title: `移除节点「${node.name}」`,
-      content: '移除后流水线里选中该节点的步骤会执行失败，请先确认没有流水线在用它。',
-      okText: '移除',
+      title: t('nodes.removeTitle', { name: node.name }),
+      content: t('nodes.removeBody'),
+      okText: t('nodes.remove'),
       okButtonProps: { danger: true },
-      cancelText: '取消',
+      cancelText: t('common.cancel'),
       onOk: async () => {
         await del(`/agents/${node.id}`)
         refresh()
-        message.success('已移除')
+        message.success(t('nodes.removed'))
       },
     })
   }
@@ -372,11 +374,9 @@ export default function Nodes() {
     const iis = splitLines(v.allowIis)
     const envArgs = envInstallArgs(v.env)
     const envNote = skipNodePushApproval(envArgs.value)
-      ? `\n标记为${envLabel(envArgs.value)}节点：往这台机器下发文件不需要审批。`
-      : `\n标记为${envLabel(envArgs.value)}节点：往这台机器下发文件都要先审批。`
-    const rerunNote = editingNode
-      ? '\n这是重装命令：到这台机器上再跑一遍即可换上平台当前 jar，已登记的凭据会续上，不用先删节点。'
-      : ''
+      ? '\n' + t('nodes.noteSkipApproval', { env: envLabel(envArgs.value) })
+      : '\n' + t('nodes.noteNeedApproval', { env: envLabel(envArgs.value) })
+    const rerunNote = editingNode ? '\n' + t('nodes.rerunNote') : ''
 
     if (os === 'linux') {
       // Linux 节点必须 root 装：要写 systemd unit 和 sudoers 白名单。
@@ -393,15 +393,7 @@ export default function Nodes() {
             `sudo env SERVER=${shSingleQuote(serverUrl)} NAME=${shSingleQuote(v.name)} ALLOW_PATHS=${shSingleQuote(paths.join(','))}` +
             ` INSTALL_DIR=$(pwd)` +
             ` ENV=${shSingleQuote(envArgs.value)}${svcEnv}${tokenEnv} bash install-node.sh`,
-          note:
-            '先 cd 到大盘上的 release 目录再执行这两行，例如 /data/soft/release 或 /mnt/release。\n' +
-            '备份会建在该路径第一层下的 release-backup（/data/soft/release → /data/release-backup），安装脚本会交给 release 账号，不必再手工赋权。\n' +
-            '需要 systemd。没有可用 JDK 时会从平台自动安装 JDK 8，校验 java -version 通过后才继续装 Agent。\n' +
-            'JDK 包在「节点管理」上传一次即可，重建平台也不会丢。\n' +
-            'Agent 会以专用普通账号 release 运行，不是 root；要停的服务通过 sudoers 白名单精确放行。\n' +
-            '想复用已有的部署账号，在命令里加 RUN_USER=你的账号。' +
-            envNote +
-            rerunNote,
+          note: t('nodes.linuxScriptNote') + envNote + rerunNote,
         }
       }
       const enrollArg = enrollToken ? ` --enroll-token ${shSingleQuote(enrollToken)}` : ''
@@ -410,12 +402,7 @@ export default function Nodes() {
         cmd:
           `java -jar deploy-agent.jar --server ${shSingleQuote(serverUrl)} --name ${shSingleQuote(v.name)}` +
           ` --role node${envArgs.cli} --allow-paths ${shSingleQuote(paths.join(';'))}${svcArg}${enrollArg}`,
-        note:
-          '手动方式：需本机已有 JDK 8+，自己下载 jar 并放到当前目录。\n' +
-          '这样跑起来没有 sudoers 白名单，服务启停会失败；关掉窗口进程也就没了。\n' +
-          '建议只用于首次连通性验证，正式安装请用脚本。' +
-          envNote +
-          rerunNote,
+        note: t('nodes.linuxManualNote') + envNote + rerunNote,
       }
     }
 
@@ -429,12 +416,7 @@ export default function Nodes() {
           `iwr "${serverUrl}/api/v1/agents/install-script?role=node" -OutFile install-node.ps1\n` +
           `.\\install-node.ps1 -Server ${psSingleQuote(serverUrl)} -Name ${psSingleQuote(v.name)} -AllowPaths ${psSingleQuote(paths.join(','))}` +
           `${iisArg}${envArgs.ps}${tokenArg}`,
-        note:
-          '在节点服务器上「以管理员身份运行」PowerShell，粘贴执行这两行即可。\n' +
-          '脚本会自己下载 jar、生成启动器并拉起，升级时重跑同样的命令。\n' +
-          'IIS 启停按站点物理路径是否在允许目录内判断；「允许控制的 IIS」可留空，只有老机器需要额外收紧时才填。' +
-          envNote +
-          rerunNote,
+        note: t('nodes.windowsScriptNote') + envNote + rerunNote,
       }
     }
 
@@ -446,53 +428,47 @@ export default function Nodes() {
       ` --role node${envArgs.cli} --allow-paths "${paths.join(';')}"${iisArg}${enrollArg}`
     return {
       cmd: base,
-      note:
-        '手动方式：需自己下载 jar 并放到当前目录，且要在「以管理员身份运行」的 cmd 里执行。\n' +
-        '关掉窗口进程就没了，建议只用于首次连通性验证。' +
-        envNote +
-        rerunNote,
+      note: t('nodes.windowsManualNote') + envNote + rerunNote,
     }
   }
 
   const copyCommand = async () => {
     const result = renderCommand()
     if (!result) {
-      message.warning('请先填写节点名称和允许操作的目录')
+      message.warning(t('nodes.needNameAndPaths'))
       return
     }
     await copyText(
       result.cmd,
-      editingNode
-        ? '命令已复制，到这台服务器上以管理员/root 重跑即可换上当前 jar'
-        : '命令已复制，到生产服务器上以管理员身份执行',
+      editingNode ? t('nodes.copiedRerun') : t('nodes.copiedInstall'),
     )
   }
 
   const upgradeHint = (r: BuildAgent) => {
     if (!r.outdated) {
-      return '已经是平台当前版本'
+      return t('nodes.alreadyCurrent')
     }
     if (r.upgrade_error) {
-      return `自动升级没成功：${r.upgrade_error}`
+      return t('nodes.autoUpgradeFailed', { error: r.upgrade_error })
     }
     if (r.effective_status !== 'online') {
-      return '节点离线收不到指令。它可能正是换版本后没起来，去机器上重跑安装脚本最快'
+      return t('nodes.offlineNoCmd')
     }
-    return '节点会在手上的发布跑完后自动换版本，不用管；点一下是催它重试'
+    return t('nodes.autoUpgradeHint')
   }
 
   // 版本落后的节点本来就会自己升，这里是「自动升级卡住了想再推一把」的手动重试
   const handleUpgrade = (r: BuildAgent) => {
     Modal.confirm({
-      title: `催一下节点「${r.name}」升级`,
+      title: t('nodes.nudgeUpgradeTitle', { name: r.name }),
       content: r.upgrade_error
-        ? `上次没升成功：${r.upgrade_error}。再试一次会让它越过失败熔断重新下载。若仍不行，请到机器上重跑安装脚本。`
-        : `从 ${r.agent_version} 升到 ${r.latest_version}。节点会等当前发布任务跑完再换版本并自动重启，期间不会中断正在进行的发布。`,
-      okText: '重试升级',
-      cancelText: '取消',
+        ? t('nodes.upgradeRetryBody', { error: r.upgrade_error })
+        : t('nodes.upgradeBody', { from: r.agent_version || '', to: r.latest_version || '' }),
+      okText: t('nodes.retryUpgrade'),
+      cancelText: t('common.cancel'),
       onOk: async () => {
         await post(`/agents/${r.id}/upgrade`, {})
-        message.success('已催促，换版本完成后这里会自动更新')
+        message.success(t('nodes.upgradeNudged'))
         refresh()
       },
     })
@@ -502,17 +478,17 @@ export default function Nodes() {
   const changeEnv = (node: BuildAgent, env: string) => {
     const skip = skipNodePushApproval(env)
     Modal.confirm({
-      title: `把「${node.name}」标记为${envLabel(env)}节点`,
+      title: t('nodes.markEnvTitle', { name: node.name, env: envLabel(env) }),
       content: skip
-        ? `标记为${envLabel(env)}后，有下发权限的人可以直接往这台机器传文件，不再需要审批。请确认这台确实不是生产机。`
-        : `标记为${envLabel(env)}后，往这台机器下发文件都要先经过审批。`,
-      okText: '确认',
+        ? t('nodes.markEnvSkip', { env: envLabel(env) })
+        : t('nodes.markEnvApprove', { env: envLabel(env) }),
+      okText: t('common.confirm'),
       okButtonProps: { danger: skip },
-      cancelText: '取消',
+      cancelText: t('common.cancel'),
       onOk: async () => {
         await patch(`/agents/${node.id}`, { env })
         refresh()
-        message.success('已更新')
+        message.success(t('common.updated'))
       },
     })
   }
@@ -533,7 +509,7 @@ export default function Nodes() {
       await patch(`/agents/${pathsNode.id}`, { allow_paths: paths })
       setPathsNode(null)
       refresh()
-      message.success('已保存。在线节点大约 10 秒内心跳生效，不用重装')
+      message.success(t('nodes.savedPathsOnline'))
     } finally {
       setSavingPaths(false)
     }
@@ -541,15 +517,15 @@ export default function Nodes() {
 
   const copyEnrollToken = async () => {
     if (!enrollToken) {
-      message.warning('没取到接入凭证')
+      message.warning(t('nodes.noEnrollToken'))
       return
     }
-    await copyText(enrollToken, '接入凭证已复制，安装脚本问起时粘贴进去')
+    await copyText(enrollToken, t('nodes.enrollCopied'))
   }
 
   const columns = [
     {
-      title: '节点名称',
+      title: t('nodes.colName'),
       dataIndex: 'name',
       render: (v: string) => (
         <Space>
@@ -558,15 +534,15 @@ export default function Nodes() {
         </Space>
       ),
     },
-    { title: 'IP / 主机', dataIndex: 'host' },
+    { title: t('nodes.colHost'), dataIndex: 'host' },
     {
-      title: '所属分组',
+      title: t('nodes.colGroups'),
       dataIndex: 'groups',
       width: 200,
       render: (v: { id: number; name: string }[] = []) =>
         v.length === 0 ? (
-          <Tooltip title="不在任何分组里，只能一台台单独授权">
-            <Tag>未分组</Tag>
+          <Tooltip title={t('nodes.ungroupedHint')}>
+            <Tag>{t('project.ungrouped')}</Tag>
           </Tooltip>
         ) : (
           <Space size={4} wrap>
@@ -579,21 +555,21 @@ export default function Nodes() {
         ),
     },
     {
-      title: '系统',
+      title: t('common.os'),
       dataIndex: 'os',
       render: (v: string) =>
         v === 'windows' ? <Tag color="purple">🪟 Windows</Tag> : <Tag color="blue">{v}</Tag>,
     },
     {
-      title: '环境',
+      title: t('common.environment'),
       dataIndex: 'env',
       width: 130,
       render: (v: string, r: BuildAgent) => (
-        <Tooltip title={skipNodePushApproval(v) ? '往这台传文件不用审批' : '往这台传文件要先审批'}>
+        <Tooltip title={skipNodePushApproval(v) ? t('nodes.skipApprovalTip') : t('nodes.needApprovalTip')}>
           <Select
             size="small"
             value={v || undefined}
-            placeholder="未标"
+            placeholder={t('common.unlabeled')}
             style={{ width: 96 }}
             onChange={(next) => changeEnv(r, next)}
             options={envSelectOptions(nodes.map((n) => n.env))}
@@ -603,12 +579,12 @@ export default function Nodes() {
       ),
     },
     {
-      title: '允许操作的目录',
+      title: t('nodes.allowPaths'),
       dataIndex: 'allow_paths',
       render: (v: string[] = [], r: BuildAgent) => (
         <Space align="start">
           {v.length === 0 ? (
-            <Tag color="error">未配置（所有写操作会被拒绝）</Tag>
+            <Tag color="error">{t('nodes.noPaths')}</Tag>
           ) : (
             <Space direction="vertical" size={0}>
               {v.map((p) => (
@@ -618,10 +594,10 @@ export default function Nodes() {
               ))}
             </Space>
           )}
-          <Tooltip title="改完随心跳下发给 Agent，不用重装">
+          <Tooltip title={t('nodes.pathsHeartbeatTip')}>
             {isAdmin ? (
               <Button size="small" type="link" icon={<EditOutlined />} onClick={() => openAllowPaths(r)}>
-                改目录
+                {t('nodes.editPaths')}
               </Button>
             ) : null}
           </Tooltip>
@@ -629,19 +605,19 @@ export default function Nodes() {
       ),
     },
     {
-      title: '允许控制的服务',
+      title: t('nodes.allowServices'),
       dataIndex: 'allow_services',
       render: (v: string[] = [], r: BuildAgent) => {
         if (r.os === 'windows') {
           return (
-            <Tooltip title="IIS 启停看站点物理路径是否落在允许目录内。老安装若启动参数还写了 --allow-iis，会额外收紧。">
-              <Text type="secondary">按允许目录判断</Text>
+            <Tooltip title={t('nodes.iisByPathTip')}>
+              <Text type="secondary">{t('nodes.iisByPath')}</Text>
             </Tooltip>
           )
         }
         return v.length === 0 ? (
-          <Tooltip title="没声明允许控制的服务，服务启停步骤会被拒绝。只传文件的话这是正常的">
-            <Tag>未配置</Tag>
+          <Tooltip title={t('nodes.noServicesTip')}>
+            <Tag>{t('nodes.notConfigured')}</Tag>
           </Tooltip>
         ) : (
           <Space direction="vertical" size={0}>
@@ -655,36 +631,36 @@ export default function Nodes() {
       },
     },
     {
-      title: '状态',
+      title: t('common.status'),
       dataIndex: 'effective_status',
       render: (v: string, r: BuildAgent) => {
         const hb = r.last_heartbeat
-          ? new Date(r.last_heartbeat).toLocaleString('zh-CN', { hour12: false })
-          : '从未心跳'
+          ? formatDateTime(r.last_heartbeat)
+          : t('nodes.neverHeartbeat')
         return (
           <Space direction="vertical" size={0}>
-            {v === 'online' ? <Tag color="success">在线</Tag> : <Tag>离线</Tag>}
-            <span style={{ fontSize: 11, color: '#999' }}>心跳：{hb}</span>
+            {v === 'online' ? <Tag color="success">{t('nodes.online')}</Tag> : <Tag>{t('nodes.offline')}</Tag>}
+            <span style={{ fontSize: 11, color: '#999' }}>{t('nodes.heartbeatAt', { time: hb })}</span>
           </Space>
         )
       },
     },
     {
-      title: '版本',
+      title: t('common.version'),
       dataIndex: 'agent_version',
       render: (v: string, r: BuildAgent) => {
         if (!v) {
-          return <Tag color="warning">未知（旧版 Agent，需重装一次）</Tag>
+          return <Tag color="warning">{t('nodes.unknownOldAgent')}</Tag>
         }
         return (
           <Space direction="vertical" size={0}>
             <Text code style={{ fontSize: 12 }}>
               {v}
             </Text>
-            {r.upgrading && <Tag color="processing">自动升级中 → {r.latest_version}</Tag>}
+            {r.upgrading && <Tag color="processing">{t('nodes.autoUpgrading', { version: r.latest_version || '' })}</Tag>}
             {r.upgrade_stalled && (
-              <Tooltip title={r.upgrade_error || '节点离线，收不到升级指令'}>
-                <Tag color="error">升级卡住了 → {r.latest_version}</Tag>
+              <Tooltip title={r.upgrade_error || t('nodes.upgradeOfflineTip')}>
+                <Tag color="error">{t('nodes.upgradeStalled', { version: r.latest_version || '' })}</Tag>
               </Tooltip>
             )}
           </Space>
@@ -692,13 +668,13 @@ export default function Nodes() {
       },
     },
     {
-      title: '操作',
+      title: t('common.action'),
       width: 230,
       render: (_: unknown, r: BuildAgent) =>
         isAdmin ? (
         <Space>
           <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>
-            修改
+            {t('nodes.modify')}
           </Button>
           <Tooltip title={upgradeHint(r)}>
             {/* span 包一层：按钮 disabled 时不触发鼠标事件，Tooltip 就不显示了 */}
@@ -711,12 +687,12 @@ export default function Nodes() {
                 disabled={!r.outdated || r.effective_status !== 'online'}
                 onClick={() => handleUpgrade(r)}
               >
-                {r.upgrading ? '升级中' : r.upgrade_stalled ? '重试升级' : '升级'}
+                {r.upgrading ? t('nodes.upgrading') : r.upgrade_stalled ? t('nodes.retryUpgrade') : t('common.upgrade')}
               </Button>
             </span>
           </Tooltip>
           <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(r)}>
-            移除
+            {t('nodes.remove')}
           </Button>
         </Space>
         ) : null,
@@ -726,17 +702,17 @@ export default function Nodes() {
   return (
     <div>
       <Card
-        title="节点管理（发布目标服务器）"
+        title={t('nodes.title')}
         extra={
           <Space>
             <Button icon={<ApartmentOutlined />} onClick={() => setGroupPanelOpen(true)}>
-              分组管理
+              {t('nodes.manageGroups')}
             </Button>
             <Button icon={<ReloadOutlined />} onClick={refresh}>
-              刷新
+              {t('common.refresh')}
             </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-              新增节点
+              {t('nodes.addNode')}
             </Button>
           </Space>
         }
@@ -744,12 +720,12 @@ export default function Nodes() {
         <Alert
           type="info"
           showIcon
-          message="节点是发布的目标机器，不是构建机"
+          message={t('nodes.alertTitle')}
           description={
             <>
-              节点 Agent 装在生产服务器上，只执行「发送文件到节点」「还原备份」和启停服务
-              （Windows 用 IIS，Linux 用 systemd / Docker）：不编译、不拉代码、不执行任意脚本，
-              写操作也只能落在安装时声明的目录内。编译打包请放在<b>构建机</b>上完成。
+              {t('nodes.alertDescBefore')}
+              <b>{t('nodes.builderMachines')}</b>
+              {t('nodes.alertDescAfter')}
             </>
           }
           style={{ marginBottom: 16 }}
@@ -760,8 +736,8 @@ export default function Nodes() {
             type="warning"
             showIcon
             style={{ marginBottom: 16 }}
-            message="还没有 Linux 节点用的 JDK 包"
-            description="没有可用 Java 的 Linux 机器装节点时会从平台下载。包写进数据卷，重建镜像不会丢。请上传 jdk-8u271-linux-x64.tar.gz（大约 80～200MB）。"
+            message={t('nodes.noJdkTitle')}
+            description={t('nodes.noJdkDesc')}
             action={jdkUploadButton}
           />
         ) : null}
@@ -769,36 +745,36 @@ export default function Nodes() {
         <Space style={{ marginBottom: 12 }} wrap>
           <Input.Search
             allowClear
-            placeholder="搜索节点名 / IP / 分组名"
+            placeholder={t('nodes.searchPlaceholder')}
             style={{ width: 260 }}
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
           />
           <Select
             allowClear
-            placeholder="按分组筛选"
+            placeholder={t('nodes.filterGroup')}
             style={{ width: 200 }}
             value={groupFilter}
             onChange={setGroupFilter}
             options={groups.map((g) => ({
               value: g.id,
-              label: `${g.name}（${g.member_count} 台）`,
+              label: t('nodes.groupWithCount', { name: g.name, n: g.member_count }),
             }))}
           />
           <Select
             allowClear
-            placeholder="按环境筛选"
+            placeholder={t('nodes.filterEnv')}
             style={{ width: 170 }}
             value={envFilter}
             onChange={setEnvFilter}
             options={envSelectOptions(Object.keys(envCount)).map((o) => ({
               value: o.value,
-              label: `${o.label}（${envCount[o.value] || 0} 台）`,
+              label: t('nodes.envWithCount', { name: o.label, n: envCount[o.value] || 0 }),
             }))}
           />
           {isAdmin && selectedIds.length > 0 && (
             <>
-              <Text type="secondary">已选 {selectedIds.length} 台</Text>
+              <Text type="secondary">{t('nodes.selectedN', { n: selectedIds.length })}</Text>
               <Button
                 type="primary"
                 icon={<ApartmentOutlined />}
@@ -808,9 +784,9 @@ export default function Nodes() {
                   setAssignOpen(true)
                 }}
               >
-                加入 / 移出分组
+                {t('nodes.assignGroups')}
               </Button>
-              <Button onClick={() => setSelectedIds([])}>取消选择</Button>
+              <Button onClick={() => setSelectedIds([])}>{t('nodes.clearSelection')}</Button>
             </>
           )}
         </Space>
@@ -830,26 +806,24 @@ export default function Nodes() {
           }
           // 几百台时不分页会把整张表一次渲染出来，页面会卡死
           pagination={{
-            showTotal: (t) => `共计 ${t} 台`,
+            showTotal: (n) => t('nodes.totalMachines', { n }),
           }}
           locale={{
-            emptyText: nodes.length
-              ? '没有匹配的节点'
-              : '还没有节点，点右上角「新增节点」拿安装命令',
+            emptyText: nodes.length ? t('nodes.emptyMatch') : t('nodes.emptyHint'),
           }}
         />
       </Card>
 
       <Modal
-        title={`把选中的 ${selectedIds.length} 台节点加入或移出分组`}
+        title={t('nodes.assignTitle', { n: selectedIds.length })}
         open={assignOpen}
         onCancel={() => setAssignOpen(false)}
         footer={[
           <Button key="cancel" onClick={() => setAssignOpen(false)}>
-            取消
+            {t('common.cancel')}
           </Button>,
           <Button key="remove" danger disabled={!assignGroupId} onClick={() => applyAssign(false)}>
-            移出该分组
+            {t('nodes.leaveGroup')}
           </Button>,
           <Button
             key="add"
@@ -857,7 +831,7 @@ export default function Nodes() {
             disabled={!assignGroupId}
             onClick={() => applyAssign(true)}
           >
-            加入该分组
+            {t('nodes.joinGroup')}
           </Button>,
         ]}
       >
@@ -865,19 +839,19 @@ export default function Nodes() {
           type="warning"
           showIcon
           style={{ marginBottom: 12 }}
-          message="进出分组会直接改变下发权限"
-          description="下发权限授在分组上，机器一入组，所有持有该组权限的人立刻就能往这台机器写文件；移出则立刻失效。"
+          message={t('nodes.assignAlertTitle')}
+          description={t('nodes.assignAlertDesc')}
         />
         <Select
           style={{ width: '100%' }}
-          placeholder="选择分组"
+          placeholder={t('nodes.selectGroup')}
           value={assignGroupId}
           onChange={setAssignGroupId}
           options={groups.map((g) => ({
             value: g.id,
-            label: `${g.name}（当前 ${g.member_count} 台）`,
+            label: t('nodes.groupCurrentCount', { name: g.name, n: g.member_count }),
           }))}
-          notFoundContent={<Empty description="还没有分组，可在下方直接新建" />}
+          notFoundContent={<Empty description={t('nodes.noGroupsCreate')} />}
           dropdownRender={(menu) => (
             <>
               {menu}
@@ -889,14 +863,14 @@ export default function Nodes() {
                     onMouseDown={(e) => e.preventDefault()}
                   >
                     <Input
-                      placeholder="新分组名称，如 O2O 生产 Web"
+                      placeholder={t('nodes.newGroupPlaceholder')}
                       value={newGroupName}
                       onChange={(e) => setNewGroupName(e.target.value)}
                       onKeyDown={(e) => e.stopPropagation()}
                       onPressEnter={() => createAssignGroup()}
                     />
                     <Button type="primary" loading={creatingGroup} onClick={createAssignGroup}>
-                      新建
+                      {t('nodes.createNew')}
                     </Button>
                   </Space.Compact>
                 </>
@@ -907,7 +881,7 @@ export default function Nodes() {
       </Modal>
 
       <Modal
-        title="节点分组管理"
+        title={t('nodes.groupsTitle')}
         open={groupPanelOpen}
         onCancel={() => {
           setGroupPanelOpen(false)
@@ -921,23 +895,23 @@ export default function Nodes() {
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
-          message="下发权限授在分组上"
-          description="机器多了以后按台授权维护不动：扩容要给每个人补一遍，下线了授权还留着。授在分组上，机器进出组权限自动跟着走。授权本身在「权限管理 → 节点授权」里配。"
+          message={t('nodes.groupsAlertTitle')}
+          description={t('nodes.groupsAlertDesc')}
         />
 
         <Form form={groupForm} layout="inline" style={{ marginBottom: 16 }}>
           {isAdmin ? (
             <>
-              <Form.Item name="name" rules={[{ required: true, message: '请填名称' }]}>
-                <Input placeholder="分组名称，如 O2O 生产 Web" style={{ width: 200 }} />
+              <Form.Item name="name" rules={[{ required: true, message: t('nodes.nameRequired') }]}>
+                <Input placeholder={t('nodes.groupNamePlaceholder')} style={{ width: 200 }} />
               </Form.Item>
               <Form.Item name="description">
-                <Input placeholder="说明（可选）" style={{ width: 200 }} />
+                <Input placeholder={t('nodes.descOptional')} style={{ width: 200 }} />
               </Form.Item>
               <Form.Item>
                 <Space>
                   <Button type="primary" onClick={saveGroup}>
-                    {editingGroup ? '保存修改' : '新建分组'}
+                    {editingGroup ? t('nodes.saveEdits') : t('nodes.createGroup')}
                   </Button>
                   {editingGroup && (
                     <Button
@@ -946,7 +920,7 @@ export default function Nodes() {
                         groupForm.resetFields()
                       }}
                     >
-                      取消编辑
+                      {t('nodes.cancelEdit')}
                     </Button>
                   )}
                 </Space>
@@ -958,7 +932,7 @@ export default function Nodes() {
         <List
           bordered
           dataSource={groups}
-          locale={{ emptyText: '还没有分组' }}
+          locale={{ emptyText: t('nodes.noGroups') }}
           renderItem={(g) => (
             <List.Item
               actions={
@@ -973,19 +947,19 @@ export default function Nodes() {
                     groupForm.setFieldsValue({ name: g.name, description: g.description })
                   }}
                 >
-                  改名
+                  {t('nodes.rename')}
                 </Button>,
                 <Popconfirm
                   key="del"
-                  title={`删除分组「${g.name}」`}
-                  description="挂在这个分组上的授权会一并撤销，组内机器本身不受影响。"
-                  okText="删除"
+                  title={t('nodes.deleteGroupTitle', { name: g.name })}
+                  description={t('nodes.deleteGroupBody')}
+                  okText={t('common.delete')}
                   okButtonProps={{ danger: true }}
-                  cancelText="取消"
+                  cancelText={t('common.cancel')}
                   onConfirm={() => removeGroup(g)}
                 >
                   <Button size="small" danger icon={<DeleteOutlined />}>
-                    删除
+                    {t('common.delete')}
                   </Button>
                 </Popconfirm>,
                   ]
@@ -996,21 +970,21 @@ export default function Nodes() {
                 title={
                   <Space>
                     <Tag color="geekblue">{g.name}</Tag>
-                    <Text type="secondary">{g.member_count} 台</Text>
+                    <Text type="secondary">{t('nodes.nMachines', { n: g.member_count })}</Text>
                   </Space>
                 }
-                description={g.description || <Text type="secondary">（无说明）</Text>}
+                description={g.description || <Text type="secondary">{t('nodes.noDescription')}</Text>}
               />
             </List.Item>
           )}
         />
         <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 12 }}>
-          调整组内成员：关掉这个窗口，在列表里勾选节点后点「加入 / 移出分组」。
+          {t('nodes.membersHint')}
         </Text>
       </Modal>
 
       <Modal
-        title={editingNode ? `修改节点「${editingNode.name}」` : '新增节点'}
+        title={editingNode ? t('nodes.editNodeTitle', { name: editingNode.name }) : t('nodes.addNode')}
         open={open}
         onCancel={closeNodeModal}
         footer={null}
@@ -1021,23 +995,24 @@ export default function Nodes() {
           <Alert
             type="error"
             showIcon
-            message="这台节点离线或升级卡住，页面点升级收不到指令"
-            description="复制下方安装脚本，到机器上以 root / 管理员重跑即可换上平台当前 jar。名称不要改，否则会登记成另一台。"
+            message={t('nodes.offlineOrStalled')}
+            description={t('nodes.offlineOrStalledDesc')}
             style={{ marginBottom: 16 }}
           />
         ) : null}
         <Alert
           type="warning"
           showIcon
-          message="允许操作的目录决定了这台机器的安全边界"
+          message={t('nodes.pathsBoundaryTitle')}
           description={
             <>
-              节点只会在这些目录里写文件，其它路径一律拒绝——就算流水线里填错了目标目录，
-              也动不到系统盘。请<b>只填站点根目录</b>，不要图省事填整个盘符。
+              {t('nodes.pathsBoundaryBefore')}
+              <b>{t('nodes.pathsBoundaryBold')}</b>
+              {t('nodes.pathsBoundaryAfter')}
               {editingNode ? (
                 <>
                   <br />
-                  改完点「保存到平台」后，目录和环境随心跳生效；Linux 要改可停的服务，必须重跑安装脚本才会写入 sudoers。
+                  {t('nodes.pathsBoundaryEdit')}
                 </>
               ) : null}
             </>
@@ -1054,8 +1029,8 @@ export default function Nodes() {
           }}
           style={{ marginBottom: 16 }}
         >
-          <Radio.Button value="windows">🪟 Windows（IIS）</Radio.Button>
-          <Radio.Button value="linux">🐧 Linux（systemd / Docker）</Radio.Button>
+          <Radio.Button value="windows">{t('nodes.windowsIis')}</Radio.Button>
+          <Radio.Button value="linux">{t('nodes.linuxSystemd')}</Radio.Button>
         </Radio.Group>
 
         {os === 'linux' && jdkLinux && !jdkLinux.ready ? (
@@ -1063,8 +1038,8 @@ export default function Nodes() {
             type="warning"
             showIcon
             style={{ marginBottom: 16 }}
-            message="先上传 JDK 包，再装没有 Java 的 Linux 节点"
-            description="安装脚本会从平台拉 JDK 8。包保存在数据卷，重建平台也不会丢。"
+            message={t('nodes.uploadJdkFirst')}
+            description={t('nodes.uploadJdkFirstDesc')}
             action={jdkUploadButton}
           />
         ) : null}
@@ -1087,18 +1062,18 @@ export default function Nodes() {
           onValuesChange={() => forceRender((n) => n + 1)}
         >
           <Form.Item
-            label="节点名称（唯一）"
+            label={t('nodes.nameUnique')}
             name="name"
-            extra={editingNode ? '名称是这台机器的身份，重装必须用同一个名字' : undefined}
+            extra={editingNode ? t('nodes.nameIdentity') : undefined}
             rules={[
-              { required: true, message: '请填名称' },
+              { required: true, message: t('nodes.nameRequired') },
               {
                 validator: (_, value) => {
                   const name = String(value || '')
                   if (!name) return Promise.resolve()
-                  if (name.length > 64) return Promise.reject(new Error('最多 64 个字'))
+                  if (name.length > 64) return Promise.reject(new Error(t('nodes.nameMax')))
                   if (NODE_NAME_UNSAFE.test(name)) {
-                    return Promise.reject(new Error('不能含空格或分号、引号这类会拆开安装命令的字符'))
+                    return Promise.reject(new Error(t('nodes.nameUnsafe')))
                   }
                   return Promise.resolve()
                 },
@@ -1107,21 +1082,22 @@ export default function Nodes() {
           >
             <Input
               disabled={!!editingNode}
-              placeholder={os === 'linux' ? '如：web-prod-01' : '如：iis-prod-01'}
+              placeholder={os === 'linux' ? t('nodes.namePhLinux') : t('nodes.namePhWindows')}
             />
           </Form.Item>
 
-          <Form.Item label="平台地址" name="serverUrl" rules={[{ required: true }]}>
+          <Form.Item label={t('nodes.serverUrl')} name="serverUrl" rules={[{ required: true }]}>
             <Input placeholder={DEFAULT_SERVER_URL} />
           </Form.Item>
 
           <Form.Item
-            label="环境"
+            label={t('common.environment')}
             name="env"
             extra={
               <>
-                决定往这台机器下发文件要不要审批：<b>测试/开发免审，生产/UAT/预发要审</b>。
-                只在这台机器首次接入时生效，之后随时能在列表里改（改动会进审计）。
+                {t('nodes.envExtraBefore')}
+                <b>{t('nodes.envExtraBold')}</b>
+                {t('nodes.envExtraAfter')}
               </>
             }
           >
@@ -1129,10 +1105,10 @@ export default function Nodes() {
           </Form.Item>
 
           <Form.Item
-            label="允许操作的目录（一行一个）"
+            label={t('nodes.allowPathsOnePerLine')}
             name="allowPaths"
             rules={[{ required: true }]}
-            extra="节点只能在这些目录里覆盖站点文件。备份不在这个名单里：安装时会按执行命令的目录第一层另建 release-backup（例如 /data/soft/release → /data/release-backup）"
+            extra={t('nodes.allowPathsExtra')}
           >
             <Input.TextArea
               rows={3}
@@ -1146,33 +1122,39 @@ export default function Nodes() {
 
           {os === 'windows' && (
             <Form.Item
-              label="允许控制的 IIS（一行一个，可留空）"
+              label={t('nodes.allowIis')}
               name="allowIis"
               extra={
                 <>
-                  可留空。启停是否放行，看站点物理路径是否在上方允许目录内。
-                  只有老机器需要再收紧时才写池名，或 <Text code>site:站点名</Text> /{' '}
-                  <Text code>apppool:池名</Text>。
+                  {t('nodes.allowIisExtra1')}
+                  <Text code>{t('nodes.siteName')}</Text>
+                  {' / '}
+                  <Text code>{t('nodes.apppoolName')}</Text>
+                  {t('nodes.allowIisExtra2')}
                 </>
               }
             >
-              <Input.TextArea rows={3} placeholder={'可留空；老机器额外收紧时再填'} />
+              <Input.TextArea rows={3} placeholder={t('nodes.allowIisPlaceholder')} />
             </Form.Item>
           )}
 
           {os === 'linux' && (
             <Form.Item
-              label="允许控制的服务（一行一个，可留空）"
+              label={t('nodes.allowServicesLabel')}
               name="allowServices"
               extra={
                 <>
-                  只有写在这里的服务才停得动。安装脚本会据此生成 sudoers 白名单——
-                  Agent 以普通账号运行，<b>这条线连启动参数被改了也绕不开</b>。
-                  只传文件不停服务可以留空。
+                  {t('nodes.linuxServicesExtra1')}
+                  <b>{t('nodes.linuxServicesExtraBold')}</b>
+                  {t('nodes.linuxServicesExtra2')}
                   <br />
-                  控制容器要写成 <Text code>docker:容器名</Text>；
-                  只写 <Text code>docker</Text> 会被当成 systemd 服务
-                  <Text code>docker.service</Text>，那是放行启停 Docker 守护进程本身。
+                  {t('nodes.linuxServicesDocker1')}
+                  <Text code>{t('nodes.dockerContainerSyntax')}</Text>
+                  {t('nodes.linuxServicesDocker2')}
+                  <Text code>docker</Text>
+                  {t('nodes.linuxServicesDocker3')}
+                  <Text code>docker.service</Text>
+                  {t('nodes.linuxServicesDocker4')}
                 </>
               }
               rules={[
@@ -1187,10 +1169,7 @@ export default function Nodes() {
                       .filter((s) => s === 'docker' || s === 'systemd')
                     if (bad.length) {
                       return Promise.reject(
-                        new Error(
-                          `「${bad[0]}」写法不明确：控制容器请写 docker:容器名（如 docker:web）；` +
-                            '若真要放行启停 Docker 守护进程本身，请显式写 systemd:docker',
-                        ),
+                        new Error(t('nodes.dockerAmbiguous', { name: bad[0] })),
                       )
                     }
                     return Promise.resolve()
@@ -1208,7 +1187,7 @@ export default function Nodes() {
           if (!result) {
             return (
               <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
-                填完「节点名称」和「允许操作的目录」后自动生成安装命令
+                {t('nodes.fillToGenerate')}
               </Text>
             )
           }
@@ -1220,8 +1199,8 @@ export default function Nodes() {
                 style={{ marginBottom: 8 }}
                 size="small"
               >
-                <Radio.Button value="script">安装脚本（推荐）</Radio.Button>
-                <Radio.Button value="manual">手动命令</Radio.Button>
+                <Radio.Button value="script">{t('nodes.installScript')}</Radio.Button>
+                <Radio.Button value="manual">{t('nodes.manualCmd')}</Radio.Button>
               </Radio.Group>
               <Paragraph style={{ marginBottom: 4 }}>
                 <pre
@@ -1248,53 +1227,55 @@ export default function Nodes() {
         <Space style={{ marginTop: 12 }} wrap>
           {editingNode ? (
             <Button type="primary" loading={savingNode} onClick={saveEditingNode}>
-              保存到平台
+              {t('nodes.saveToPlatform')}
             </Button>
           ) : null}
           <Button type={editingNode ? 'default' : 'primary'} icon={<CopyOutlined />} onClick={copyCommand}>
-            {editingNode ? '复制重装命令' : '复制命令'}
+            {editingNode ? t('nodes.copyRerun') : t('nodes.copyCmd')}
           </Button>
           <Button icon={<CopyOutlined />} onClick={copyEnrollToken}>
-            复制接入凭证
+            {t('nodes.copyEnroll')}
           </Button>
           <Button icon={<DownloadOutlined />} onClick={downloadJar}>
-            下载 Agent（deploy-agent.jar）
+            {t('nodes.downloadAgent')}
           </Button>
           {isAdmin ? (
             <Button icon={<ReloadOutlined />} onClick={rotateToken} danger>
-              轮换接入凭证
+              {t('nodes.rotateTitle')}
             </Button>
           ) : null}
           <Button icon={<ReloadOutlined />} onClick={refresh}>
-            刷新列表
+            {t('nodes.refreshList')}
           </Button>
         </Space>
 
         <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 12 }}>
           {os === 'linux' ? (
             <>
-              <b>步骤</b>：① 在节点服务器上以 root 登录（需 systemd；没有 JDK 会自动安装并校验） → ②
-              粘贴执行上方命令 → ③ 点刷新，看到节点上线即可在插件里选用，不必重启发布系统。
-              {editingNode ? ' 升级卡住时直接重跑，不必先停服务、也不必先删节点。' : ''}
+              <b>{t('nodes.steps')}</b>
+              {t('nodes.linuxStep')}
+              {editingNode ? t('nodes.linuxRerunHint') : ''}
               <br />
-              停服务用「服务启停控制（Linux）」步骤，IIS 那个用不了。
+              {t('nodes.linuxServicePlugin')}
             </>
           ) : (
             <>
-              <b>步骤</b>：① 在节点服务器上<b>以管理员身份</b>打开 PowerShell（需 JRE 8+） → ②
-              粘贴执行上方命令 → ③ 点刷新，看到节点上线即可在插件里选用，不必重启发布系统。
+              <b>{t('nodes.steps')}</b>
+              {t('nodes.windowsStepBefore')}
+              <b>{t('nodes.windowsAdmin')}</b>
+              {t('nodes.windowsStepAfter')}
             </>
           )}
         </Text>
       </Modal>
 
       <Modal
-        title={pathsNode ? `修改「${pathsNode.name}」的允许目录` : '修改允许目录'}
+        title={pathsNode ? t('nodes.editPathsTitleNamed', { name: pathsNode.name }) : t('nodes.editPathsTitle')}
         open={!!pathsNode}
         onCancel={() => setPathsNode(null)}
         onOk={saveAllowPaths}
         confirmLoading={savingPaths}
-        okText="保存"
+        okText={t('common.save')}
         destroyOnClose
       >
         <Input.TextArea
@@ -1304,8 +1285,7 @@ export default function Nodes() {
           placeholder={'D:\\wwwroot\\o2o\nD:\\wwwroot\\api'}
         />
         <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-          一行一个绝对路径。在线节点大约 10 秒内心跳生效，不用重装、也不用改启动参数。
-          IIS 启停也按这些目录判断物理路径。
+          {t('nodes.pathsModalHint')}
         </Text>
       </Modal>
     </div>

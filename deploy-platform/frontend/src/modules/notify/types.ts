@@ -1,3 +1,5 @@
+import { t } from '@/i18n'
+
 export interface Notice {
   id: number
   title: string
@@ -12,11 +14,11 @@ export interface Notice {
 
 export function kindTitle(kind: string) {
   if ((kind || '').startsWith('release.approval') || (kind || '').startsWith('pm.confirm')) {
-    return kind.includes('pending') ? '待审批' : '发布系统'
+    return kind.includes('pending') ? t('notify.pending') : t('notify.releaseSys')
   }
-  if ((kind || '').startsWith('release')) return '发布系统'
-  if ((kind || '').startsWith('access')) return '权限申请'
-  return '系统通知'
+  if ((kind || '').startsWith('release')) return t('notify.releaseSys')
+  if ((kind || '').startsWith('access')) return t('notify.accessApply')
+  return t('notify.system')
 }
 
 /**
@@ -41,21 +43,24 @@ export function noticeHref(n: Notice): string {
   return n.link || (n.id ? `/notifications?id=${n.id}` : '/notifications')
 }
 
+/** 相对时间。界面语言跟 t() 走。 */
 export function fromNow(iso: string) {
   if (!iso) return ''
-  const t = new Date(iso).getTime()
-  if (Number.isNaN(t)) return iso.replace('T', ' ').slice(0, 16)
-  const diff = Date.now() - t
+  const ts = new Date(iso).getTime()
+  if (Number.isNaN(ts)) return iso.replace('T', ' ').slice(0, 16)
+  const diff = Date.now() - ts
   const min = Math.floor(diff / 60000)
-  if (min < 1) return '刚刚'
-  if (min < 60) return `${min}分钟前`
+  if (min < 1) return t('notify.justNow')
+  if (min < 60) return t('notify.minutesAgo', { n: min })
   const hour = Math.floor(min / 60)
-  if (hour < 24) return `${hour}小时前`
+  if (hour < 24) return t('notify.hoursAgo', { n: hour })
   const day = Math.floor(hour / 24)
   if (day === 1) {
-    const d = new Date(t)
-    return `昨天 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+    const d = new Date(ts)
+    return t('notify.yesterday', {
+      time: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
+    })
   }
-  if (day < 7) return `${day}天前`
+  if (day < 7) return t('notify.daysAgo', { n: day })
   return iso.replace('T', ' ').slice(0, 16)
 }

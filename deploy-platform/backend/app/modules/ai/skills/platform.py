@@ -102,7 +102,7 @@ def _list_agent_skills(db: Session, current, params: dict) -> dict:
 
 
 def _ask_user(db: Session, current, params: dict) -> dict:
-    """向用户澄清还不清楚的选择。对齐 Cursor AskQuestion：有结果但下一步不唯一时停下来问。"""
+    """向用户澄清还不清楚的选择。有结果但下一步不唯一时停下来问。"""
     del db, current
     question = str(params.get("question") or "").strip()
     if not question:

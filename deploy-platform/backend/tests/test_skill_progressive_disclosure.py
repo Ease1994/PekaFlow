@@ -69,7 +69,7 @@ def test_tool_guide_stays_short() -> None:
 
 
 def test_matching_turn_inlines_skill_then_skips_reload(monkeypatch) -> None:
-    """对齐 Cursor：相关 SKILL.md 先进入上下文，再调工具；不要再 skill() 空转。"""
+    """相关 SKILL.md 先进入上下文，再调工具；不要再 skill() 空转。"""
     from app.modules.ai.chat import _skip_already_loaded_skill
     from app.modules.harness.skills import entries_for_turn
 

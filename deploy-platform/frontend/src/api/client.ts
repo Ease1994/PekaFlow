@@ -3,6 +3,7 @@ import type { AxiosRequestConfig } from 'axios'
 import { message } from 'antd'
 import { useAuthStore } from '@/stores/auth'
 import type { R } from './types'
+import { t } from '@/i18n'
 
 declare module 'axios' {
   export interface AxiosRequestConfig {
@@ -29,18 +30,18 @@ client.interceptors.response.use(
   (resp) => {
     const body = resp.data as R
     if (body.code !== 0 && body.code !== undefined) {
-      message.error(body.message || '请求失败')
+      message.error(body.message || t('common.requestFailed'))
       return Promise.reject(new Error(body.message))
     }
     return resp
   },
   (error) => {
     if (error.response?.status === 401) {
-      message.warning('登录已过期，请重新登录')
+      message.warning(t('common.sessionExpired'))
       useAuthStore.getState().logout()
       window.location.href = '/login'
     } else if (!error.config?.skipErrorToast) {
-      const msg = error.response?.data?.message || error.message || '网络错误'
+      const msg = error.response?.data?.message || error.message || t('common.networkError')
       message.error(msg)
     }
     return Promise.reject(error)

@@ -13,27 +13,24 @@ import { useReleaseLogStream, useTaskLogStream } from '@/hooks/useTaskLogStream'
 import type { Paged, Release, Pipeline, Project, UserInfo as User } from '@/api/types'
 import ExecuteReleaseButton from '@/components/ExecuteReleaseButton'
 import RiskActionButton from '@/components/RiskActionButton'
-import { sequenceHeaderMeta } from '@/utils/releaseStatus'
+import { sequenceHeaderMeta, releaseStatusMeta } from '@/utils/releaseStatus'
+import { t as translate, useT } from '@/i18n'
 
-const statusMap: Record<string, { color: string; text: string }> = {
-  pending: { color: 'orange', text: '待审批' },
-  queued: { color: 'cyan', text: '排队中' },
-  running: { color: 'processing', text: '执行中' },
-  success: { color: 'success', text: '成功' },
-  failed: { color: 'error', text: '失败' },
-  rejected: { color: 'error', text: '审批驳回' },
-  rolling_back: { color: 'warning', text: '回滚中' },
-  rolled_back: { color: 'default', text: '已回滚' },
-}
-
-const strategyMap: Record<string, string> = {
-  rolling: '滚动发布',
-  'blue-green': '蓝绿发布',
-  gray: '灰度发布',
-  all: '全量发布',
+/** 触发方式码 → 界面句子。Webhook / Rebuild / AI 保持专有名。 */
+function triggerLabel(code: string): string {
+  const keys: Record<string, string> = {
+    manual: 'releases.triggerManual',
+    webhook: 'releases.triggerWebhook',
+    cron: 'releases.triggerCron',
+    ai: 'releases.triggerAi',
+    rebuild: 'releases.triggerRebuild',
+    rollback: 'releases.triggerRollback',
+  }
+  return keys[code] ? translate(keys[code]) : code
 }
 
 export default function Releases() {
+  const t = useT()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -245,15 +242,26 @@ interface CommitsData {
     enabled: !!activeDetailId,
   })
 
+  const statusFilterOptions = [
+    'pending',
+    'queued',
+    'running',
+    'success',
+    'failed',
+    'rejected',
+    'rolling_back',
+    'rolled_back',
+  ].map((k) => ({ value: k, label: releaseStatusMeta(k).text }))
+
   const columns = [
     {
-      title: '项目',
+      title: t('acl.project'),
       dataIndex: 'project_name',
       width: 130,
       render: (v: string) => (v && v !== '—' ? <Tag color="blue">{v}</Tag> : <span style={{ color: '#bbb' }}>—</span>),
     },
     {
-      title: '流水线',
+      title: t('acl.pipeline'),
       dataIndex: 'pipeline_name',
       width: 200,
       render: (v: string, r: Release) => (
@@ -265,9 +273,9 @@ interface CommitsData {
         </a>
       ),
     },
-    { title: '版本', dataIndex: 'version', width: 120, render: (v: string) => <Tag>{v || '—'}</Tag> },
+    { title: t('common.version'), dataIndex: 'version', width: 120, render: (v: string) => <Tag>{v || '—'}</Tag> },
     {
-      title: '代码版本',
+      title: t('releases.colSourceRef'),
       dataIndex: 'source_ref',
       width: 120,
       render: (v: string | null) =>
@@ -282,11 +290,11 @@ interface CommitsData {
         ),
     },
     {
-      title: '状态',
+      title: t('common.status'),
       dataIndex: 'status',
       width: 220,
       render: (v: string, r: Release) => {
-        const s = statusMap[v] || { color: 'default', text: v }
+        const s = releaseStatusMeta(v)
         return (
           <div>
             <Tag color={s.color}>{s.text}</Tag>
@@ -312,7 +320,7 @@ interface CommitsData {
       },
     },
     {
-      title: '发布人',
+      title: t('releases.colOperator'),
       dataIndex: 'operator_name',
       width: 120,
       render: (v: string) => (
@@ -323,13 +331,13 @@ interface CommitsData {
       ),
     },
     {
-      title: '触发方式',
+      title: t('releases.colTrigger'),
       dataIndex: 'trigger_by',
       width: 90,
-      render: (v: string) => ({ manual: '手动', webhook: 'Webhook', cron: '定时', ai: 'AI', rebuild: 'Rebuild', rollback: '回滚' }[v] || v),
+      render: (v: string) => triggerLabel(v),
     },
     {
-      title: '发布时间',
+      title: t('releases.colTime'),
       dataIndex: 'created_at',
       width: 160,
       render: (v: string) => (
@@ -340,7 +348,7 @@ interface CommitsData {
       ),
     },
     {
-      title: '操作',
+      title: t('common.action'),
       width: 280,
       fixed: 'right' as const,
       // 发布管理（全局视图，只读统计）：隐藏操作按钮
@@ -356,7 +364,7 @@ interface CommitsData {
                 setSelectedStep(null)
               }}
             >
-              序列
+              {t('releases.sequence')}
             </Button>
             {r.status === 'queued' && (
               <Button
@@ -366,7 +374,7 @@ interface CommitsData {
                 loading={executingId === r.id}
                 onClick={() => handleExecute(r.id)}
               >
-                执行
+                {t('common.execute')}
               </Button>
             )}
             <RiskActionButton
@@ -402,7 +410,7 @@ interface CommitsData {
                 icon={<FileTextOutlined />}
                 onClick={() => setActiveLogId(r.id)}
               >
-                日志
+                {t('releases.log')}
               </Button>
             )}
           </Space>
@@ -414,18 +422,18 @@ interface CommitsData {
     <div>
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={6}>
-          <Card><Statistic title="总发布次数" value={stats?.total ?? 0} /></Card>
+          <Card><Statistic title={t('releases.totalCount')} value={stats?.total ?? 0} /></Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="成功" value={stats?.success ?? 0} valueStyle={{ color: '#52c41a' }} /></Card>
+          <Card><Statistic title={t('dash.success')} value={stats?.success ?? 0} valueStyle={{ color: '#52c41a' }} /></Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="失败" value={stats?.failed ?? 0} valueStyle={{ color: '#ff4d4f' }} /></Card>
+          <Card><Statistic title={t('dash.failed')} value={stats?.failed ?? 0} valueStyle={{ color: '#ff4d4f' }} /></Card>
         </Col>
         <Col span={6}>
           <Card>
             <Statistic
-              title="成功率"
+              title={t('dash.successRate')}
               value={stats?.success_rate ?? 0}
               precision={1}
               suffix="%"
@@ -441,16 +449,16 @@ interface CommitsData {
             <Space>
               <FilterOutlined />
               <span>
-                发布历史 · 流水线 <strong>{filteredPipeline?.name || `#${pipelineId}`}</strong>
+                {t('releases.historyTitle')} <strong>{filteredPipeline?.name || `#${pipelineId}`}</strong>
               </span>
               <Button type="link" size="small" onClick={clearFilter}>
-                查看全部
+                {t('releases.viewAll')}
               </Button>
             </Space>
           ) : (
             <Space>
               <FilterOutlined />
-              <span>发布管理（全局 · 仅管理员）</span>
+              <span>{t('releases.adminTitle')}</span>
             </Space>
           )
         }
@@ -466,7 +474,7 @@ interface CommitsData {
                 icon={<EditOutlined />}
                 onClick={() => navigate(`/pipeline/${pipelineId}/edit`)}
               >
-                编辑流水线
+                {t('releases.editPipeline')}
               </Button>
             </Space>
           ) : null
@@ -485,7 +493,7 @@ interface CommitsData {
               marginBottom: 12,
             }}
           >
-            <span style={{ color: '#666' }}>📅 发布日期：</span>
+            <span style={{ color: '#666' }}>{t('releases.filterDate')}</span>
             <DatePicker.RangePicker
               value={
                 fDate
@@ -494,10 +502,10 @@ interface CommitsData {
               }
               onChange={(d) => setFDate(d ? [d[0]!.toISOString(), d[1] ? d[1].toISOString() : ''] : null)}
             />
-            <span style={{ color: '#666' }}>📁 项目：</span>
+            <span style={{ color: '#666' }}>{t('releases.filterProject')}</span>
             <Select
               allowClear
-              placeholder="全部项目"
+              placeholder={t('releases.allProjects')}
               style={{ width: 180 }}
               value={fProject}
               onChange={(v) => {
@@ -506,47 +514,47 @@ interface CommitsData {
               }}
               options={projects.map((p) => ({ value: p.id, label: p.name }))}
             />
-            <span style={{ color: '#666' }}>🔧 流水线：</span>
+            <span style={{ color: '#666' }}>{t('releases.filterPipeline')}</span>
             <Select
               allowClear
-              placeholder={fProject ? '全部流水线' : '先选项目'}
+              placeholder={fProject ? t('releases.allPipelines') : t('releases.pickProjectFirst')}
               style={{ width: 200 }}
               value={fPipeline}
               onChange={setFPipeline}
               disabled={!fProject}
               options={pipelines.map((p) => ({ value: p.id, label: p.name }))}
             />
-            <span style={{ color: '#666' }}>👤 发布人：</span>
+            <span style={{ color: '#666' }}>{t('releases.filterOperator')}</span>
             <Select
               allowClear
-              placeholder="全部发布人"
+              placeholder={t('releases.allOperators')}
               style={{ width: 140 }}
               value={fOperator}
               onChange={setFOperator}
               options={operators.map((o) => ({ value: o.id, label: o.display_name || o.username }))}
             />
-            <span style={{ color: '#666' }}>📊 状态：</span>
+            <span style={{ color: '#666' }}>{t('releases.filterStatus')}</span>
             <Select
               allowClear
-              placeholder="全部状态"
+              placeholder={t('releases.allStatuses')}
               style={{ width: 130 }}
               value={fStatus}
               onChange={setFStatus}
-              options={Object.entries(statusMap).map(([k, v]) => ({ value: k, label: v.text }))}
+              options={statusFilterOptions}
             />
-            <span style={{ color: '#666' }}>⚡ 触发方式：</span>
+            <span style={{ color: '#666' }}>{t('releases.filterTrigger')}</span>
             <Select
               allowClear
-              placeholder="全部"
+              placeholder={t('common.all')}
               style={{ width: 120 }}
               value={fTrigger}
               onChange={setFTrigger}
               options={[
-                { value: 'manual', label: '手动' },
-                { value: 'webhook', label: 'Webhook' },
-                { value: 'cron', label: '定时' },
-                { value: 'rebuild', label: 'Rebuild' },
-                { value: 'rollback', label: '回滚' },
+                { value: 'manual', label: t('releases.triggerManual') },
+                { value: 'webhook', label: t('releases.triggerWebhook') },
+                { value: 'cron', label: t('releases.triggerCron') },
+                { value: 'rebuild', label: t('releases.triggerRebuild') },
+                { value: 'rollback', label: t('releases.triggerRollback') },
               ]}
             />
             <Button
@@ -556,7 +564,7 @@ interface CommitsData {
                 setFOperator(undefined); setFStatus(undefined); setFTrigger(undefined)
               }}
             >
-              重置
+              {t('releases.reset')}
             </Button>
           </div>
         )}
@@ -566,8 +574,8 @@ interface CommitsData {
           <Alert
             type="warning"
             showIcon
-            message="发布管理仅对管理员开放"
-            description="如需查看执行历史，请从项目 → 流水线进入。"
+            message={t('releases.adminOnlyTitle')}
+            description={t('releases.adminOnlyDesc')}
             style={{ marginBottom: 16 }}
           />
         )}
@@ -582,7 +590,7 @@ interface CommitsData {
             pageSize: releasePage?.page_size || pageSize,
             total: releasePage?.total || 0,
             showSizeChanger: true,
-            showTotal: (t) => `共计 ${t} 条发布记录`,
+            showTotal: (n) => t('releases.totalRecords', { n }),
           }}
           onChange={(p) => {
             setPage(p.current || 1)
@@ -593,15 +601,15 @@ interface CommitsData {
 
       {/* 执行日志弹窗（SSE 实时流） */}
       <Modal
-        title={`执行日志 #${activeLogId ?? ''}（实时）`}
+        title={t('releases.logTitle', { n: activeLogId ?? '' })}
         open={!!activeLogId}
         onCancel={() => setActiveLogId(null)}
-        footer={<Button onClick={() => setActiveLogId(null)}>关闭</Button>}
+        footer={<Button onClick={() => setActiveLogId(null)}>{t('releases.close')}</Button>}
         width={720}
       >
         <div style={{ marginBottom: 12 }}>
           <Tag color={logDone ? 'green' : 'processing'}>
-            {logDone ? '已完成' : '执行中 · 实时推送'}
+            {logDone ? t('status.done') : t('releases.logRunning')}
           </Tag>
         </div>
         <div
@@ -619,7 +627,7 @@ interface CommitsData {
           }}
         >
           {logLines.length === 0
-            ? '（等待日志输出...）'
+            ? t('releases.waitingLog')
             : logLines.join('\n')}
         </div>
       </Modal>
@@ -629,15 +637,15 @@ interface CommitsData {
         title={
           sequence ? (
             <Space>
-              <span>发布 #{sequence.pipeline_name} · v{sequence.version}</span>
+              <span>{t('releases.releaseTitle', { name: sequence.pipeline_name, version: sequence.version })}</span>
               <Tag color={sequenceHeaderMeta(sequence).color}>
                 {sequenceHeaderMeta(sequence).text}
               </Tag>
               {sequence.total_duration_label && (
-                <Tag color="blue">⏱ 总耗时 {sequence.total_duration_label}</Tag>
+                <Tag color="blue">{t('releases.totalDuration', { time: sequence.total_duration_label })}</Tag>
               )}
             </Space>
-          ) : `执行详情 #${activeDetailId ?? ''}`
+          ) : t('releases.detailTitle', { n: activeDetailId ?? '' })
         }
         open={!!activeDetailId}
         onClose={() => setActiveDetailId(null)}
@@ -645,14 +653,14 @@ interface CommitsData {
         destroyOnClose
       >
         {!sequence ? (
-          <Empty description="加载序列中..." />
+          <Empty description={t('releases.loadingSeq')} />
         ) : (
           <Tabs
             defaultActiveKey="detail"
             items={[
               {
                 key: 'detail',
-                label: '执行详情',
+                label: t('releases.tabDetail'),
                 children: (
                   <>
                     {/* 顶部：时间轴 + 流水线全局变量（按 pipeline 隔离） */}
@@ -667,7 +675,7 @@ interface CommitsData {
                       <Row gutter={16}>
                         <Col span={6}>
                           <Space direction="vertical" size={2}>
-                            <Text type="secondary" style={{ fontSize: 11 }}>触发时间</Text>
+                            <Text type="secondary" style={{ fontSize: 11 }}>{t('releases.triggeredAt')}</Text>
                             <Text style={{ fontSize: 12 }}>
                               {sequence.created_at ? dayjs(sequence.created_at).format('YYYY-MM-DD HH:mm:ss') : '—'}
                             </Text>
@@ -675,7 +683,7 @@ interface CommitsData {
                         </Col>
                         <Col span={6}>
                           <Space direction="vertical" size={2}>
-                            <Text type="secondary" style={{ fontSize: 11 }}>开始时间</Text>
+                            <Text type="secondary" style={{ fontSize: 11 }}>{t('releases.startedAt')}</Text>
                             <Text style={{ fontSize: 12 }}>
                               {sequence.started_at ? dayjs(sequence.started_at).format('YYYY-MM-DD HH:mm:ss') : '—'}
                             </Text>
@@ -683,24 +691,24 @@ interface CommitsData {
                         </Col>
                         <Col span={6}>
                           <Space direction="vertical" size={2}>
-                            <Text type="secondary" style={{ fontSize: 11 }}>结束时间</Text>
+                            <Text type="secondary" style={{ fontSize: 11 }}>{t('releases.finishedAt')}</Text>
                             <Text style={{ fontSize: 12 }}>
-                              {sequence.finished_at ? dayjs(sequence.finished_at).format('YYYY-MM-DD HH:mm:ss') : '执行中…'}
+                              {sequence.finished_at ? dayjs(sequence.finished_at).format('YYYY-MM-DD HH:mm:ss') : t('releases.stillRunning')}
                             </Text>
                           </Space>
                         </Col>
                         <Col span={6}>
                           <Space direction="vertical" size={2}>
-                            <Text type="secondary" style={{ fontSize: 11 }}>总耗时</Text>
+                            <Text type="secondary" style={{ fontSize: 11 }}>{t('releases.duration')}</Text>
                             <Text strong style={{ fontSize: 13, color: '#1677ff' }}>
-                              {sequence.total_duration_label || '计算中…'}
+                              {sequence.total_duration_label || t('releases.calculating')}
                             </Text>
                           </Space>
                         </Col>
                       </Row>
                       {sequence.pipeline_variables && sequence.pipeline_variables.length > 0 && (
                         <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #e8e8e8' }}>
-                          <Text type="secondary" style={{ fontSize: 11 }}>🔧 流水线全局变量（{sequence.pipeline_name}）</Text>
+                          <Text type="secondary" style={{ fontSize: 11 }}>{t('releases.pipeVars', { name: sequence.pipeline_name })}</Text>
                           <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                             {sequence.pipeline_variables.map((v) => (
                               <Tag key={v.name} color="cyan" style={{ fontSize: 11 }}>
@@ -717,7 +725,7 @@ interface CommitsData {
                         type="error"
                         showIcon
                         style={{ marginBottom: 12 }}
-                        message="失败原因"
+                        message={t('releases.failReason')}
                         description={
                           <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{sequence.error}</div>
                         }
@@ -732,7 +740,7 @@ interface CommitsData {
                             <div style={{ fontWeight: 600, marginBottom: 6, color: statusColor(stage.status) }}>
                               {stageIcon(stage.status)} {stage.name}
                               <Tag style={{ marginLeft: 8 }} color={statusColor(stage.status)}>
-                                {statusMap[stage.status]?.text || stage.status}
+                                {releaseStatusMeta(stage.status).text}
                               </Tag>
                             </div>
                             {stage.jobs.map((job, ji) => (
@@ -750,7 +758,7 @@ interface CommitsData {
                                   <span style={{ flex: 1 }}>
                                     🔨 {job.name}
                                     <Tag style={{ marginLeft: 6 }} color={statusColor(job.status)}>
-                                      {statusMap[job.status]?.text || job.status}
+                                      {releaseStatusMeta(job.status).text}
                                     </Tag>
                                     <Tag>{agentDisplay(job.agent).text}</Tag>
                                   </span>
@@ -794,10 +802,10 @@ interface CommitsData {
                       <Col span={13}>
                         <div style={{ marginBottom: 8, fontSize: 13, color: '#666' }}>
                           {selectedStep
-                            ? `步骤 ${(selectedStep.stepOrder + 1)} · Task #${selectedStep.taskId}`
-                            : '选中左侧步骤查看日志'}
+                            ? t('releases.stepLog', { n: selectedStep.stepOrder + 1, id: selectedStep.taskId })
+                            : t('releases.pickStep')}
                           {sequence.is_running && (
-                            <Tag color="processing" style={{ marginLeft: 8 }}>实时刷新</Tag>
+                            <Tag color="processing" style={{ marginLeft: 8 }}>{t('releases.liveRefresh')}</Tag>
                           )}
                         </div>
                         <pre
@@ -818,7 +826,7 @@ interface CommitsData {
                           {stepLogLines.length === 0
                             ? sequence.error
                               ? sequence.error
-                              : '（暂无日志）'
+                              : t('releases.noLog')
                             : stepLogLines.join('\n')}
                         </pre>
                       </Col>
@@ -828,12 +836,12 @@ interface CommitsData {
               },
               {
                 key: 'commits',
-                label: `代码变更${commitsData ? `（${commitsData.commits.length}）` : ''}`,
+                label: commitsData ? t('releases.commitsTabN', { n: commitsData.commits.length }) : t('releases.commitsTab'),
                 children: commitsData ? (
                   <div style={{ padding: 4 }}>
                     <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fafafa', borderRadius: 6 }}>
                       <Text type="secondary" style={{ fontSize: 12 }}>
-                        提示：本次流水线的版本号变化范围：
+                        {t('releases.commitsHint')}
                       </Text>
                       <Tag color="cyan" style={{ marginLeft: 8, fontFamily: 'monospace', fontSize: 13 }}>
                         {commitsData.range}
@@ -843,7 +851,7 @@ interface CommitsData {
                       )}
                     </div>
                     {commitsData.commits.length === 0 ? (
-                      <Empty description="未取到 commit 区间" />
+                      <Empty description={t('releases.noCommits')} />
                     ) : (
                       <DataTable
                         chromeKey="release-commits"
@@ -852,7 +860,7 @@ interface CommitsData {
                         pagination={false}
                         dataSource={commitsData.commits}
                         columns={[
-                          { title: '备注', dataIndex: 'title', ellipsis: true },
+                          { title: t('releases.colNote'), dataIndex: 'title', ellipsis: true },
                           {
                             title: 'Commit',
                             dataIndex: 'short_id',
@@ -866,13 +874,13 @@ interface CommitsData {
                             ),
                           },
                           {
-                            title: '提交人',
+                            title: t('releases.colCommitter'),
                             dataIndex: 'author_name',
                             width: 140,
                             render: (v: string) => <Tag>{v || '—'}</Tag>,
                           },
                           {
-                            title: '提交时间',
+                            title: t('releases.colCommitTime'),
                             dataIndex: 'created_at',
                             width: 180,
                             render: (v: string) =>
@@ -889,7 +897,7 @@ interface CommitsData {
                     )}
                   </div>
                 ) : (
-                  <Empty description="加载 commit 区间..." />
+                  <Empty description={t('releases.loadingCommits')} />
                 ),
               },
             ]}
@@ -901,7 +909,7 @@ interface CommitsData {
 }
 
 function statusColor(s: string): string {
-  return statusMap[s]?.color || 'default'
+  return releaseStatusMeta(s).color
 }
 
 function stageIcon(s: string): string {

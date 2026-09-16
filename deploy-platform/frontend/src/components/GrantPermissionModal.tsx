@@ -3,6 +3,7 @@ import { Alert, Form, Input, Modal, Select, Checkbox } from 'antd'
 import { useQuery } from '@tanstack/react-query'
 import { get } from '@/api/client'
 import { envLabel } from '@/env'
+import { useT } from '@/i18n'
 
 /** 授权对象：流水线三级（项目/分组/流水线）或节点两级（节点组/节点）。 */
 export type GrantKind = 'pipeline' | 'node'
@@ -59,20 +60,6 @@ export interface GrantPayload {
   actions: string[]
 }
 
-/** 项目/分组上可选的操作；授在这两层时审批权会覆盖该范围内全部流水线。 */
-const PIPELINE_ACTIONS = [
-  { value: 'read', label: '查看' },
-  { value: 'create', label: '创建' },
-  { value: 'update', label: '更新' },
-  { value: 'delete', label: '删除' },
-  { value: 'execute', label: '执行' },
-  { value: 'approve', label: '审批' },
-  { value: 'approval_exempt', label: '豁免审批' },
-]
-/** 单条流水线没有审批权，审批落在项目或分组上。 */
-const PIPELINE_ONLY_ACTIONS = PIPELINE_ACTIONS.filter((a) => a.value !== 'approve')
-/** 节点只授下发文件。 */
-const NODE_ACTIONS = [{ value: 'deploy', label: '下发文件' }]
 /** 不选分组时按名称搜，最多拿这么多条，避免一次倒出几万条。 */
 const PIPELINE_SEARCH_LIMIT = 50
 /** 关键字最短长度：少打几个字就能搜，不必先回忆完整名字。 */
@@ -150,6 +137,7 @@ export default function GrantPermissionModal({
   onCancel: () => void
   onSubmit: (payload: GrantPayload) => void
 }) {
+  const t = useT()
   /** 当前选中的项目，流水线授权的起点。 */
   const [projectId, setProjectId] = useState<number>()
   /** 当前选中的分组；空 = 整个项目。 */
@@ -168,6 +156,21 @@ export default function GrantPermissionModal({
   const [nodeIds, setNodeIds] = useState<number[]>([])
   /** 勾选的操作。 */
   const [actions, setActions] = useState<string[]>(['read', 'execute'])
+
+  /** 项目/分组上可选的操作；授在这两层时审批权会覆盖该范围内全部流水线。 */
+  const pipelineActions = [
+    { value: 'read', label: t('acl.view') },
+    { value: 'create', label: t('acl.create') },
+    { value: 'update', label: t('acl.update') },
+    { value: 'delete', label: t('acl.delete') },
+    { value: 'execute', label: t('acl.execute') },
+    { value: 'approve', label: t('acl.approve') },
+    { value: 'approval_exempt', label: t('acl.exempt') },
+  ]
+  /** 单条流水线没有审批权，审批落在项目或分组上。 */
+  const pipelineOnlyActions = pipelineActions.filter((a) => a.value !== 'approve')
+  /** 节点只授下发文件。 */
+  const nodeActions = [{ value: 'deploy', label: t('acl.pushFile') }]
 
   useEffect(() => {
     if (!open) return
@@ -230,35 +233,35 @@ export default function GrantPermissionModal({
     return list.map((n) => ({
       value: n.id,
       label:
-        `${n.name}（${envLabel(n.env)}）` +
-        (n.allow_paths?.length ? ` · ${n.allow_paths.join('，')}` : ' · 未配置允许目录'),
+        t('env.groupWithEnv', { name: n.name, env: envLabel(n.env) }) +
+        (n.allow_paths?.length ? ` · ${n.allow_paths.join(', ')}` : t('grant.noAllowDir')),
     }))
-  }, [nodes, selectedNodeGroup])
+  }, [nodes, selectedNodeGroup, t])
 
   const grant = kind === 'node'
     ? resolveNodeGrant(nodeGroupId, nodeIds)
     : resolvePipelineGrant(projectId, groupId, pipelineIds)
   const actionOptions = kind === 'node'
-    ? NODE_ACTIONS
+    ? nodeActions
     : pipelineIds.length
-      ? PIPELINE_ONLY_ACTIONS
-      : PIPELINE_ACTIONS
+      ? pipelineOnlyActions
+      : pipelineActions
 
   const selectedProject = projects.find((p) => p.id === projectId)
   const selectedGroup = groups.find((g) => g.id === groupId)
   const hint = kind === 'node'
     ? nodeIds.length
-      ? `只授选中的 ${nodeIds.length} 台。扩容后要再给新机器补一次。`
+      ? t('grant.onlyNodes', { n: nodeIds.length })
       : nodeGroupId
-        ? `授在节点组「${selectedNodeGroup?.name || ''}」上：组内现有和以后加进来的机器都生效。`
-        : '先选节点组（整组授权），或直接搜索挑机器。'
+        ? t('grant.onNodeGroup', { name: selectedNodeGroup?.name || '' })
+        : t('grant.pickNodeFirst')
     : pipelineIds.length
-      ? `只对选中的 ${pipelineIds.length} 条流水线生效。`
+      ? t('grant.onlyPipelines', { n: pipelineIds.length })
       : selectedGroup
-        ? `授在分组「${selectedGroup.name}」上：该分组下现有和以后新建的流水线都生效。`
+        ? t('grant.onGroup', { name: selectedGroup.name })
         : selectedProject
-          ? `授在项目「${selectedProject.name}」上：该项目下现有和以后新建的所有流水线都生效。`
-          : '先选项目。不选分组 = 整个项目，不选流水线 = 整个分组。'
+          ? t('grant.onProject', { name: selectedProject.name })
+          : t('grant.pickProjectHint')
 
   const canSubmit = !!user && !!grant && actions.length > 0
 
@@ -274,7 +277,7 @@ export default function GrantPermissionModal({
 
   return (
     <Modal
-      title={kind === 'node' ? '添加节点授权' : '添加流水线授权'}
+      title={kind === 'node' ? t('grant.addNode') : t('grant.addPipeline')}
       open={open}
       onCancel={onCancel}
       onOk={() => {
@@ -289,22 +292,25 @@ export default function GrantPermissionModal({
       }}
       confirmLoading={confirmLoading}
       okButtonProps={{ disabled: !canSubmit }}
-      okText="确认授权"
+      okText={t('grant.confirmGrant')}
       width={560}
       styles={{ content: { maxWidth: 'calc(100vw - 24px)' } }}
       destroyOnClose
     >
       <Form layout="horizontal" labelCol={{ flex: '72px' }} wrapperCol={{ flex: 1 }} colon={false} style={{ marginTop: 8 }}>
-        <Form.Item label="用户">
-          <Input disabled value={user ? `${user.display_name}（${user.username}）` : ''} />
+        <Form.Item label={t('grant.user')}>
+          <Input
+            disabled
+            value={user ? t('grant.userDisplay', { name: user.display_name, username: user.username }) : ''}
+          />
         </Form.Item>
         {kind === 'pipeline' ? (
           <>
-            <Form.Item label="项目" required>
+            <Form.Item label={t('acl.project')} required>
               <Select
                 showSearch
                 optionFilterProp="label"
-                placeholder="先选项目，缩小范围"
+                placeholder={t('grant.pickProjectNarrow')}
                 value={projectId}
                 onChange={(id) => {
                   setProjectId(id)
@@ -316,16 +322,16 @@ export default function GrantPermissionModal({
                 }}
                 options={projects.map((p) => ({
                   value: p.id,
-                  label: `${p.name}（${p.code}）`,
+                  label: t('grant.namedCode', { name: p.name, code: p.code }),
                 }))}
               />
             </Form.Item>
-            <Form.Item label="分组" extra="不选 = 整个项目">
+            <Form.Item label={t('acl.group')} extra={t('grant.groupWholeProject')}>
               <Select
                 allowClear
                 showSearch
                 optionFilterProp="label"
-                placeholder="不选则授权整个项目"
+                placeholder={t('grant.grantWholeProject')}
                 disabled={!projectId}
                 value={groupId}
                 onChange={(id) => {
@@ -337,13 +343,13 @@ export default function GrantPermissionModal({
                 }}
                 options={projectGroups.map((g) => ({
                   value: g.id,
-                  label: `${g.name}（${envLabel(g.type)}）`,
+                  label: t('env.groupWithEnv', { name: g.name, env: envLabel(g.type) }),
                 }))}
               />
             </Form.Item>
             <Form.Item
-              label="流水线"
-              extra={groupId ? '不选 = 整个分组' : '不选 = 整个项目；忘记全名时输入关键字搜索'}
+              label={t('acl.pipeline')}
+              extra={groupId ? t('grant.pipeWholeGroup') : t('grant.pipeWholeProjectSearch')}
             >
               <Select
                 mode="multiple"
@@ -354,10 +360,10 @@ export default function GrantPermissionModal({
                 maxTagCount="responsive"
                 placeholder={
                   !projectId
-                    ? '先选项目'
+                    ? t('grant.pickProjectFirst')
                     : groupId
-                      ? '不选则授权该分组下全部流水线'
-                      : '输入名称关键字搜索，不必先选分组'
+                      ? t('grant.grantAllInGroup')
+                      : t('grant.searchNameNoGroup')
                 }
                 disabled={!projectId}
                 loading={pipelinesLoading}
@@ -368,28 +374,31 @@ export default function GrantPermissionModal({
                   !projectId
                     ? null
                     : groupId
-                      ? '该分组下没有流水线'
+                      ? t('grant.noPipeInGroup')
                       : pipelineSearch.length < PIPELINE_SEARCH_MIN
-                        ? '输入流水线名称关键字搜索'
-                        : '没有匹配的流水线'
+                        ? t('grant.searchPipeName')
+                        : t('grant.noPipeMatch')
                 }
                 options={pipelineOptions.map((p) => ({
                   value: p.id,
                   label: groupId
                     ? p.name
-                    : `${p.name}（${groupNameById.get(p.group_id) || '未分组'}）`,
+                    : t('grant.pipeInGroup', {
+                        name: p.name,
+                        group: groupNameById.get(p.group_id) || t('project.ungrouped'),
+                      }),
                 }))}
               />
             </Form.Item>
           </>
         ) : (
           <>
-            <Form.Item label="节点组" extra="不选节点 = 整个节点组">
+            <Form.Item label={t('acl.nodeGroup')} extra={t('grant.nodeWholeGroup')}>
               <Select
                 allowClear
                 showSearch
                 optionFilterProp="label"
-                placeholder="不选则按台授权"
+                placeholder={t('grant.grantByNode')}
                 value={nodeGroupId}
                 onChange={(id) => {
                   setNodeGroupId(id)
@@ -397,12 +406,12 @@ export default function GrantPermissionModal({
                 }}
                 options={nodeGroups.map((g) => ({
                   value: g.id,
-                  label: `${g.name}（${g.member_count} 台）` + (g.description ? ` · ${g.description}` : ''),
+                  label: t('grant.nodeGroupN', { name: g.name, n: g.member_count }) + (g.description ? ` · ${g.description}` : ''),
                 }))}
-                notFoundContent="还没有节点组，先去「节点管理 → 分组管理」建一个"
+                notFoundContent={t('grant.noNodeGroup')}
               />
             </Form.Item>
-            <Form.Item label="节点" extra="不选 = 整个节点组；可按名称搜索">
+            <Form.Item label={t('acl.node')} extra={t('grant.nodeSearchExtra')}>
               <Select
                 mode="multiple"
                 allowClear
@@ -410,7 +419,7 @@ export default function GrantPermissionModal({
                 optionFilterProp="label"
                 maxTagCount="responsive"
                 placeholder={
-                  nodeGroupId ? '不选则授权该组全部机器' : '从全部节点里搜索'
+                  nodeGroupId ? t('grant.grantAllInNodeGroup') : t('grant.searchAllNodes')
                 }
                 value={nodeIds}
                 onChange={setNodeIds}
@@ -422,7 +431,7 @@ export default function GrantPermissionModal({
         <Form.Item label=" " colon={false} style={{ marginBottom: 12 }}>
           <Alert type="info" showIcon message={hint} />
         </Form.Item>
-        <Form.Item label="权限">
+        <Form.Item label={t('grant.perms')}>
           <Checkbox.Group
             value={actions}
             onChange={(v) => setActions(kind === 'node' ? (v as string[]) : withRead(v as string[]))}

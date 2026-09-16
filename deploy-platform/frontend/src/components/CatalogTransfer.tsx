@@ -3,6 +3,7 @@ import { Button, Modal, Radio, Space, Table, Tag, Upload, message } from 'antd'
 import { ExportOutlined, ImportOutlined } from '@ant-design/icons'
 import { postLong } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
+import { useT } from '@/i18n'
 
 /** 导入预览：重名流水线需要用户选覆盖、新建副本或跳过。 */
 export interface CatalogConflict {
@@ -66,6 +67,7 @@ export default function CatalogTransferButtons({
   onImported,
 }: CatalogTransferButtonsProps) {
   const isAdmin = !!useAuthStore((s) => s.user?.is_admin)
+  const t = useT()
   const [exporting, setExporting] = useState(false)
   const [importing, setImporting] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
@@ -74,10 +76,10 @@ export default function CatalogTransferButtons({
   const [decisions, setDecisions] = useState<Record<string, Decision>>({})
 
   const exportLabel = pipelineIds?.length
-    ? `导出选中（${pipelineIds.length}）`
+    ? t('catalog.exportSelected', { n: pipelineIds.length })
     : projectId
-      ? '导出本项目'
-      : '导出全部'
+      ? t('catalog.exportProject')
+      : t('catalog.exportAll')
 
   /** 按当前范围拉配置包并触发浏览器下载。 */
   const handleExport = async () => {
@@ -93,7 +95,7 @@ export default function CatalogTransferButtons({
       )
       const projects = (data as { projects?: unknown[] })?.projects || []
       if (!projects.length) {
-        message.warning('没有可导出的项目或流水线')
+        message.warning(t('catalog.none'))
         return
       }
       const name = pipelineIds?.length
@@ -102,7 +104,7 @@ export default function CatalogTransferButtons({
           ? `rp-project-${stamp()}.json`
           : `rp-catalog-${stamp()}.json`
       downloadJson(name, data)
-      message.success('已开始下载导出文件')
+      message.success(t('catalog.downloading'))
     } finally {
       setExporting(false)
     }
@@ -114,7 +116,7 @@ export default function CatalogTransferButtons({
     try {
       parsed = JSON.parse(await file.text())
     } catch {
-      message.error('不是有效的 JSON 文件')
+      message.error(t('catalog.invalidJson'))
       return false
     }
     setImporting(true)
@@ -153,7 +155,7 @@ export default function CatalogTransferButtons({
     if (!preview || !bundle) return
     const undecided = preview.conflicts.filter((c) => !decisions[c.key])
     if (undecided.length) {
-      message.warning('请先为每条重名流水线选择覆盖、新建副本或跳过')
+      message.warning(t('catalog.needDecision'))
       return
     }
     setImporting(true)
@@ -166,16 +168,16 @@ export default function CatalogTransferButtons({
       const skipped = (res.results || []).filter((r) => r.action === 'skip')
       const failed = (res.results || []).filter((r) => r.action === 'error')
       if (res.imported) {
-        message.success(`已导入 ${res.imported} 条流水线`)
+        message.success(t('catalog.imported', { n: res.imported }))
       }
       if (skipped.length) {
-        message.info(`已跳过 ${skipped.length} 条同名流水线`)
+        message.info(t('catalog.skipped', { n: skipped.length }))
       }
       if (failed.length) {
-        message.warning(`${failed.length} 条未导入：${failed.map((f) => f.reason || f.action).join('；')}`)
+        message.warning(t('catalog.failed', { n: failed.length, reason: failed.map((f) => f.reason || f.action).join('; ') }))
       }
       if (!res.imported && !skipped.length && !failed.length) {
-        message.warning('没有导入任何流水线')
+        message.warning(t('catalog.nothing'))
       }
       setPreviewOpen(false)
       setBundle(null)
@@ -198,40 +200,39 @@ export default function CatalogTransferButtons({
         </Button>
         <Upload accept=".json,application/json" showUploadList={false} beforeUpload={handleFile}>
           <Button icon={<ImportOutlined />} loading={importing}>
-            导入
+            {t('catalog.import')}
           </Button>
         </Upload>
       </Space>
 
       <Modal
-        title="导入项目与流水线"
+        title={t("catalog.title")}
         open={previewOpen}
         onCancel={() => setPreviewOpen(false)}
         onOk={() => void handleImport()}
         confirmLoading={importing}
-        okText="开始导入"
+        okText={t("catalog.start")}
         width={820}
         destroyOnClose
       >
         {preview ? (
           <div>
             <p>
-              将新建 {preview.create_count} 条流水线
+              {t('catalog.summaryNew', { n: preview.create_count })}
               {preview.new_projects.length
-                ? `，其中新项目 ${preview.new_projects.map((p) => p.name).join('、')}`
+                ? t('catalog.summaryNewProjects', { names: preview.new_projects.map((p) => p.name).join(', ') })
                 : ''}
-              {preview.conflict_count ? `；${preview.conflict_count} 条与现有同名，请选择处理方式` : ''}
-              。
+              {preview.conflict_count ? t('catalog.summaryConflict', { n: preview.conflict_count }) : ''}
+              {t('catalog.sentenceEnd')}
             </p>
             {blockedProjects.length ? (
               <p style={{ color: '#d4380d' }}>
-                以下项目在本环境不存在，且当前账号不能新建项目，导入时会跳过：
-                {blockedProjects.map((p) => `${p.name}（${p.code}）`).join('、')}
+                {t('catalog.blocked', { names: blockedProjects.map((bp) => `${bp.name} (${bp.code})`).join(', ') })}
               </p>
             ) : null}
             {preview.skipped.length ? (
               <p>
-                预览时跳过 {preview.skipped.length} 项
+                {t('catalog.previewSkipped', { n: preview.skipped.length })}
                 {preview.skipped[0]?.reason ? `（${preview.skipped[0].reason}）` : ''}
               </p>
             ) : null}
@@ -239,13 +240,13 @@ export default function CatalogTransferButtons({
               <>
                 <Space style={{ marginBottom: 8 }} wrap>
                   <Button size="small" onClick={() => applyAll('overwrite')}>
-                    全部覆盖
+                    {t('catalog.overwriteAll')}
                   </Button>
                   <Button size="small" onClick={() => applyAll('copy')}>
-                    全部新建副本
+                    {t('catalog.copyAll')}
                   </Button>
                   <Button size="small" onClick={() => applyAll('skip')}>
-                    全部跳过
+                    {t('catalog.skipAll')}
                   </Button>
                 </Space>
                 <Table
@@ -254,16 +255,16 @@ export default function CatalogTransferButtons({
                   pagination={false}
                   dataSource={preview.conflicts}
                   columns={[
-                    { title: '项目', dataIndex: 'project_code', width: 120 },
-                    { title: '流水线', dataIndex: 'name', ellipsis: true },
+                    { title: t('catalog.colProject'), dataIndex: 'project_code', width: 120 },
+                    { title: t('catalog.colPipeline'), dataIndex: 'name', ellipsis: true },
                     {
-                      title: '环境',
+                      title: t('catalog.colEnv'),
                       dataIndex: 'group_name',
                       width: 100,
                       render: (v: string) => v || '—',
                     },
                     {
-                      title: '处理方式',
+                      title: t('catalog.colAction'),
                       width: 280,
                       render: (_: unknown, row: CatalogConflict) => (
                         <Radio.Group
@@ -272,9 +273,9 @@ export default function CatalogTransferButtons({
                             setDecisions((prev) => ({ ...prev, [row.key]: e.target.value }))
                           }
                         >
-                          <Radio value="overwrite">覆盖</Radio>
-                          <Radio value="copy">新建 _copy</Radio>
-                          <Radio value="skip">跳过</Radio>
+                          <Radio value="overwrite">{t("catalog.overwrite")}</Radio>
+                          <Radio value="copy">{t("catalog.copy")}</Radio>
+                          <Radio value="skip">{t("catalog.skip")}</Radio>
                         </Radio.Group>
                       ),
                     },
@@ -282,7 +283,7 @@ export default function CatalogTransferButtons({
                 />
               </>
             ) : (
-              <Tag color="green">没有重名流水线</Tag>
+<Tag color="green">{t("catalog.noConflict")}</Tag>
             )}
           </div>
         ) : null}

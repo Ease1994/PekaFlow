@@ -16,25 +16,26 @@ import TableColumnSettings, {
   type ColumnOption,
   type TableSize,
 } from '@/components/TableColumnSettings'
+import { formatDateTime, useT } from '@/i18n'
 
 /** 回收站条目：流水线 + 后端算好的保留期信息 */
 type RecycledPipeline = Pipeline & { deleted_at?: string; expire_at?: string; days_left?: number }
 
 const ts = (v?: string | null) => (v ? new Date(v).getTime() : 0)
-const fmtTime = (v?: string | null) => (v ? new Date(v).toLocaleString() : '—')
+const fmtTime = (v?: string | null) => (v ? formatDateTime(v) : '—')
 
 const RUN_BUSY = new Set(['queued', 'assigned', 'running', 'rolling_back'])
 
-const PIPELINE_COL_OPTIONS: ColumnOption[] = [
-  { key: 'name', label: '流水线名称', locked: true },
-  { key: 'group', label: '分组 / 审批' },
-  { key: 'version', label: '版本' },
-  { key: 'exec', label: '执行状态' },
-  { key: 'last_run', label: '最近执行' },
-  { key: 'updated', label: '修改时间' },
-  { key: 'creator', label: '创建人' },
-  { key: 'created', label: '创建时间' },
-  { key: 'actions', label: '操作', locked: true },
+const PIPELINE_COL_DEFS: { key: string; labelKey: string; locked?: boolean }[] = [
+  { key: 'name', labelKey: 'project.colName', locked: true },
+  { key: 'group', labelKey: 'project.colGroup' },
+  { key: 'version', labelKey: 'project.colVersion' },
+  { key: 'exec', labelKey: 'project.colExec' },
+  { key: 'last_run', labelKey: 'project.colLastRun' },
+  { key: 'updated', labelKey: 'project.colUpdated' },
+  { key: 'creator', labelKey: 'project.colCreator' },
+  { key: 'created', labelKey: 'project.colCreated' },
+  { key: 'actions', labelKey: 'common.action', locked: true },
 ]
 const DEFAULT_VISIBLE = ['name', 'group', 'version', 'exec', 'last_run', 'updated', 'created', 'actions']
 const DEFAULT_WIDTHS: Record<string, number> = {
@@ -57,6 +58,7 @@ function ExecStatusCell({
   pipeline: Pipeline
   onOpen: (p: Pipeline, releaseId: number) => void
 }) {
+  const t = useT()
   const rel = pipeline.last_release
   if (!rel) {
     return (
@@ -72,7 +74,7 @@ function ExecStatusCell({
             verticalAlign: -1,
           }}
         />
-        未执行
+        {t('project.neverRun')}
       </span>
     )
   }
@@ -104,7 +106,7 @@ function ExecStatusCell({
       <div>
         <div style={{ color: '#ff4d4f' }}>
           <CloseCircleFilled style={{ marginRight: 6 }} />
-          执行失败
+          {t('project.runFailed')}
         </div>
         <div>{link}</div>
         {rel.error_summary ? (
@@ -132,7 +134,7 @@ function ExecStatusCell({
       <div>
         <div>
           <SyncOutlined spin style={{ color: '#1677ff', marginRight: 6 }} />
-          执行中
+          {t('project.running')}
         </div>
         <div>{link}</div>
         {operator}
@@ -140,10 +142,10 @@ function ExecStatusCell({
     )
   }
   const other: Record<string, { color: string; text: string; icon: ReactNode }> = {
-    pending: { color: '#fa8c16', text: '待审批', icon: <ClockCircleOutlined /> },
-    rejected: { color: '#ff4d4f', text: '审批驳回', icon: <CloseCircleFilled /> },
-    cancelled: { color: '#8c8c8c', text: '已取消', icon: <MinusCircleOutlined /> },
-    rolled_back: { color: '#8c8c8c', text: '已回滚', icon: <UndoOutlined /> },
+    pending: { color: '#fa8c16', text: t('status.pending'), icon: <ClockCircleOutlined /> },
+    rejected: { color: '#ff4d4f', text: t('status.rejected'), icon: <CloseCircleFilled /> },
+    cancelled: { color: '#8c8c8c', text: t('status.cancelled'), icon: <MinusCircleOutlined /> },
+    rolled_back: { color: '#8c8c8c', text: t('status.rolledBack'), icon: <UndoOutlined /> },
   }
   const meta = other[rel.status] || { color: '#8c8c8c', text: rel.status, icon: <MinusCircleOutlined /> }
   return (
@@ -180,6 +182,7 @@ function AddPipelinesModal({
   onOk: () => void
   onCancel: () => void
 }) {
+  const t = useT()
   const [kw, setKw] = useState('')
   const [groupId, setGroupId] = useState<number | undefined>()
   const [page, setPage] = useState(1)
@@ -209,31 +212,31 @@ function AddPipelinesModal({
 
   return (
     <Modal
-      title={`向「${folder}」添加流水线`}
+      title={t('project.addToFolderTitle', { name: folder })}
       open={open}
       width={760}
       onOk={onOk}
       onCancel={onCancel}
-      okText={selectedIds.length ? `加入本组（${selectedIds.length}）` : '加入本组'}
+      okText={selectedIds.length ? t('project.joinFolderN', { n: selectedIds.length }) : t('project.joinFolder')}
       okButtonProps={{ disabled: selectedIds.length === 0 }}
       confirmLoading={saving}
-      cancelText="取消"
+      cancelText={t('common.cancel')}
       destroyOnClose
     >
       <div style={{ marginBottom: 12, color: '#666', fontSize: 13 }}>
-        个人分组只有你自己看得到。勾选要放进来的流水线，已在本组的不会出现在下面。
+        {t('project.addFolderHint')}
       </div>
       <Space wrap style={{ marginBottom: 12 }}>
         <Input.Search
           allowClear
-          placeholder="搜索名称"
+          placeholder={t("project.searchName")}
           style={{ width: 260 }}
           value={kw}
           onChange={(e) => setKw(e.target.value)}
         />
         <Select
           allowClear
-          placeholder="按环境分组筛选"
+          placeholder={t("project.filterGroup")}
           style={{ width: 200 }}
           value={groupId}
           onChange={setGroupId}
@@ -256,17 +259,17 @@ function AddPipelinesModal({
           pageSize,
           showSizeChanger: true,
           pageSizeOptions: [10, 20, 50, 100],
-          showTotal: (t) => `可添加 ${t} 条，已选 ${selectedIds.length} 条`,
+          showTotal: (total) => t('project.addableTotal', { total, n: selectedIds.length }),
           onChange: (p, ps) => {
             setPage(p)
             setPageSize(ps)
           },
         }}
         scroll={{ y: 360 }}
-        locale={{ emptyText: kw || groupId ? '没有符合条件的流水线' : '没有可加入的流水线' }}
+        locale={{ emptyText: kw || groupId ? t('project.emptyMatch') : t('project.emptyJoin') }}
         columns={[
           {
-            title: '流水线',
+            title: t('project.colPipeline'),
             dataIndex: 'name',
             ellipsis: true,
             render: (v: string) => (
@@ -274,7 +277,7 @@ function AddPipelinesModal({
             ),
           },
           {
-            title: '环境',
+            title: t('project.colEnv'),
             dataIndex: 'group_id',
             width: 140,
             render: (id: number) => {
@@ -283,11 +286,11 @@ function AddPipelinesModal({
             },
           },
           {
-            title: '当前所在',
+            title: t('project.colFolder'),
             dataIndex: 'folder',
             width: 140,
             ellipsis: true,
-            render: (v: string) => v || <span style={{ color: '#bbb' }}>未分组</span>,
+            render: (v: string) => v || <span style={{ color: '#bbb' }}>{t('project.ungrouped')}</span>,
           },
         ]}
       />
@@ -315,6 +318,12 @@ export default function ProjectDetail() {
   const user = useAuthStore((s) => s.user)
   /** 窄屏：左侧分组改下拉，流水线改卡片，避免 232px 导航占掉半屏。 */
   const isMobile = useIsMobile()
+  const t = useT()
+  const pipelineColOptions: ColumnOption[] = PIPELINE_COL_DEFS.map((o) => ({
+    key: o.key,
+    label: t(o.labelKey),
+    locked: o.locked,
+  }))
   const [open, setOpen] = useState(false)
   const [dupOpen, setDupOpen] = useState(false)
   const [dupSource, setDupSource] = useState<Pipeline | null>(null)
@@ -433,9 +442,9 @@ export default function ProjectDetail() {
     if (savedView.nav) setNav(savedView.nav)
     if (savedView.sortField) setSorter({ field: savedView.sortField, order: savedView.sortOrder })
     if (Array.isArray(savedView.columns) && savedView.columns.length) {
-      const known = new Set(PIPELINE_COL_OPTIONS.map((o) => o.key))
+      const known = new Set(PIPELINE_COL_DEFS.map((o) => o.key))
       const next = (savedView.columns as string[]).filter((k) => known.has(k))
-      for (const o of PIPELINE_COL_OPTIONS) {
+      for (const o of PIPELINE_COL_DEFS) {
         if (o.locked && !next.includes(o.key)) next.push(o.key)
       }
       if (next.includes('name')) setVisibleCols(next)
@@ -523,7 +532,7 @@ export default function ProjectDetail() {
       if (!silent) {
         queryClient.invalidateQueries({ queryKey: ['pipelines', projectId] })
         queryClient.invalidateQueries({ queryKey: ['personal-folders', projectId] })
-        message.success(folder ? `已移动到「${folder}」` : '已移出分组')
+        message.success(folder ? t('project.movedTo', { name: folder }) : t('project.movedOut'))
       }
     } catch {
       /* 拦截器已提示 */
@@ -532,7 +541,7 @@ export default function ProjectDetail() {
 
   const addPipelinesToFolder = async (folder: string, ids: number[]) => {
     if (!ids.length) {
-      message.warning('请选择要加入的流水线')
+      message.warning(t('project.pickToAdd'))
       return false
     }
     await Promise.all(
@@ -543,13 +552,13 @@ export default function ProjectDetail() {
     )
     queryClient.invalidateQueries({ queryKey: ['pipelines', projectId] })
     queryClient.invalidateQueries({ queryKey: ['personal-folders', projectId] })
-    message.success(`已将 ${ids.length} 条流水线加入「${folder}」`)
+    message.success(t('project.addedN', { n: ids.length, name: folder }))
     return true
   }
 
   const removeSelectedFromFolder = async () => {
     if (!selectedIds.length) {
-      message.warning('请先勾选要移出的流水线')
+      message.warning(t('project.pickToRemove'))
       return
     }
     await Promise.all(
@@ -560,7 +569,7 @@ export default function ProjectDetail() {
     )
     queryClient.invalidateQueries({ queryKey: ['pipelines', projectId] })
     queryClient.invalidateQueries({ queryKey: ['personal-folders', projectId] })
-    message.success(`已移出 ${selectedIds.length} 条`)
+    message.success(t('project.removedN', { n: selectedIds.length }))
     setSelectedIds([])
   }
 
@@ -622,7 +631,7 @@ export default function ProjectDetail() {
     queryClient.invalidateQueries({ queryKey: ['pipelines', projectId] })
     queryClient.invalidateQueries({ queryKey: ['personal-folders', projectId] })
     setDupOpen(false)
-    message.success(`已复制为「${newP.name}」`)
+    message.success(t('project.copiedAs', { name: newP.name }))
     navigate(`/pipeline/${newP.id}/edit`)
   }
 
@@ -634,39 +643,39 @@ export default function ProjectDetail() {
   const handleDeletePipeline = async (p: Pipeline) => {
     await del(`/pipelines/${p.id}`)
     refreshPipelines()
-    message.success(`「${p.name}」已移入回收站，30 天内可恢复编排`)
+    message.success(t('project.trashed', { name: p.name }))
   }
 
   const handleRestore = async (p: RecycledPipeline) => {
     try {
       await post(`/pipelines/${p.id}/restore`, {})
       refreshPipelines()
-      message.success(`「${p.name}」已恢复`)
+      message.success(t('project.restored', { name: p.name }))
     } catch (e: any) {
       // 删除后又建了同名流水线，原名被占了：让用户换个名字再恢复
       restoreNameRef.current = `${p.name}_restored`
       Modal.confirm({
-        title: '原名称已被占用，换个名字恢复',
+        title: t('project.restoreNameBusy'),
         content: (
           <div>
-            <div style={{ marginBottom: 8, color: '#999' }}>{e?.message ?? '名称冲突'}</div>
+            <div style={{ marginBottom: 8, color: '#999' }}>{e?.message ?? t('project.nameConflict')}</div>
             <Input
               defaultValue={restoreNameRef.current}
               onChange={(ev) => (restoreNameRef.current = ev.target.value)}
             />
           </div>
         ),
-        okText: '恢复',
-        cancelText: '取消',
+        okText: t('project.restore'),
+        cancelText: t('common.cancel'),
         onOk: async () => {
           const name = restoreNameRef.current.trim()
           if (!name) {
-            message.error('名称不能为空')
+            message.error(t('project.nameRequired'))
             return Promise.reject()
           }
           await post(`/pipelines/${p.id}/restore`, { name })
           refreshPipelines()
-          message.success(`已恢复为「${name}」`)
+          message.success(t('project.restoredAs', { name }))
         },
       })
     }
@@ -675,7 +684,7 @@ export default function ProjectDetail() {
   const handlePurge = async (p: RecycledPipeline) => {
     await del(`/pipelines/${p.id}/purge`)
     refreshPipelines()
-    message.success(`「${p.name}」已彻底删除`)
+    message.success(t('project.purged', { name: p.name }))
   }
 
   // 环境分组的审批策略：强制审批 / 允许自审 / 应急跳审
@@ -696,7 +705,7 @@ export default function ProjectDetail() {
     await put(`/groups/${policyGroup.id}`, values)
     queryClient.invalidateQueries({ queryKey: ['groups', projectId] })
     setPolicyGroup(null)
-    message.success('审批策略已更新')
+    message.success(t('project.policySaved'))
   }
 
   const openCreateGroup = () => {
@@ -715,7 +724,7 @@ export default function ProjectDetail() {
     const v = await createGroupForm.validateFields()
     const type = v.type === '__custom__' ? String(v.custom_type || '').trim().toLowerCase() : v.type
     if (!type || !ENV_SLUG.test(type)) {
-      message.warning('环境码不合法：小写字母开头，最多 16 位字母数字-_')
+      message.warning(t('project.envSlugBad'))
       return
     }
     await post('/groups', {
@@ -729,7 +738,7 @@ export default function ProjectDetail() {
     })
     queryClient.invalidateQueries({ queryKey: ['groups', projectId] })
     setCreateGroupOpen(false)
-    message.success(`已创建环境分组「${v.name.trim()}」`)
+    message.success(t('project.groupCreated', { name: v.name.trim() }))
   }
 
   const handleDeleteGroup = (g: Group) => {
@@ -738,31 +747,31 @@ export default function ProjectDetail() {
     if (busy || inTrash) {
       message.warning(
         inTrash && !busy
-          ? `「${g.name}」回收站里还有流水线，恢复后会丢环境。请先彻底删除或恢复后挪走`
-          : `「${g.name}」下还有流水线，请先挪到别的环境分组或删掉流水线`,
+          ? t('project.groupHasRecycle', { name: g.name })
+          : t('project.groupHasPipelines', { name: g.name }),
       )
       return
     }
     Modal.confirm({
-      title: `删除环境分组「${g.name}」？`,
-      content: '空组才能删。删掉后不能恢复，不影响个人分组。',
-      okText: '删除',
+      title: t('project.deleteGroupTitle', { name: g.name }),
+      content: t('project.deleteGroupBody'),
+      okText: t('common.delete'),
       okButtonProps: { danger: true },
-      cancelText: '取消',
+      cancelText: t('common.cancel'),
       onOk: async () => {
         await del(`/groups/${g.id}`)
         queryClient.invalidateQueries({ queryKey: ['groups', projectId] })
         if (nav === `group:${g.id}`) setNav('all')
-        message.success('已删除')
+        message.success(t('project.deleted'))
       },
     })
   }
 
   const folderMenu = (f: string) => ({
     items: [
-      { key: 'add', label: '添加流水线' },
-      { key: 'rename', label: '重命名' },
-      { key: 'delete', label: '删除分组', danger: true },
+      { key: 'add', label: t('project.addPipelines') },
+      { key: 'rename', label: t('common.rename') },
+      { key: 'delete', label: t('project.deleteGroup'), danger: true },
     ],
     onClick: (info: { key: string; domEvent: { stopPropagation: () => void } }) => {
       info.domEvent.stopPropagation()
@@ -774,11 +783,11 @@ export default function ProjectDetail() {
         setFolderModal('rename')
       } else if (info.key === 'delete') {
         Modal.confirm({
-          title: `删除个人分组「${f}」？`,
-          content: '分组里的流水线只会移出，不会被删除。这个分组只有你自己看得到。',
-          okText: '删除',
+          title: t('project.deleteFolderTitle', { name: f }),
+          content: t('project.deleteFolderBody'),
+          okText: t('common.delete'),
           okButtonProps: { danger: true },
-          cancelText: '取消',
+          cancelText: t('common.cancel'),
           onOk: async () => {
             await del(
               `/personal-folders?project_id=${Number(projectId)}&name=${encodeURIComponent(f)}`,
@@ -786,7 +795,7 @@ export default function ProjectDetail() {
             queryClient.invalidateQueries({ queryKey: ['personal-folders', projectId] })
             queryClient.invalidateQueries({ queryKey: ['pipelines', projectId] })
             if (nav === `folder:${f}`) setNav('all')
-            message.success('已删除分组')
+            message.success(t('project.folderDeleted'))
           },
         })
       }
@@ -795,13 +804,13 @@ export default function ProjectDetail() {
 
   // 左侧导航：全部 / 我的收藏 + 个人分组 / 环境分组（分组带审批策略齿轮）
   const navItems = [
-    { key: 'all', icon: <AppstoreOutlined />, label: navLabel('全部流水线', pipelines.length) },
+    { key: 'all', icon: <AppstoreOutlined />, label: navLabel(t('project.allPipelines'), pipelines.length) },
     {
       type: 'group' as const,
       label: (
         <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-          <span>个人分组</span>
-          <Tooltip title="新建个人分组，只有你自己看得到">
+          <span>{t('project.personalFolders')}</span>
+          <Tooltip title={t("project.newPersonalFolder")}>
             <PlusOutlined
               style={{ fontSize: 12, color: '#1677ff' }}
               onClick={(e) => {
@@ -817,7 +826,7 @@ export default function ProjectDetail() {
         {
           key: 'fav',
           icon: <StarFilled style={{ color: '#faad14' }} />,
-          label: navLabel('我的收藏', favCount),
+          label: navLabel(t('project.favorites'), favCount),
         },
         ...folders.map((f) => ({
           key: `folder:${f}`,
@@ -839,9 +848,9 @@ export default function ProjectDetail() {
       type: 'group' as const,
       label: (
         <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-          <span>环境分组</span>
+          <span>{t('project.envGroup')}</span>
           {canManageGroup ? (
-            <Tooltip title="新建环境分组（UAT / 预发 / 开发或自定义）">
+            <Tooltip title={t("project.newEnvGroup")}>
               <PlusOutlined
                 style={{ fontSize: 12, color: '#1677ff' }}
                 onClick={(e) => {
@@ -863,12 +872,12 @@ export default function ProjectDetail() {
               trigger={['click']}
               menu={{
                 items: [
-                  { key: 'policy', label: '审批策略' },
+                  { key: 'policy', label: t('project.policy') },
                   ...(canDeleteGroup
                     ? [
                         {
                           key: 'delete',
-                          label: '删除',
+                          label: t('common.delete'),
                           danger: true,
                           disabled:
                             (groupCount[g.id] || 0) > 0 ||
@@ -897,8 +906,8 @@ export default function ProjectDetail() {
 
   /** 手机上左侧导航改成下拉，避免占掉半屏。 */
   const navSelectOptions = [
-    { value: 'all', label: `全部流水线（${pipelines.length}）` },
-    { value: 'fav', label: `我的收藏（${favCount}）` },
+    { value: 'all', label: `${t('project.allPipelines')} (${pipelines.length})` },
+    { value: 'fav', label: `${t('project.favorites')} (${favCount})` },
     ...folders.map((f) => ({ value: `folder:${f}`, label: `${f}（${folderCount[f] || 0}）` })),
     ...groups.map((g) => ({
       value: `group:${g.id}`,
@@ -922,7 +931,7 @@ export default function ProjectDetail() {
       onHeaderCell: () => headerResize('starred'),
       align: 'center' as const,
       render: (_v: boolean, r: Pipeline) => (
-        <Tooltip title={r.starred ? '取消收藏置顶' : '收藏并置顶'}>
+        <Tooltip title={r.starred ? t('project.unstar') : t('project.star')}>
           <span onClick={() => toggleStar(r)} style={{ cursor: 'pointer', fontSize: 16 }}>
             {r.starred ? (
               <StarFilled style={{ color: '#faad14' }} />
@@ -935,7 +944,7 @@ export default function ProjectDetail() {
     },
     {
       key: 'name',
-      title: '流水线名称',
+      title: t('project.colName'),
       dataIndex: 'name',
       width: colW('name'),
       onHeaderCell: () => headerResize('name'),
@@ -962,7 +971,7 @@ export default function ProjectDetail() {
     },
     {
       key: 'group',
-      title: '分组 / 审批',
+      title: t('project.colGroup'),
       dataIndex: 'group_id',
       width: colW('group'),
       onHeaderCell: () => headerResize('group'),
@@ -974,13 +983,13 @@ export default function ProjectDetail() {
           <Space size={4} wrap>
             {g ? <Tag color={envColor(g.type)}>{g.name}</Tag> : '-'}
             {r.approval_mode === 'exempt' && (
-              <Tooltip title="这条流水线被单独设为豁免审批，发布不经审批直接执行">
-                <Tag color="volcano">已豁免审批</Tag>
+              <Tooltip title={t("project.exemptHint")}>
+                <Tag color="volcano">{t("project.exempt")}</Tag>
               </Tooltip>
             )}
             {r.approval_mode === 'force' && (
-              <Tooltip title="这条流水线被单独设为强制审批，不受环境默认策略影响">
-                <Tag color="gold">强制审批</Tag>
+              <Tooltip title={t("project.forceHint")}>
+                <Tag color="gold">{t("project.forceApprove")}</Tag>
               </Tooltip>
             )}
           </Space>
@@ -989,7 +998,7 @@ export default function ProjectDetail() {
     },
     {
       key: 'version',
-      title: '版本',
+      title: t('project.colVersion'),
       dataIndex: 'version_label',
       width: colW('version'),
       onHeaderCell: () => headerResize('version'),
@@ -1001,7 +1010,7 @@ export default function ProjectDetail() {
     },
     {
       key: 'exec',
-      title: '执行状态',
+      title: t('project.colExec'),
       dataIndex: 'last_release',
       width: colW('exec'),
       onHeaderCell: () => headerResize('exec'),
@@ -1014,7 +1023,7 @@ export default function ProjectDetail() {
     },
     {
       key: 'last_run',
-      title: '最近执行',
+      title: t('project.colLastRun'),
       dataIndex: 'last_run_at',
       width: colW('last_run'),
       onHeaderCell: () => headerResize('last_run'),
@@ -1024,7 +1033,7 @@ export default function ProjectDetail() {
     },
     {
       key: 'updated',
-      title: '修改时间',
+      title: t('project.colUpdated'),
       dataIndex: 'updated_at',
       width: colW('updated'),
       onHeaderCell: () => headerResize('updated'),
@@ -1036,7 +1045,7 @@ export default function ProjectDetail() {
     },
     {
       key: 'creator',
-      title: '创建人',
+      title: t('project.colCreator'),
       dataIndex: 'creator_name',
       width: colW('creator'),
       onHeaderCell: () => headerResize('creator'),
@@ -1049,7 +1058,7 @@ export default function ProjectDetail() {
     },
     {
       key: 'created',
-      title: '创建时间',
+      title: t('project.colCreated'),
       dataIndex: 'created_at',
       width: colW('created'),
       onHeaderCell: () => headerResize('created'),
@@ -1061,9 +1070,9 @@ export default function ProjectDetail() {
       key: 'actions',
       title: (
         <span style={{ display: 'inline-flex', alignItems: 'center' }}>
-          操作
+          {t('common.action')}
           <TableColumnSettings
-            options={PIPELINE_COL_OPTIONS}
+            options={pipelineColOptions}
             visible={visibleCols}
             size={tableSize}
             onApply={(cols, sz) => {
@@ -1080,7 +1089,7 @@ export default function ProjectDetail() {
         <Space size={4} wrap={false}>
           {currentFolder ? (
             <Button size="small" onClick={() => saveFolder(r, '')}>
-              移出
+              {t('project.leaveFolder')}
             </Button>
           ) : null}
           {(user?.is_admin || r.can_update) && (
@@ -1089,7 +1098,7 @@ export default function ProjectDetail() {
               icon={<EditOutlined />}
               onClick={() => navigate(`/pipeline/${r.id}/edit`)}
             >
-              编辑
+              {t('common.edit')}
             </Button>
           )}
           {canCreate && (
@@ -1098,7 +1107,7 @@ export default function ProjectDetail() {
               icon={<CopyOutlined />}
               onClick={() => openDuplicate(r)}
             >
-              复制
+              {t('common.copy')}
             </Button>
           )}
           {(user?.is_admin || r.can_execute !== false) && (
@@ -1108,20 +1117,20 @@ export default function ProjectDetail() {
               icon={<RocketOutlined />}
               onClick={() => navigate(`/executions/${r.id}`)}
             >
-              发布
+              {t('project.publish')}
             </Button>
           )}
           {(user?.is_admin || r.can_delete) && (
             <Popconfirm
-              title={`删除流水线「${r.name}」？`}
-              description="会移入本项目回收站，30 天内可一键恢复编排；超期后不能再跑这条线，执行记录和制品仍保留"
-              okText="删除"
+              title={t('project.deletePipeline', { name: r.name })}
+              description={t('project.deletePipelineDesc')}
+              okText={t('common.delete')}
               okButtonProps={{ danger: true }}
-              cancelText="取消"
+              cancelText={t('common.cancel')}
               onConfirm={() => handleDeletePipeline(r)}
             >
               <Button size="small" danger icon={<DeleteOutlined />}>
-                删除
+                {t('common.delete')}
               </Button>
             </Popconfirm>
           )}
@@ -1133,9 +1142,9 @@ export default function ProjectDetail() {
   const tableScrollX = pipelineColumns.reduce((sum, c) => sum + (Number(c.width) || 120), 0)
 
   const recycleColumns = [
-    { title: '流水线名称', dataIndex: 'name' },
+    { title: t('project.recycleName'), dataIndex: 'name' },
     {
-      title: '所属分组',
+      title: t('project.recycleGroup'),
       dataIndex: 'group_id',
       render: (v: number) => {
         const g = groupMap[v]
@@ -1143,34 +1152,34 @@ export default function ProjectDetail() {
       },
     },
     {
-      title: '删除时间',
+      title: t('project.deletedAt'),
       dataIndex: 'deleted_at',
       render: (v?: string) => (v ? new Date(v).toLocaleString() : '-'),
     },
     {
-      title: '剩余保留',
+      title: t('project.daysLeft'),
       dataIndex: 'days_left',
       render: (v?: number) =>
-        v == null ? '-' : v <= 3 ? <Tag color="red">{v} 天</Tag> : <Tag>{v} 天</Tag>,
+        v == null ? '-' : v <= 3 ? <Tag color="red">{v} {t('common.days')}</Tag> : <Tag>{v} {t('common.days')}</Tag>,
     },
     {
-      title: '操作',
+      title: t('common.action'),
       width: 200,
       render: (_: unknown, r: RecycledPipeline) => (
         <Space>
           <Button size="small" icon={<UndoOutlined />} onClick={() => handleRestore(r)}>
-            恢复
+            {t('project.restore')}
           </Button>
           <Popconfirm
-            title={`彻底删除「${r.name}」？`}
-            description="不可恢复，流水线编排与执行记录一并清除"
-            okText="彻底删除"
+            title={t('project.purgeTitle', { name: r.name })}
+            description={t('project.purgeDesc')}
+            okText={t('project.purge')}
             okButtonProps={{ danger: true }}
-            cancelText="取消"
+            cancelText={t('common.cancel')}
             onConfirm={() => handlePurge(r)}
           >
             <Button size="small" danger icon={<DeleteOutlined />}>
-              彻底删除
+              {t('project.purge')}
             </Button>
           </Popconfirm>
         </Space>
@@ -1197,7 +1206,7 @@ export default function ProjectDetail() {
             suffixIcon={
               <span
                 role="button"
-                aria-label="展开项目列表"
+                aria-label={t("project.expandList")}
                 onMouseDown={(e) => {
                   // 可搜索 Select 的箭头默认不接点击，点名字才展开
                   e.preventDefault()
@@ -1208,8 +1217,8 @@ export default function ProjectDetail() {
                 <DownOutlined />
               </span>
             }
-            placeholder="选择项目"
-            className="rp-project-switch"
+            placeholder={t("project.pickProject")}
+            className="qxci-project-switch"
             style={{ minWidth: isMobile ? 0 : 280, width: isMobile ? '100%' : undefined, maxWidth: '100%', fontWeight: 600, fontSize: 16, cursor: 'pointer' }}
             dropdownStyle={{ minWidth: isMobile ? undefined : 320 }}
           />
@@ -1223,16 +1232,16 @@ export default function ProjectDetail() {
       {!isMobile && <PmProjectCard projectId={Number(projectId)} />}
 
       <Card
-        title="流水线"
+        title={t("project.pipelines")}
         extra={
           isMobile ? null : (
           <Space>
             <Button icon={<DatabaseOutlined />} onClick={() => setRepoOpen(true)}>
-              代码库
+              {t('project.repos')}
             </Button>
             {canUseRecycleBin && (
               <Button icon={<RestOutlined />} onClick={() => setRecycleOpen(true)}>
-                回收站{recycled.length ? ` (${recycled.length})` : ''}
+                {t('project.recycle')}{recycled.length ? ` (${recycled.length})` : ''}
               </Button>
             )}
           </Space>
@@ -1274,7 +1283,7 @@ export default function ProjectDetail() {
                   setOpen(true)
                 }}
               >
-                新建流水线
+                {t('project.newPipeline')}
               </Button>
             )}
             {!isMobile && (
@@ -1289,31 +1298,31 @@ export default function ProjectDetail() {
             )}
             {currentFolder ? (
               <Button icon={<FolderOpenOutlined />} onClick={() => openAddToFolder(currentFolder)}>
-                添加流水线
+                {t('project.addPipeline')}
               </Button>
             ) : null}
             {currentFolder && selectedIds.length > 0 ? (
-              <Button onClick={removeSelectedFromFolder}>移出本组（{selectedIds.length}）</Button>
+              <Button onClick={removeSelectedFromFolder}>{t('project.removeFromFolder', { n: selectedIds.length })}</Button>
             ) : null}
             <Input.Search
               allowClear
-              placeholder="搜索流水线名称"
+              placeholder={t("project.searchPipeline")}
               style={{ width: isMobile ? '100%' : 240 }}
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
             />
             {!isMobile && (
-            <span style={{ color: '#bbb', fontSize: 12 }}>点击表头「最近执行 / 修改时间 / 创建时间」排序</span>
+            <span style={{ color: '#bbb', fontSize: 12 }}>{t('project.sortHint')}</span>
             )}
           </div>
           {pipelines.length === 0 ? (
-            <Empty description={canCreate ? '暂无流水线，点击上方新建' : '暂无已授权的流水线，请到「权限管理」申请，或通过 AI 助手申请'} />
+            <Empty description={canCreate ? t('project.emptyCreate') : t('project.emptyNeedAccess')} />
           ) : visiblePipelines.length === 0 ? (
             <Empty
               description={
                 currentFolder
-                  ? `「${currentFolder}」还是空的。点上方「添加流水线」，或点「新建流水线」会自动归入此组。`
-                  : '没有符合筛选条件的流水线'
+                  ? t('project.emptyFolder', { name: currentFolder })
+                  : t('project.emptyFilter')
               }
             />
           ) : isMobile ? (
@@ -1347,7 +1356,7 @@ export default function ProjectDetail() {
                               icon={<RocketOutlined />}
                               onClick={() => navigate(`/executions/${r.id}`)}
                             >
-                              发布
+                              {t('project.publish')}
                             </Button>
                           )}
                         </div>
@@ -1374,7 +1383,7 @@ export default function ProjectDetail() {
               size={tableSize}
               columns={pipelineColumns}
               dataSource={visiblePipelines}
-              rootClassName="rp-table"
+              rootClassName="qxci-table"
               components={{ header: { cell: ResizableTitle } }}
               rowSelection={{
                 selectedRowKeys: selectedIds,
@@ -1389,7 +1398,7 @@ export default function ProjectDetail() {
                 showSizeChanger: true,
                 showLessItems: true,
                 pageSizeOptions: [10, 20, 50, 100],
-                showTotal: (t) => `共计 ${t} 条`,
+                showTotal: (n) => t('project.total', { n }),
                 locale: { items_per_page: '' },
                 onChange: (p, ps) => {
                   setListPage(p)
@@ -1407,13 +1416,13 @@ export default function ProjectDetail() {
       </Card>
 
       {/* 代码库：低频，抽屉打开 */}
-      <Drawer title="代码库" width={isMobile ? '100%' : 900} open={repoOpen} onClose={() => setRepoOpen(false)} destroyOnClose>
+      <Drawer title={t("project.repos")} width={isMobile ? '100%' : 900} open={repoOpen} onClose={() => setRepoOpen(false)} destroyOnClose>
         <RepositoryPanel projectId={Number(projectId)} />
       </Drawer>
 
       {/* 回收站：低频，抽屉打开。没有删除权的人看不到入口 */}
       <Drawer
-        title={recycled.length ? `回收站 (${recycled.length})` : '回收站'}
+        title={recycled.length ? `${t('project.recycle')} (${recycled.length})` : t('project.recycle')}
         width={isMobile ? '100%' : 780}
         open={recycleOpen}
         onClose={() => setRecycleOpen(false)}
@@ -1423,10 +1432,10 @@ export default function ProjectDetail() {
           type="info"
           showIcon
           style={{ marginBottom: 12 }}
-          message="删除的流水线保留 30 天，期间可一键恢复编排。超过 30 天后不能再恢复或执行，但执行记录、制品和节点备份会留下，避免一键回滚对不上。"
+          message={t("project.recycleAlert")}
         />
         {recycled.length === 0 ? (
-          <Empty description="回收站是空的" />
+          <Empty description={t("project.recycleEmpty")} />
         ) : (
           <DataTable chromeKey="pipeline-recycle" rowKey="id" columns={recycleColumns} dataSource={recycled} pagination={false} />
         )}
@@ -1434,7 +1443,7 @@ export default function ProjectDetail() {
 
       {/* 新建流水线弹窗（蓝盾风格：左侧模板 + 右侧表单）*/}
       <Modal
-        title="新建流水线"
+        title={t("project.createPipeline")}
         open={open}
         onCancel={() => setOpen(false)}
         footer={null}
@@ -1446,7 +1455,7 @@ export default function ProjectDetail() {
           {/* 左侧模板列表 */}
           <div style={{ flex: 1, borderRight: isMobile ? 'none' : '1px solid #f0f0f0', paddingRight: isMobile ? 0 : 24 }}>
             <div style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
-              模板列表 ({1})
+              {t('project.templates', { n: 1 })}
             </div>
             <div
               style={{
@@ -1518,31 +1527,31 @@ export default function ProjectDetail() {
             >
               <Form.Item
                 name="name"
-                label="流水线名称"
+                label={t("project.colName")}
                 rules={[
-                  { required: true, message: '请输入流水线名称' },
-                  { max: 40, message: '不超过 40 个字符' },
+                  { required: true, message: t('project.pipelineNameRequired') },
+                  { max: 40, message: t('project.nameMax') },
                 ]}
               >
-                <Input placeholder="请输入流水线名称，不超过 40 个字符" maxLength={40} />
+                <Input placeholder={t("project.namePlaceholder")} maxLength={40} />
               </Form.Item>
 
-              <Form.Item label="类型" name="type">
+              <Form.Item label={t("project.type")} name="type">
                 <Radio.Group>
-                  <Radio value="free">自由模式</Radio>
+                  <Radio value="free">{t("project.freeMode")}</Radio>
                 </Radio.Group>
               </Form.Item>
 
-              <Form.Item label="编排模式（蓝盾风格）" name="mode">
+              <Form.Item label={t("project.arrangeMode")} name="mode">
                 <Radio.Group>
-                  <Radio value="form">列表式编排（推荐）</Radio>
-                  <Radio value="canvas">画布模式（React Flow 可视化）</Radio>
+                  <Radio value="form">{t("project.listMode")}</Radio>
+                  <Radio value="canvas">{t("project.canvasMode")}</Radio>
                 </Radio.Group>
               </Form.Item>
 
-              <Form.Item label="环境分组" name="group_id" rules={[{ required: true, message: '请选择环境分组' }]}>
+              <Form.Item label={t("project.envGroup")} name="group_id" rules={[{ required: true, message: t("project.pickEnv") }]}>
                 <Select
-                  placeholder="这条流水线发布时跑哪套环境"
+                  placeholder={t("project.pickEnvGroup")}
                   options={groups.map((g) => ({
                     label: groupOptionLabel(g),
                     value: g.id,
@@ -1554,15 +1563,15 @@ export default function ProjectDetail() {
                   type="info"
                   showIcon
                   style={{ marginBottom: 16 }}
-                  message={`将归入个人分组「${currentFolder}」`}
-                  description="个人分组只有你自己看得到，不影响别人，也不改变审批和环境。"
+                  message={t('project.willJoinFolder', { name: currentFolder })}
+                  description={t("project.folderNoAcl")}
                 />
               ) : null}
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 24 }}>
-                <Button onClick={() => setOpen(false)}>取消</Button>
+                <Button onClick={() => setOpen(false)}>{t('common.cancel')}</Button>
                 <Button type="primary" htmlType="submit">
-                  新增
+                  {t('project.create')}
                 </Button>
               </div>
             </Form>
@@ -1572,32 +1581,32 @@ export default function ProjectDetail() {
 
       {/* 复制流水线弹窗：整份 yaml 复用，A/B 互相独立 */}
       <Modal
-        title={`复制流水线（源：${dupSource?.name ?? ''}）`}
+        title={t('project.dupTitle', { name: dupSource?.name ?? '' })}
         open={dupOpen}
         onOk={handleDuplicate}
         onCancel={() => setDupOpen(false)}
-        okText="确定"
-        cancelText="取消"
+        okText={t("common.ok")}
+        cancelText={t('common.cancel')}
         destroyOnClose
       >
         <div style={{ marginBottom: 12, color: '#999', fontSize: 13 }}>
-          将完整复制源流水线的所有内容（编排/触发器/变量/Stage/Job/Step/插件参数）。A 复制 B 后两者完全独立，修改互不影响。
+          {t('project.dupHint')}
         </div>
         <Form form={dupForm} layout="vertical">
           <Form.Item
             name="name"
-            label="新流水线名称"
-            rules={[{ required: true, message: '请输入名称' }]}
-            extra="项目内唯一，已自动加 _copy 后缀；如冲突后端会自动加 _3/_4…"
+            label={t("project.dupName")}
+            rules={[{ required: true, message: t('project.nameRequired') }]}
+            extra={t("project.dupNameExtra")}
           >
-            <Input placeholder="如：test_copy" />
+            <Input placeholder={t("project.dupNamePlaceholder")} />
           </Form.Item>
-          <Form.Item name="description" label="描述">
-            <Input.TextArea rows={2} placeholder="（选填）" />
+          <Form.Item name="description" label={t("common.description")}>
+            <Input.TextArea rows={2} placeholder={t("project.optional")} />
           </Form.Item>
-          <Form.Item name="group_id" label="环境分组" rules={[{ required: true }]}>
+          <Form.Item name="group_id" label={t("project.envGroup")} rules={[{ required: true }]}>
             <Select
-              placeholder="请选择（默认与源流水线同组）"
+              placeholder={t("project.pickGroupDefault")}
               options={groups.map((g) => ({
                 label: groupOptionLabel(g),
                 value: g.id,
@@ -1609,71 +1618,71 @@ export default function ProjectDetail() {
 
       {/* 环境分组审批策略：小团队可开自审与应急跳审，避免无人可审时卡住上线 */}
       <Modal
-        title={`审批策略（${policyGroup?.name ?? ''}）`}
+        title={t('project.policyTitle', { name: policyGroup?.name ?? '' })}
         open={!!policyGroup}
         onOk={handleSaveGroupPolicy}
         onCancel={() => setPolicyGroup(null)}
-        okText="保存"
-        cancelText="取消"
+        okText={t("common.save")}
+        cancelText={t('common.cancel')}
         destroyOnClose
       >
         <Alert
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
-          message="生产分组建议开启强制审批 + 允许自审"
-          description="审批人来源是对该分组有「审批」权限的用户。多人可批时是或签：待办只出一张单，谁先批谁算。开启「允许发起人自审」后，有审批权的发起人也可以批自己的单，和别人一起或签。"
+          message={t("project.policyAlert")}
+          description={t("project.policyAlertDesc")}
         />
         <Form form={groupForm} layout="horizontal" labelCol={{ span: 10 }}>
-          <Form.Item name="approval_required" label="强制审批" valuePropName="checked">
+          <Form.Item name="approval_required" label={t("project.requireApproval")} valuePropName="checked">
             <Switch />
           </Form.Item>
           <Form.Item
             name="allow_self_approval"
-            label="允许发起人自审"
+            label={t("project.allowSelf")}
             valuePropName="checked"
-            extra="开启后，具备审批权限的发起人可以审批自己的发布，即使还有其他审批人。或签：谁先批谁算。"
+            extra={t("project.allowSelfExtra")}
           >
             <Switch />
           </Form.Item>
           <Form.Item
             name="allow_emergency_bypass"
-            label="允许应急跳审"
+            label={t("project.allowBypass")}
             valuePropName="checked"
-            extra="还要平台设置里的「允许应急跳审」是开着的才生效。项目经理接管后可在平台设置关掉总闸。"
+            extra={t("project.allowBypassExtra")}
           >
             <Switch />
           </Form.Item>
           <Form.Item
             name="pm_approval_required"
-            label="需要项目经理确认"
+            label={t("project.pmRequired")}
             valuePropName="checked"
-            extra="默认关。打开后，还要项目打开「项目经理参与」并指定了人，才会多等一步确认。现有技术审批不变。"
+            extra={t("project.pmRequiredExtra")}
           >
             <Switch />
           </Form.Item>
-          <Form.Item name="change_window" label="变更窗口" extra="给人看的，如：工作日 22:00-23:00。不挡发布。">
-            <Input placeholder="工作日 22:00-23:00" />
+          <Form.Item name="change_window" label={t("project.changeWindow")} extra={t("project.changeWindowExtra")}>
+            <Input placeholder={t("project.changeWindowPlaceholder")} />
           </Form.Item>
         </Form>
       </Modal>
 
       {/* 新建环境分组：内置码 + 自定义 slug，有流水线的组不能删 */}
       <Modal
-        title="新建环境分组"
+        title={t("project.newGroup")}
         open={createGroupOpen}
         onOk={handleCreateGroup}
         onCancel={() => setCreateGroupOpen(false)}
-        okText="创建"
-        cancelText="取消"
+        okText={t("common.create")}
+        cancelText={t('common.cancel')}
         destroyOnClose
       >
         <Alert
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
-          message="环境码必须和构建机、节点上的标记完全一致"
-          description="UAT 流水线只会发到 UAT 构建机和 UAT 节点。新项目默认只有生产和测试，UAT / 预发 / 开发在这里加。"
+          message={t("project.envCodeMustMatch")}
+          description={t("project.envCodeMustMatchDesc")}
         />
         <Form
           form={createGroupForm}
@@ -1688,12 +1697,12 @@ export default function ProjectDetail() {
             }
           }}
         >
-          <Form.Item name="name" label="名称" rules={[{ required: true, message: '请填写分组名' }]}>
-            <Input placeholder="如：UAT、预发" maxLength={40} />
+          <Form.Item name="name" label={t("project.groupName")} rules={[{ required: true, message: t("project.fillGroupName") }]}>
+            <Input placeholder={t("project.groupNamePlaceholder")} maxLength={40} />
           </Form.Item>
-          <Form.Item name="type" label="环境码" rules={[{ required: true, message: '请选择环境' }]}>
+          <Form.Item name="type" label={t("project.envCode")} rules={[{ required: true, message: t("project.pickEnv") }]}>
             <Select
-              options={[...envOptions(), { value: '__custom__', label: '自定义码…' }]}
+              options={[...envOptions(), { value: '__custom__', label: t('project.customCode') }]}
             />
           </Form.Item>
           <Form.Item noStyle shouldUpdate={(p, c) => p.type !== c.type}>
@@ -1701,27 +1710,27 @@ export default function ProjectDetail() {
               getFieldValue('type') === '__custom__' ? (
                 <Form.Item
                   name="custom_type"
-                  label="自定义环境码"
+                  label={t("project.customCode")}
                   rules={[
-                    { required: true, message: '请填写环境码' },
-                    { pattern: ENV_SLUG, message: '小写字母开头，最多 16 位字母数字-_' },
+                    { required: true, message: t('project.fillGroupName') },
+                    { pattern: ENV_SLUG, message: t('project.envSlugRule') },
                   ]}
                 >
-                  <Input placeholder="如 train、sandbox" />
+                  <Input placeholder={t("project.customCodePlaceholder")} />
                 </Form.Item>
               ) : null
             }
           </Form.Item>
-          <Form.Item name="approval_required" label="强制审批" valuePropName="checked">
+          <Form.Item name="approval_required" label={t("project.requireApproval")} valuePropName="checked">
             <Switch />
           </Form.Item>
-          <Form.Item name="allow_self_approval" label="允许发起人自审" valuePropName="checked">
+          <Form.Item name="allow_self_approval" label={t("project.allowSelf")} valuePropName="checked">
             <Switch />
           </Form.Item>
-          <Form.Item name="allow_emergency_bypass" label="允许应急跳审" valuePropName="checked">
+          <Form.Item name="allow_emergency_bypass" label={t("project.allowBypass")} valuePropName="checked">
             <Switch />
           </Form.Item>
-          <Form.Item name="pm_approval_required" label="需要项目经理确认" valuePropName="checked">
+          <Form.Item name="pm_approval_required" label={t("project.pmRequired")} valuePropName="checked">
             <Switch />
           </Form.Item>
         </Form>
@@ -1729,24 +1738,24 @@ export default function ProjectDetail() {
 
       {/* 个人分组：新建空组 / 重命名。加流水线用下面的勾选表格。 */}
       <Modal
-        title={folderModal === 'rename' ? `重命名「${renameFrom}」` : '新建个人分组'}
+        title={folderModal === 'rename' ? t('project.renameFolder', { name: renameFrom }) : t('project.newFolder')}
         open={folderModal === 'create' || folderModal === 'rename'}
         onOk={async () => {
           const name = folderInput.trim()
           if (folderModal === 'create') {
             if (!name) {
-              message.warning('请填写分组名')
+              message.warning(t('project.fillGroupName'))
               return
             }
             await createFolder(name)
             setNav(`folder:${name}`)
             setFolderModal(null)
-            message.success(`已创建「${name}」`)
+            message.success(t('project.folderCreated', { name }))
             return
           }
           if (folderModal === 'rename') {
             if (!name) {
-              message.warning('请填写分组名')
+              message.warning(t('project.fillGroupName'))
               return
             }
             const names = await put<string[]>('/personal-folders', {
@@ -1759,19 +1768,19 @@ export default function ProjectDetail() {
             queryClient.invalidateQueries({ queryKey: ['pipelines', projectId] })
             if (nav === `folder:${renameFrom}`) setNav(`folder:${name}`)
             setFolderModal(null)
-            message.success('已重命名')
+            message.success(t('project.folderRenamed'))
           }
         }}
         onCancel={() => setFolderModal(null)}
-        okText="确定"
-        cancelText="取消"
+        okText={t("common.ok")}
+        cancelText={t('common.cancel')}
         destroyOnClose
       >
         <div style={{ marginBottom: 8, color: '#999', fontSize: 13 }}>
-          个人分组只有你自己看得到，用来把常用流水线归拢。不占项目权限，也不影响审批。
+          {t('project.folderHint')}
         </div>
         <Input
-          placeholder="输入分组名，如：我负责的 / 日常发布"
+          placeholder={t("project.folderPlaceholder")}
           value={folderInput}
           maxLength={64}
           autoFocus
@@ -1814,6 +1823,7 @@ export default function ProjectDetail() {
 }
 
 function PmProjectCard({ projectId }: { projectId: number }) {
+  const t = useT()
   const qc = useQueryClient()
   const { data } = useQuery({
     queryKey: ['pm-members', projectId],
@@ -1835,12 +1845,12 @@ function PmProjectCard({ projectId }: { projectId: number }) {
   const saveEnabled = async (on: boolean) => {
     await put(`/pm/projects/${projectId}/settings`, { pm_enabled: on })
     qc.invalidateQueries({ queryKey: ['pm-members', projectId] })
-    message.success(on ? '已打开项目经理参与' : '已关闭，发布审批仍按原流程')
+    message.success(on ? t('project.pmOn') : t('project.pmOff'))
   }
   const saveMembers = async (userIds: number[]) => {
     await put(`/pm/projects/${projectId}/members`, { user_ids: userIds })
     qc.invalidateQueries({ queryKey: ['pm-members', projectId] })
-    message.success('已保存项目经理')
+    message.success(t('project.pmSaved'))
   }
   return (
     <Card
@@ -1849,15 +1859,15 @@ function PmProjectCard({ projectId }: { projectId: number }) {
       title={
         <Space>
           <TeamOutlined />
-          项目经理
+          {t('project.pmTitle')}
         </Space>
       }
       extra={
         <Switch
           checked={enabled}
           disabled={!manage}
-          checkedChildren="参与"
-          unCheckedChildren="关闭"
+          checkedChildren={t("project.participate")}
+          unCheckedChildren={t("project.closed")}
           onChange={saveEnabled}
         />
       }
@@ -1866,12 +1876,12 @@ function PmProjectCard({ projectId }: { projectId: number }) {
         type="info"
         showIcon
         style={{ marginBottom: 12 }}
-        message="默认关闭。打开并指定人之后，再在环境分组里打开「需要项目经理确认」，才会多一道业务确认。生产技术审批、应急跳审都不动。"
+        message={t("project.pmHint")}
       />
       <Select
         mode="multiple"
         style={{ width: '100%' }}
-        placeholder="指定项目经理（只看、确认范围，没有执行权）"
+        placeholder={t("project.pmPlaceholder")}
         value={ids}
         disabled={!manage}
         filterOption={false}

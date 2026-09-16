@@ -1,4 +1,5 @@
 import { Modal, Card } from 'antd'
+import { useT } from '@/i18n'
 
 interface JobTypeSelectorProps {
   open: boolean
@@ -16,9 +17,10 @@ const JOB_TYPES = [
  * Job 类型选择器（对应蓝盾"请选择Job类型"弹窗）
  */
 export default function JobTypeSelector({ open, onClose, onSelect }: JobTypeSelectorProps) {
+  const t = useT()
   return (
     <Modal
-      title="请选择Job类型"
+      title={t("pipe.pickJobType")}
       open={open}
       onCancel={onClose}
       footer={null}

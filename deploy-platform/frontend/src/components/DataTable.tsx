@@ -6,6 +6,7 @@ import { LIST_PAGE_SIZES, useTableChrome } from '@/hooks/useTableChrome'
 import type { TableSize } from '@/components/TableColumnSettings'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { MobileTableCards } from '@/components/MobileTableCards'
+import { t } from '@/i18n'
 
 type Props<T extends object> = TableProps<T> & {
   /** 本机记住列宽/显隐/行高/每页条数的键，同一页多张表不要重复 */
@@ -32,7 +33,7 @@ function mergePagination(
     showLessItems: true,
     hideOnSinglePage: false,
     pageSizeOptions: extra.pageSizeOptions ?? LIST_PAGE_SIZES,
-    showTotal: extra.showTotal ?? ((t) => `共计 ${t} 条`),
+    showTotal: extra.showTotal ?? ((n) => t('common.total', { n })),
     locale: { ...extra.locale, items_per_page: '' },
     pageSize: extra.pageSize ?? storedPageSize,
     onChange: remember,
@@ -79,7 +80,7 @@ export default function DataTable<T extends object>({
     return (
       <div>
         {rest.loading ? (
-          <div style={{ padding: 24, textAlign: 'center' }}>加载中…</div>
+          <div style={{ padding: 24, textAlign: 'center' }}>{t('common.loading')}</div>
         ) : (
           <MobileTableCards<T>
             columns={columns}

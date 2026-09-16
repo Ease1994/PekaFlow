@@ -30,6 +30,7 @@ import { useIsMobile } from '@/hooks/useIsMobile'
 import MenuManagement from '@/pages/MenuManagement'
 import AccessApplyPanel from '@/modules/access/AccessApplyPanel'
 import { useAuthStore } from '@/stores/auth'
+import { t, useT } from '@/i18n'
 
 interface UserItem { id: number; username: string; display_name: string; is_admin: boolean }
 interface ProjectItem { id: number; name: string; code: string }
@@ -72,23 +73,52 @@ interface Application {
   reviewed_at: string
 }
 
-const TYPE_LABEL: Record<string, string> = {
-  project: '项目', group: '分组', pipeline: '流水线', node: '节点', node_group: '节点组',
+/** 资源类型码 → 界面句子。渲染时再取，语言切换才不会停在导入时的文案。 */
+function typeLabel(v: string): string {
+  const keys: Record<string, string> = {
+    project: 'acl.project',
+    group: 'acl.group',
+    pipeline: 'acl.pipeline',
+    node: 'acl.node',
+    node_group: 'acl.nodeGroup',
+  }
+  return keys[v] ? t(keys[v]) : v
 }
-const ACTION_LABEL: Record<string, string> = {
-  read: '查看', create: '创建', update: '更新', delete: '删除', execute: '执行', approve: '审批',
-  approval_exempt: '豁免审批', deploy: '下发文件',
+
+/** 动作码 → 界面句子。查看/创建等与 acl 共用。 */
+function actionLabel(a: string): string {
+  const keys: Record<string, string> = {
+    read: 'acl.view',
+    create: 'acl.create',
+    update: 'acl.update',
+    delete: 'acl.delete',
+    execute: 'acl.execute',
+    approve: 'acl.approve',
+    approval_exempt: 'acl.exempt',
+    deploy: 'acl.pushFile',
+  }
+  return keys[a] ? t(keys[a]) : a
 }
-const STATUS: Record<string, { color: string; text: string }> = {
-  pending: { color: 'orange', text: '待审批' },
-  approved: { color: 'success', text: '已通过' },
-  rejected: { color: 'error', text: '已驳回' },
-  cancelled: { color: 'default', text: '已撤销' },
+
+/** 申请单状态：颜色固定，句子走 t()。 */
+function statusMeta(s: string): { color: string; text: string } {
+  const map: Record<string, { color: string; text: string }> = {
+    pending: { color: 'orange', text: t('status.pending') },
+    approved: { color: 'success', text: t('perm.approved') },
+    rejected: { color: 'error', text: t('perm.rejected') },
+    cancelled: { color: 'default', text: t('perm.revoked') },
+  }
+  return map[s] || { color: 'default', text: s }
 }
-const SOURCE: Record<string, { color: string; text: string }> = {
-  ai: { color: 'blue', text: 'AI助手' },
-  web: { color: 'default', text: '手动' },
-  api: { color: 'cyan', text: 'API' },
+
+/** 申请来源：AI / 页面 / API。 */
+function sourceMeta(s: string): { color: string; text: string } {
+  const map: Record<string, { color: string; text: string }> = {
+    ai: { color: 'blue', text: t('perm.sourceAi') },
+    web: { color: 'default', text: t('perm.sourceWeb') },
+    api: { color: 'cyan', text: t('perm.sourceApi') },
+  }
+  return map[s] || { color: 'default', text: s }
 }
 
 type GroupedPerm = PermissionItem & { actions: string[]; ids: number[] }
@@ -104,24 +134,33 @@ function withRead(actions: string[]) {
   return actions
 }
 
-const REVIEW_ACTION_OPTIONS = [
-  { value: 'read', label: '查看' },
-  { value: 'create', label: '创建' },
-  { value: 'update', label: '更新' },
-  { value: 'delete', label: '删除' },
-  { value: 'execute', label: '执行' },
-  { value: 'approve', label: '审批' },
-  { value: 'approval_exempt', label: '豁免审批' },
-]
+/** 审核抽屉里可勾的动作。label 在渲染时取。 */
+function reviewActionOptions() {
+  return [
+    { value: 'read', label: t('acl.view') },
+    { value: 'create', label: t('acl.create') },
+    { value: 'update', label: t('acl.update') },
+    { value: 'delete', label: t('acl.delete') },
+    { value: 'execute', label: t('acl.execute') },
+    { value: 'approve', label: t('acl.approve') },
+    { value: 'approval_exempt', label: t('acl.exempt') },
+  ]
+}
 
 /** 列表范围列：角色单走 scope_text，资源单仍是项目/分组/流水线。 */
 function scopeText(row: Application) {
   if (row.scope_text) return row.scope_text
-  if (row.apply_type === 'role') return `${row.project_name} / 角色 ${row.role_name || row.pipeline_name}`
+  if (row.apply_type === 'role') return t('perm.scopeRole', { project: row.project_name, role: row.role_name || row.pipeline_name })
   return `${row.project_name} / ${row.group_name} / ${row.pipeline_name}`
 }
 
+/** 角色申请 vs 资源权限。 */
+function applyKind(row: Application) {
+  return row.scope_label || (row.apply_type === 'role' ? t('perm.roleGrant') : t('perm.resourceGrant'))
+}
+
 export default function PermissionManagement() {
+  const t = useT()
   const qc = useQueryClient()
   const isMobile = useIsMobile()
   const user = useAuthStore((s) => s.user)
@@ -234,7 +273,7 @@ export default function PermissionManagement() {
         actions: payload.actions,
       }),
     onSuccess: (r) => {
-      message.success(`已授权 ${r.created} 项`)
+      message.success(t('perm.grantedN', { n: r.created }))
       setGrantOpen(false)
       invalidate()
     },
@@ -243,7 +282,7 @@ export default function PermissionManagement() {
   const revokeMut = useMutation({
     mutationFn: (ids: number[]) => post<{ deleted: number }>('/permissions/revoke', { permission_ids: ids }),
     onSuccess: (r) => {
-      message.success(`已移除 ${r.deleted} 项`)
+      message.success(t('perm.removedN', { n: r.deleted }))
       invalidate()
     },
   })
@@ -255,7 +294,7 @@ export default function PermissionManagement() {
         actions: body.actions,
       }),
     onSuccess: () => {
-      message.success('已处理')
+      message.success(t('perm.handled'))
       setReview(null)
       invalidate()
     },
@@ -264,7 +303,7 @@ export default function PermissionManagement() {
   const cancelMut = useMutation({
     mutationFn: (id: number) => post<Application>(`/access/applications/${id}/cancel`),
     onSuccess: () => {
-      message.success('已撤销')
+      message.success(t('perm.cancelled'))
       invalidate()
     },
   })
@@ -304,28 +343,28 @@ export default function PermissionManagement() {
   /** 授权列表列：类型、资源名、已授操作、整组移除。 */
   const permColumns = [
     {
-      title: '类型',
+      title: t('common.type'),
       dataIndex: 'resource_type',
       width: 90,
-      render: (v: string) => <Tag>{TYPE_LABEL[v] || v}</Tag>,
+      render: (v: string) => <Tag>{typeLabel(v)}</Tag>,
     },
-    { title: '资源', dataIndex: 'resource_name' },
+    { title: t('perm.resource'), dataIndex: 'resource_name' },
     {
-      title: '权限',
+      title: t('perm.permissions'),
       render: (_: unknown, r: GroupedPerm) =>
         r.actions.map((a) => (
           <Tag color="cyan" key={a}>
-            {ACTION_LABEL[a] || a}
+            {actionLabel(a)}
           </Tag>
         )),
     },
     {
-      title: '操作',
+      title: t('common.action'),
       width: 80,
       render: (_: unknown, r: GroupedPerm) => (
-        <Popconfirm title="移除该资源上的全部权限？" onConfirm={() => revokeMut.mutate(r.ids)}>
+        <Popconfirm title={t('perm.revokeAll')} onConfirm={() => revokeMut.mutate(r.ids)}>
           <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-            移除
+            {t('perm.remove')}
           </Button>
         </Popconfirm>
       ),
@@ -337,11 +376,11 @@ export default function PermissionManagement() {
    */
   const userGrantPanel = (kind: GrantKind) => (
     <div className="perm-user-grant">
-      <Card size="small" className="perm-user-list" title="用户">
+      <Card size="small" className="perm-user-list" title={t('perm.user')}>
         <Input
           allowClear
           prefix={<SearchOutlined />}
-          placeholder="搜索姓名/账号"
+          placeholder={t('perm.searchUser')}
           value={userKw}
           onChange={(e) => setUserKw(e.target.value)}
           style={{ marginBottom: 8 }}
@@ -349,7 +388,7 @@ export default function PermissionManagement() {
         <List
           size="small"
           dataSource={filteredUsers}
-          locale={{ emptyText: '无匹配用户' }}
+          locale={{ emptyText: t('perm.noMatchUser') }}
           renderItem={(u) => (
             <List.Item
               style={{
@@ -372,7 +411,7 @@ export default function PermissionManagement() {
       <Card
         size="small"
         style={{ flex: 1 }}
-        title={selectedUser ? `${selectedUser.display_name || selectedUser.username} 的权限` : '选择左侧用户'}
+        title={selectedUser ? t('perm.userPerms', { name: selectedUser.display_name || selectedUser.username }) : t('perm.pickLeftUser')}
         extra={
           <Button
             type="primary"
@@ -380,12 +419,12 @@ export default function PermissionManagement() {
             disabled={!selectedUserId}
             onClick={() => openGrant(kind)}
           >
-            添加授权
+            {t('perm.addGrant')}
           </Button>
         }
       >
         {!selectedUserId ? (
-          <Empty description="从左侧选择用户，查看并管理其权限" />
+          <Empty description={t('perm.emptyPickUser')} />
         ) : (
           <DataTable<GroupedPerm>
             chromeKey={kind === 'node' ? 'perm-nodes' : 'perm-grouped'}
@@ -394,7 +433,7 @@ export default function PermissionManagement() {
             dataSource={kind === 'node' ? nodePerms : pipelinePerms}
             pagination={false}
             locale={{
-              emptyText: kind === 'node' ? '还没有节点下发权限' : '还没有流水线相关权限',
+              emptyText: kind === 'node' ? t('perm.emptyNodePerm') : t('perm.emptyPipePerm'),
             }}
             columns={permColumns}
           />
@@ -411,18 +450,18 @@ export default function PermissionManagement() {
         items={[
           {
             key: 'apply',
-            label: '权限申请',
+            label: t('perm.tabApply'),
             children: <AccessApplyPanel />,
           },
           {
             key: 'history',
-            label: '申请记录',
+            label: t('perm.tabHistory'),
             children: (
               <Card
                 extra={
                   isAdmin ? (
                     <Checkbox checked={historyMineOnly} onChange={(e) => setHistoryMineOnly(e.target.checked)}>
-                      只看我的
+                      {t('perm.mineOnly')}
                     </Checkbox>
                   ) : null
                 }
@@ -433,48 +472,54 @@ export default function PermissionManagement() {
                   size="small"
                   dataSource={historyApps}
                   columns={[
-                    { title: '单号', dataIndex: 'id', width: 70 },
-                    { title: '申请人', dataIndex: 'applicant', width: 120 },
+                    { title: t('perm.colId'), dataIndex: 'id', width: 70 },
+                    { title: t('perm.applicant'), dataIndex: 'applicant', width: 120 },
                     {
-                      title: '范围',
+                      title: t('perm.scope'),
                       render: (_: unknown, r: Application) => scopeText(r),
                     },
                     {
-                      title: '类型',
+                      title: t('common.type'),
                       width: 100,
-                      render: (_: unknown, r: Application) => r.scope_label || (r.apply_type === 'role' ? '项目角色' : '资源权限'),
+                      render: (_: unknown, r: Application) => applyKind(r),
                     },
                     {
-                      title: '状态',
+                      title: t('common.status'),
                       dataIndex: 'status',
                       width: 90,
-                      render: (s: string) => <Tag color={STATUS[s]?.color}>{STATUS[s]?.text || s}</Tag>,
+                      render: (s: string) => {
+                        const meta = statusMeta(s)
+                        return <Tag color={meta.color}>{meta.text}</Tag>
+                      },
                     },
                     {
-                      title: '实授',
+                      title: t('perm.granted'),
                       width: 180,
                       render: (_: unknown, r: Application) => {
                         if (r.status !== 'approved') return '—'
                         if (r.apply_type === 'role') return <Tag color="purple">{r.role_name || r.pipeline_name}</Tag>
-                        return (r.granted_action_list || []).map((a) => <Tag key={a}>{ACTION_LABEL[a] || a}</Tag>)
+                        return (r.granted_action_list || []).map((a) => <Tag key={a}>{actionLabel(a)}</Tag>)
                       },
                     },
                     {
-                      title: '来源',
+                      title: t('perm.source'),
                       dataIndex: 'source',
                       width: 90,
-                      render: (s: string) => <Tag color={SOURCE[s]?.color}>{SOURCE[s]?.text || s}</Tag>,
+                      render: (s: string) => {
+                        const meta = sourceMeta(s)
+                        return <Tag color={meta.color}>{meta.text}</Tag>
+                      },
                     },
-                    { title: '审批人', dataIndex: 'reviewer', width: 100 },
-                    { title: '意见', dataIndex: 'review_comment', ellipsis: true },
+                    { title: t('perm.reviewer'), dataIndex: 'reviewer', width: 100 },
+                    { title: t('perm.comment'), dataIndex: 'review_comment', ellipsis: true },
                     {
-                      title: '操作',
+                      title: t('common.action'),
                       width: 90,
                       render: (_: unknown, r: Application) =>
                         r.status === 'pending' && r.applicant_id === user?.id ? (
-                          <Popconfirm title="撤销这张待审申请？" onConfirm={() => cancelMut.mutate(r.id)}>
+                          <Popconfirm title={t('perm.cancelApply')} onConfirm={() => cancelMut.mutate(r.id)}>
                             <Button type="link" size="small" icon={<StopOutlined />}>
-                              撤销
+                              {t('perm.cancel')}
                             </Button>
                           </Popconfirm>
                         ) : null,
@@ -488,7 +533,7 @@ export default function PermissionManagement() {
             key: 'pending',
             label: (
               <span>
-                待审批 <Badge count={pending.length} size="small" offset={[6, -2]} />
+                {t('perm.tabPending')} <Badge count={pending.length} size="small" offset={[6, -2]} />
               </span>
             ),
             children: (
@@ -499,40 +544,43 @@ export default function PermissionManagement() {
                   size="small"
                   scroll={{ x: 1100 }}
                   dataSource={pending}
-                  locale={{ emptyText: '暂无待你审批的申请。' }}
+                  locale={{ emptyText: t('perm.emptyPending') }}
                   columns={[
-                    { title: '单号', dataIndex: 'id', width: 70 },
-                    { title: '申请人', dataIndex: 'applicant', width: 120 },
+                    { title: t('perm.colId'), dataIndex: 'id', width: 70 },
+                    { title: t('perm.applicant'), dataIndex: 'applicant', width: 120 },
                     {
-                      title: '申请范围',
+                      title: t('perm.applyScope'),
                       render: (_: unknown, r: Application) => scopeText(r),
                     },
                     {
-                      title: '拟授',
+                      title: t('perm.proposed'),
                       width: 180,
                       render: (_: unknown, r: Application) =>
                         r.apply_type === 'role' ? (
                           <Tag color="purple">{r.role_name || r.pipeline_name}</Tag>
                         ) : (
                           (r.granted_action_list || []).map((a) => (
-                            <Tag key={a}>{ACTION_LABEL[a] || a}</Tag>
+                            <Tag key={a}>{actionLabel(a)}</Tag>
                           ))
                         ),
                     },
                     {
-                      title: '来源',
+                      title: t('perm.source'),
                       dataIndex: 'source',
                       width: 90,
-                      render: (s: string) => <Tag color={SOURCE[s]?.color}>{SOURCE[s]?.text || s}</Tag>,
+                      render: (s: string) => {
+                        const meta = sourceMeta(s)
+                        return <Tag color={meta.color}>{meta.text}</Tag>
+                      },
                     },
-                    { title: '说明', dataIndex: 'reason', ellipsis: true },
-                    { title: '提交时间', dataIndex: 'created_at', width: 170 },
+                    { title: t('perm.reason'), dataIndex: 'reason', ellipsis: true },
+                    { title: t('perm.submittedAt'), dataIndex: 'created_at', width: 170 },
                     {
-                      title: '操作',
+                      title: t('common.action'),
                       width: 90,
                       render: (_: unknown, r: Application) => (
                         <Button type="link" size="small" onClick={() => openReview(r)}>
-                          审核
+                          {t('perm.review')}
                         </Button>
                       ),
                     },
@@ -545,17 +593,17 @@ export default function PermissionManagement() {
             ? [
                 {
                   key: 'users',
-                  label: '用户授权',
+                  label: t('perm.tabUsers'),
                   children: userGrantPanel('pipeline'),
                 },
                 {
                   key: 'nodes',
-                  label: '节点授权',
+                  label: t('perm.tabNodes'),
                   children: userGrantPanel('node'),
                 },
                 {
                   key: 'menus',
-                  label: '菜单管理',
+                  label: t('perm.tabMenus'),
                   children: (
                     <Card>
                       <MenuManagement />
@@ -564,32 +612,31 @@ export default function PermissionManagement() {
                 },
                 {
                   key: 'roles',
-                  label: '项目角色',
+                  label: t('perm.tabRoles'),
                   children: (
                     <Card
                       title={
                         <Space>
-                          <span>项目角色</span>
+                          <span>{t('perm.tabRoles')}</span>
                           <Select
                             style={{ width: 260 }}
                             showSearch
                             optionFilterProp="label"
-                            placeholder="选择项目"
+                            placeholder={t('project.pickProject')}
                             value={roleProjectId}
                             onChange={setRoleProjectId}
-                            options={projects.map((p) => ({ value: p.id, label: `${p.name}（${p.code}）` }))}
+                            options={projects.map((p) => ({ value: p.id, label: t('perm.projectWithCode', { name: p.name, code: p.code }) }))}
                           />
                         </Space>
                       }
                     >
                       <div style={{ marginBottom: 12, color: '#999', fontSize: 12 }}>
-                        角色是「一组权限模板 + 成员」，跟项目绑定：成员对该项目下的资源自动获得角色里勾选的操作。
-                        管理员可在这里直接加人，跳过审批；普通人走「权限申请」申请加入角色。
+                        {t('perm.rolesHint')}
                       </div>
                       {roleProjectId ? (
                         <RolePanel projectId={roleProjectId} />
                       ) : (
-                        <Empty description="先选择一个项目" />
+                        <Empty description={t('perm.pickProjectFirst')} />
                       )}
                     </Card>
                   ),
@@ -613,7 +660,7 @@ export default function PermissionManagement() {
       />
 
       <Drawer
-        title={review ? `审核申请 #${review.id}` : '审核'}
+        title={review ? t('perm.reviewTitle', { id: review.id }) : t('perm.review')}
         width={isMobile ? '100%' : 480}
         open={!!review}
         onClose={() => setReview(null)}
@@ -626,7 +673,7 @@ export default function PermissionManagement() {
                 onClick={() => reviewMut.mutate({ id: review.id, action: 'reject', comment: reviewComment })}
                 loading={reviewMut.isPending}
               >
-                驳回
+                {t('perm.reject')}
               </Button>
               <Button
                 type="primary"
@@ -641,7 +688,7 @@ export default function PermissionManagement() {
                 }
                 loading={reviewMut.isPending}
               >
-                通过
+                {t('perm.pass')}
               </Button>
             </Space>
           ) : null
@@ -650,30 +697,30 @@ export default function PermissionManagement() {
         {review && (
           <>
             <Descriptions column={1} size="small" bordered style={{ marginBottom: 16 }}>
-              <Descriptions.Item label="申请人">{review.applicant}</Descriptions.Item>
-              <Descriptions.Item label="范围">{scopeText(review)}</Descriptions.Item>
-              <Descriptions.Item label="类型">{review.scope_label || (review.apply_type === 'role' ? '项目角色' : '资源权限')}</Descriptions.Item>
-              <Descriptions.Item label="来源">
-                <Tag color={SOURCE[review.source]?.color}>{SOURCE[review.source]?.text || review.source}</Tag>
+              <Descriptions.Item label={t('perm.applicant')}>{review.applicant}</Descriptions.Item>
+              <Descriptions.Item label={t('perm.scope')}>{scopeText(review)}</Descriptions.Item>
+              <Descriptions.Item label={t('common.type')}>{applyKind(review)}</Descriptions.Item>
+              <Descriptions.Item label={t('perm.source')}>
+                <Tag color={sourceMeta(review.source).color}>{sourceMeta(review.source).text}</Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="说明">{review.reason || '（无）'}</Descriptions.Item>
-              <Descriptions.Item label="提交时间">{review.created_at}</Descriptions.Item>
+              <Descriptions.Item label={t('perm.reason')}>{review.reason || t('perm.none')}</Descriptions.Item>
+              <Descriptions.Item label={t('perm.submittedAt')}>{review.created_at}</Descriptions.Item>
             </Descriptions>
             {review.apply_type === 'role' ? (
-              <div style={{ marginBottom: 16, color: '#666' }}>通过后申请人成为该角色成员，权限随角色模板走，不能在这里改动作。</div>
+              <div style={{ marginBottom: 16, color: '#666' }}>{t('perm.roleApproveHint')}</div>
             ) : (
               <>
-                <div style={{ marginBottom: 8, fontWeight: 500 }}>实授权限（可改）</div>
+                <div style={{ marginBottom: 8, fontWeight: 500 }}>{t('perm.grantedEditable')}</div>
                 <Checkbox.Group
                   value={reviewActions}
                   onChange={(v) => setReviewActions(withRead(v as string[]))}
-                  options={REVIEW_ACTION_OPTIONS}
+                  options={reviewActionOptions()}
                   style={{ marginBottom: 16 }}
                 />
               </>
             )}
-            <div style={{ marginBottom: 8, fontWeight: 500 }}>审批意见</div>
-            <Input.TextArea rows={3} value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} placeholder="可选" />
+            <div style={{ marginBottom: 8, fontWeight: 500 }}>{t('perm.reviewComment')}</div>
+            <Input.TextArea rows={3} value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} placeholder={t('perm.optional')} />
           </>
         )}
       </Drawer>

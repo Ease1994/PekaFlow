@@ -5,6 +5,7 @@ import { get } from '@/api/client'
 import type { BuildAgent, Credential, Plugin, Repository } from '@/api/types'
 import { envLabel, machineEnv } from '@/env'
 import RunPipelineFields from './RunPipelineFields'
+import { useT } from '@/i18n'
 
 interface PluginFormRendererProps {
   plugin?: Plugin
@@ -132,6 +133,7 @@ function FieldRow({
   /** 流水线所属项目，凭证下拉按项目 + 全局过滤 */
   projectId?: number
 }) {
+  const t = useT()
   const labelExtra = field.required ? <span style={{ color: '#ff4d4f' }}> *</span> : null
 
   // 部署类插件的「目标节点」下拉：只有用到时才发请求
@@ -218,17 +220,17 @@ function FieldRow({
           })
           .map((n) => ({
             value: n.id,
-            label: `${n.name}${n.host ? `（${n.host}）` : ''} · ${envLabel(n.env)}${n.effective_status === 'online' ? '' : ' · 离线'}`,
+            label: `${n.name}${n.host ? `（${n.host}）` : ''} · ${envLabel(n.env)}${n.effective_status === 'online' ? '' : ` · ${t('pipe.offline')}`}`,
           }))
       } else if (field.source === 'credential') {
         options = registryCreds.map((c) => ({
           value: c.id,
-          label: `${c.name}${c.project_id ? '' : '（全局）'} · ${c.type === 'password' ? '账号密码' : 'Token'}`,
+          label: `${c.name}${c.project_id ? '' : `（${t('pipe.global')}）`} · ${c.type === 'password' ? t('pipe.password') : t('pipe.token')}`,
         }))
       } else if (field.source === 'ssh-credential') {
         options = sshCreds.map((c) => ({
           value: c.id,
-          label: `${c.name}${c.project_id ? '' : '（全局）'} · ${c.type === 'ssh' ? 'SSH 私钥' : '账号密码'}`,
+          label: `${c.name}${c.project_id ? '' : `（${t('pipe.global')}）`} · ${c.type === 'ssh' ? t('pipe.sshKey') : t('pipe.password')}`,
         }))
       }
       // 凭证 id 是数字；YAML 里可能被存成字符串。代码库别名等其它 select 必须保持原样。
@@ -253,14 +255,14 @@ function FieldRow({
           notFoundContent={
             field.source === 'node'
               ? (nodes.length === 0
-                  ? '还没有已注册的节点，请先到「节点管理」安装节点 Agent'
+                  ? t('pipe.noNodes')
                   : envCode
-                    ? `没有${envLabel(envCode)}环境的节点`
-                    : '没有可选节点')
+                    ? t('pipe.noEnvNodes', { env: envLabel(envCode) })
+                    : t('pipe.noNodePick'))
               : field.source === 'credential'
-                ? '没有可用的账号密码 / Token 凭证，请先到「凭证管理」创建'
+                ? t('pipe.noCredToken')
                 : field.source === 'ssh-credential'
-                  ? '没有可用的 SSH 私钥 / 账号密码凭证，请先到「凭证管理」创建'
+                  ? t('pipe.noCredSsh')
                   : undefined
           }
           allowClear
@@ -369,7 +371,7 @@ function FieldRow({
     <Form.Item
       label={<>{field.label}{labelExtra}</>}
       validateStatus={missing ? 'error' : undefined}
-      help={missing ? '必填项，留空会导致执行失败' : field.help}
+      help={missing ? t('pipe.requiredField') : field.help}
     >
       {control}
     </Form.Item>

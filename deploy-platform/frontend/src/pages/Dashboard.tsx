@@ -3,6 +3,7 @@ import { RocketOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOu
 import { useQuery } from '@tanstack/react-query'
 import ReactECharts from 'echarts-for-react'
 import { get } from '@/api/client'
+import { useT } from '@/i18n'
 
 interface DoraMetrics {
   deploy_frequency: number
@@ -22,6 +23,7 @@ interface TrendItem {
 }
 
 export default function Dashboard() {
+  const t = useT()
   const { data: dora } = useQuery({
     queryKey: ['dora'],
     queryFn: () => get<DoraMetrics>('/metrics/dora'),
@@ -34,20 +36,20 @@ export default function Dashboard() {
 
   const trendOption = {
     tooltip: { trigger: 'axis' },
-    legend: { data: ['成功', '失败'] },
+    legend: { data: [t('dash.success'), t('dash.failed')] },
     grid: { left: 40, right: 20, top: 40, bottom: 30 },
-    xAxis: { type: 'category', data: trend?.map((t) => t.date) ?? [] },
+    xAxis: { type: 'category', data: trend?.map((row) => row.date) ?? [] },
     yAxis: { type: 'value' },
     series: [
       {
-        name: '成功',
+        name: t('dash.success'),
         type: 'bar',
         stack: 'total',
         itemStyle: { color: '#1677ff' },
         data: trend?.map((t) => t.success) ?? [],
       },
       {
-        name: '失败',
+        name: t('dash.failed'),
         type: 'bar',
         stack: 'total',
         itemStyle: { color: '#52c41a' },
@@ -64,17 +66,17 @@ export default function Dashboard() {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="部署频率（近30天）"
+              title={t('dash.freq')}
               value={dora?.deploy_frequency ?? 0}
               prefix={<RocketOutlined />}
-              suffix="次"
+              suffix={t('common.times')}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="发布成功率"
+              title={t('dash.successRate')}
               value={successRate}
               precision={1}
               prefix={<CheckCircleOutlined />}
@@ -86,7 +88,7 @@ export default function Dashboard() {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="变更失败率"
+              title={t('dash.changeFail')}
               value={dora?.change_failure_rate ?? 0}
               precision={1}
               prefix={<CloseCircleOutlined />}
@@ -98,10 +100,10 @@ export default function Dashboard() {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="平均变更前置时间"
+              title={t('dash.leadTime')}
               value={dora?.change_lead_time_minutes ?? 0}
               prefix={<ClockCircleOutlined />}
-              suffix="分钟"
+              suffix={t('common.minutes')}
             />
           </Card>
         </Col>
@@ -109,24 +111,24 @@ export default function Dashboard() {
 
       <Row gutter={16} style={{ marginTop: 16 }}>
         <Col xs={24} lg={16}>
-          <Card title="发布趋势（近14天）">
+          <Card title={t('dash.trend')}>
             <ReactECharts option={trendOption} style={{ height: 320 }} />
           </Card>
         </Col>
         <Col xs={24} lg={8}>
-          <Card title="DORA 指标总览">
+          <Card title={t('dash.overview')}>
             <Space direction="vertical" style={{ width: '100%' }} size="large">
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <span>发布成功率</span>
+                  <span>{t('dash.successRate')}</span>
                   <Tag color={successRate >= 90 ? 'green' : 'orange'}>{successRate}%</Tag>
                 </div>
                 <Progress percent={successRate} status={successRate >= 90 ? 'success' : 'active'} />
               </div>
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <span>回滚次数</span>
-                  <Tag color={dora?.rollback_count ? 'orange' : 'green'}>{dora?.rollback_count ?? 0} 次</Tag>
+                  <span>{t('dash.rollbacks')}</span>
+                  <Tag color={dora?.rollback_count ? 'orange' : 'green'}>{dora?.rollback_count ?? 0} {t('common.times')}</Tag>
                 </div>
                 <Progress
                   percent={Math.min((dora?.rollback_count ?? 0) * 10, 100)}
@@ -136,8 +138,8 @@ export default function Dashboard() {
               </div>
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <span>平均恢复时间 MTTR</span>
-                  <Tag>{dora?.mttr_minutes ?? 0} 分钟</Tag>
+                  <span>{t('dash.mttr')}</span>
+                  <Tag>{dora?.mttr_minutes ?? 0} {t('common.minutes')}</Tag>
                 </div>
               </div>
             </Space>

@@ -53,6 +53,7 @@ import type {
 } from '@/api/types'
 import { useAuthStore } from '@/stores/auth'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import { t, useT } from '@/i18n'
 
 interface Attachment {
   id: number
@@ -213,10 +214,11 @@ function windowLabel(n?: number): string {
   return v ? String(v) : ''
 }
 
+/** 模型下拉的副标题：厂商、模型 id、上下文窗口。 */
 function modelHint(m: AssistantModel): string {
   const bits = [m.provider_name, m.model_id]
   const ctx = windowLabel(m.context_window)
-  if (ctx) bits.push(`${ctx} 上下文`)
+  if (ctx) bits.push(t('assistant.contextWindow', { n: ctx }))
   return bits.filter(Boolean).join(' · ')
 }
 
@@ -248,14 +250,18 @@ interface Skill {
   confirm: boolean
 }
 
-const CATEGORY_LABEL: Record<string, string> = {
-  catalog: '目录',
-  observe: '观测',
-  diagnose: '诊断',
-  delivery: '交付',
-  access: '权限',
-  authoring: '编写',
-  meta: '目录',
+/** 技能分类码 → 界面句子。渲染时取，避免语言切换后还停在导入时的文案。 */
+function categoryLabel(cat: string): string {
+  const keys: Record<string, string> = {
+    catalog: 'assistant.catCatalog',
+    observe: 'assistant.catObserve',
+    diagnose: 'assistant.catDiagnose',
+    delivery: 'assistant.catDelivery',
+    access: 'notify.access',
+    authoring: 'assistant.catAuthoring',
+    meta: 'assistant.catCatalog',
+  }
+  return keys[cat] ? t(keys[cat]) : cat
 }
 
 /** 回显和落库比对时去掉首尾空白，避免后端 strip 后对不上画出两条。 */
@@ -535,7 +541,7 @@ function readLiveHint(): { sessionId: string; status: string } | null {
     if (!raw) return null
     const parsed = JSON.parse(raw) as { sessionId?: string; status?: string }
     if (!parsed?.sessionId) return null
-    return { sessionId: String(parsed.sessionId), status: parsed.status || '正在思考…' }
+    return { sessionId: String(parsed.sessionId), status: parsed.status || t('assistant.thinking') }
   } catch {
     return null
   }
@@ -553,7 +559,7 @@ function restoreLiveTurnFromHint() {
 
 restoreLiveTurnFromHint()
 
-function startLiveTurn(sessionId: string | number | null, status = '正在思考…', source: LiveSource = 'local') {
+function startLiveTurn(sessionId: string | number | null, status = t('assistant.thinking'), source: LiveSource = 'local') {
   liveTurn.sessionId = sessionId
   liveTurn.loading = true
   liveTurn.status = status
@@ -586,7 +592,7 @@ function adoptServerLive(sessionId: string | number | null, live: LiveSnapshot |
   if (sessionId == null) return
   if (liveTurn.loading && liveTurn.source === 'local' && liveTurnOwns(sessionId)) return
   if (live?.running) {
-    const text = live.status || '正在思考…'
+    const text = live.status || t('assistant.thinking')
     if (liveTurnOwns(sessionId) && liveTurn.source === 'server') {
       setLiveStatus(text)
       return
@@ -629,6 +635,7 @@ function ModelPicker({
   onChange: (id: number) => void
   empty: string
 }) {
+  const t = useT()
   const navigate = useNavigate()
   const isAdmin = useAuthStore((s) => s.user?.is_admin)
   const [open, setOpen] = useState(false)
@@ -641,7 +648,7 @@ function ModelPicker({
 
   if (!models.length) {
     return (
-      <Tooltip title="到「模型管理」里启用模型并填好凭证">
+      <Tooltip title={t('assistant.enableModelsHint')}>
         <button type="button" className="model-picker-trigger" disabled>
           <RobotOutlined />
           <span>{empty}</span>
@@ -666,7 +673,7 @@ function ModelPicker({
             allowClear
             autoFocus
             prefix={<SearchOutlined />}
-            placeholder="搜索模型"
+            placeholder={t('assistant.searchModel')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -687,8 +694,8 @@ function ModelPicker({
                     <div className="model-picker-item-main">
                       <div className="model-picker-item-name">
                         <span>{m.name || m.model_id}</span>
-                        {m.is_default && <Tag color="blue">默认</Tag>}
-                        {m.supports_vision && <Tag color="purple">看图</Tag>}
+                        {m.is_default && <Tag color="blue">{t('assistant.default')}</Tag>}
+                        {m.supports_vision && <Tag color="purple">{t('assistant.vision')}</Tag>}
                       </div>
                       <div className="model-picker-item-meta">{modelHint(m)}</div>
                     </div>
@@ -697,7 +704,7 @@ function ModelPicker({
                 )
               })
             ) : (
-              <div className="model-picker-empty">没有匹配的模型</div>
+              <div className="model-picker-empty">{t('assistant.noMatchModel')}</div>
             )}
           </div>
           {isAdmin && (
@@ -709,7 +716,7 @@ function ModelPicker({
                 navigate('/models')
               }}
             >
-              添加 / 管理模型
+              {t('assistant.manageModels')}
             </button>
           )}
         </div>
@@ -717,8 +724,8 @@ function ModelPicker({
     >
       <button type="button" className="model-picker-trigger" disabled={disabled}>
         <RobotOutlined />
-        <span>{current?.name || current?.model_id || '选择模型'}</span>
-        {current?.supports_vision && <span className="model-picker-cap">看图</span>}
+        <span>{current?.name || current?.model_id || t('assistant.pickModel')}</span>
+        {current?.supports_vision && <span className="model-picker-cap">{t('assistant.vision')}</span>}
         <DownOutlined className="model-picker-caret" />
       </button>
     </Dropdown>
@@ -755,9 +762,10 @@ function traceError(result: unknown): string {
 
 /** 展示助手这一轮读了什么、做了什么。失败必须露在折叠外面。 */
 function TracePanel({ traces }: { traces: SkillTrace[] }) {
+  const t = useT()
   const failures = traces
-    .map((t) => ({ name: t.name, error: traceError(t.result) }))
-    .filter((t) => t.error)
+    .map((row) => ({ name: row.name, error: traceError(row.result) }))
+    .filter((row) => row.error)
   const [open, setOpen] = useState(failures.length > 0)
 
   return (
@@ -767,12 +775,12 @@ function TracePanel({ traces }: { traces: SkillTrace[] }) {
           type="error"
           showIcon
           style={{ marginBottom: 8 }}
-          message={failures.length === 1 ? `${failures[0].name} 失败` : `${failures.length} 个技能失败`}
+          message={failures.length === 1 ? t('assistant.skillFailed', { name: failures[0].name }) : t('assistant.skillsFailed', { n: failures.length })}
           description={
             <div>
               {failures.map((f) => (
                 <div key={f.name}>
-                  <code>{f.name}</code>：{f.error}
+                  <code>{f.name}</code>{t('assistant.colon')}{f.error}
                 </div>
               ))}
             </div>
@@ -780,24 +788,24 @@ function TracePanel({ traces }: { traces: SkillTrace[] }) {
         />
       )}
       <a style={{ fontSize: 12, color: failures.length ? '#cf1322' : '#888' }} onClick={() => setOpen(!open)}>
-        {open ? <DownOutlined /> : <RightOutlined />} 调用了 {traces.length} 个技能
-        {failures.length > 0 ? `（${failures.length} 个失败）` : ''}
+        {open ? <DownOutlined /> : <RightOutlined />} {t('assistant.calledSkills', { n: traces.length })}
+        {failures.length > 0 ? t('assistant.failedCount', { n: failures.length }) : ''}
       </a>
       {open && (
         <div style={{ marginTop: 8 }}>
-          {traces.map((t, i) => {
-            const error = traceError(t.result)
+          {traces.map((row, i) => {
+            const error = traceError(row.result)
             return (
-              <div key={t.id || i} style={{ fontSize: 12, marginBottom: 6, lineHeight: 1.6 }}>
+              <div key={row.id || i} style={{ fontSize: 12, marginBottom: 6, lineHeight: 1.6 }}>
                 <Space size={4}>
                   {error ? <CloseCircleOutlined style={{ color: '#ff4d4f' }} /> : <CheckCircleOutlined style={{ color: '#52c41a' }} />}
-                  <code>{t.name}</code>
+                  <code>{row.name}</code>
                 </Space>
-                {Object.keys(t.arguments || {}).length > 0 && (
-                  <div style={{ color: '#888', paddingLeft: 20 }}>参数：{summarize(t.arguments)}</div>
+                {Object.keys(row.arguments || {}).length > 0 && (
+                  <div style={{ color: '#888', paddingLeft: 20 }}>{t('assistant.argsLabel', { text: summarize(row.arguments) })}</div>
                 )}
                 <div style={{ color: error ? '#ff4d4f' : '#888', paddingLeft: 20 }}>
-                  {error ? `失败：${error}` : `结果：${summarize(t.result)}`}
+                  {error ? t('assistant.failLabel', { text: error }) : t('assistant.resultLabel', { text: summarize(row.result) })}
                 </div>
               </div>
             )
@@ -810,16 +818,17 @@ function TracePanel({ traces }: { traces: SkillTrace[] }) {
 
 /** 抽屉里的技能轨迹：参数和结果全文展开，气泡里那份 160 字摘要只给扫一眼。 */
 function TraceDetailList({ traces }: { traces: SkillTrace[] }) {
+  const t = useT()
   if (!traces.length) return null
   return (
     <>
-      {traces.map((t, i) => {
-        const error = traceError(t.result)
-        const args = t.arguments && Object.keys(t.arguments).length > 0 ? formatFullJson(t.arguments) : ''
-        const body = error || formatFullJson(t.result)
+      {traces.map((row, i) => {
+        const error = traceError(row.result)
+        const args = row.arguments && Object.keys(row.arguments).length > 0 ? formatFullJson(row.arguments) : ''
+        const body = error || formatFullJson(row.result)
         return (
           <Card
-            key={t.id || i}
+            key={row.id || i}
             size="small"
             title={
               <Space>
@@ -828,20 +837,20 @@ function TraceDetailList({ traces }: { traces: SkillTrace[] }) {
                 ) : (
                   <CheckCircleOutlined style={{ color: '#52c41a' }} />
                 )}
-                <code>{t.name}</code>
+                <code>{row.name}</code>
               </Space>
             }
             style={{ marginBottom: 10 }}
           >
             {args ? (
               <div style={{ marginBottom: 8 }}>
-                <div style={{ color: '#888', marginBottom: 4 }}>参数</div>
+                <div style={{ color: '#888', marginBottom: 4 }}>{t('assistant.args')}</div>
                 <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', margin: 0 }}>{args}</pre>
               </div>
             ) : null}
-            <div style={{ color: error ? '#ff4d4f' : '#888', marginBottom: 4 }}>{error ? '失败' : '结果'}</div>
+            <div style={{ color: error ? '#ff4d4f' : '#888', marginBottom: 4 }}>{error ? t('status.failed') : t('assistant.result')}</div>
             <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', margin: 0, maxHeight: 480, overflow: 'auto' }}>
-              {body || '（无）'}
+              {body || t('assistant.none')}
             </pre>
           </Card>
         )
@@ -905,16 +914,19 @@ function ChatBubbleImage({ url, alt }: { url: string; alt: string }) {
 }
 
 export default function AssistantPage() {
+  const t = useT()
   const user = useAuthStore((s) => s.user)
   const welcome: ChatMessage = {
     role: 'assistant',
-    content: `你好${user?.display_name ? `，${user.display_name}` : ''}！我是 release 发布助手。\n会话会记住你正在做的事。申请执行权时直接说流水线名称或「第N个」，我会马上提交。`,
+    content: user?.display_name
+      ? t('assistant.welcomeNamed', { name: user.display_name })
+      : t('assistant.welcome'),
   }
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     const name = useAuthStore.getState().user?.display_name
     const boot: ChatMessage = {
       role: 'assistant',
-      content: `你好${name ? `，${name}` : ''}！我是 release 发布助手。\n会话会记住你正在做的事。申请执行权时直接说流水线名称或「第N个」，我会马上提交。`,
+      content: name ? t('assistant.welcomeNamed', { name }) : t('assistant.welcome'),
     }
     return restoreTranscript(readStoredSessionId(), boot)
   })
@@ -992,7 +1004,7 @@ export default function AssistantPage() {
         return items
       } catch {
         setCompatibilityMode(true)
-        return [{ id: 'legacy', title: '默认会话', mode: 'standard', status: 'active' }] as AssistantSession[]
+        return [{ id: 'legacy', title: t('assistant.defaultSession'), mode: 'standard', status: 'active' }] as AssistantSession[]
       }
     },
     retry: false,
@@ -1064,7 +1076,7 @@ export default function AssistantPage() {
       form.append('rel_paths', files.map((f) => f.path).join('\n'))
       await postForm('/ai/attachments', form)
       await refetchAttachments()
-      message.success(`已上传 ${files.length} 个文件，告诉我要传到哪台机器的哪个目录`)
+      message.success(t('assistant.uploadedN', { n: files.length }))
     } finally {
       setUploading(false)
     }
@@ -1130,7 +1142,7 @@ export default function AssistantPage() {
       )
       setPendingImages([])
       await uploadFiles(files.map((file) => ({ file, path: file.name })))
-      message.info('当前模型不看图，已把图片改成待下发附件')
+      message.info(t('assistant.noVisionFallback'))
     }
     if (!compatibilityMode && sessionId != null && sessionId !== 'legacy') {
       try {
@@ -1161,9 +1173,9 @@ export default function AssistantPage() {
       endLiveTurn()
       setWatching(false)
       sessionsQuery.refetch()
-      message.success('已清空聊天记录和上下文')
+      message.success(t('assistant.cleared'))
     } catch {
-      message.error('清空失败，请重试')
+      message.error(t('assistant.clearFail'))
     } finally {
       setClearing(false)
     }
@@ -1242,10 +1254,10 @@ export default function AssistantPage() {
 
   useEffect(() => {
     if (sessionId == null) return
-    const t = window.setInterval(() => {
+    const pollTimer = window.setInterval(() => {
       pull(lastIdRef.current).catch(() => undefined)
     }, loading || watching ? 1500 : 8000)
-    return () => window.clearInterval(t)
+    return () => window.clearInterval(pollTimer)
   }, [watching, loading, sessionId, compatibilityMode])
 
   useEffect(() => {
@@ -1328,7 +1340,7 @@ export default function AssistantPage() {
         }),
       })
       if (!resp.ok || !resp.body) {
-        let detail = `助手没有响应${resp.status ? `（HTTP ${resp.status}）` : ''}`
+        let detail = resp.status ? t('assistant.noResponseHttp', { n: resp.status }) : t('assistant.noResponse')
         try {
           const body = (await resp.json()) as { message?: string; detail?: string }
           if (body?.message?.trim()) detail = body.message
@@ -1358,11 +1370,11 @@ export default function AssistantPage() {
             } catch {
               continue
             }
-            if (evt.type === 'status') setLiveStatus(evt.text || '正在思考…')
-            else if (evt.type === 'reasoning') setLiveStatus(evt.text || evt.content || '正在推理…')
-            else if (evt.type === 'text') setLiveStatus('正在生成回答…')
+            if (evt.type === 'status') setLiveStatus(evt.text || t('assistant.thinking'))
+            else if (evt.type === 'reasoning') setLiveStatus(evt.text || evt.content || t('assistant.reasoning'))
+            else if (evt.type === 'text') setLiveStatus(t('assistant.generating'))
             else if (evt.type === 'tool') {
-              setLiveStatus(evt.phase === 'start' ? `正在调用 ${evt.name}…` : `${evt.name} 已完成`)
+              setLiveStatus(evt.phase === 'start' ? t('assistant.calling', { name: evt.name || '' }) : t('assistant.called', { name: evt.name || '' }))
             } else if (evt.type === 'done') {
               if (evt.reply || evt.actions?.length || evt.traces?.length) {
                 answered = true
@@ -1382,7 +1394,7 @@ export default function AssistantPage() {
                 )
               }
             } else if (evt.type === 'error') {
-              failInChat(evt.message || '助手处理失败')
+              failInChat(evt.message || t('assistant.processFail'))
             }
           }
         }
@@ -1391,9 +1403,9 @@ export default function AssistantPage() {
       const reason =
         err instanceof Error && err.message && !/failed to fetch/i.test(err.message)
           ? err.message
-          : '对话连接中断'
-      message.warning(`${reason}，正在尝试取回结果`)
-      setLiveStatus('连接中断，正在取回结果…')
+          : t('assistant.connLost')
+      message.warning(t('assistant.retrying', { reason }))
+      setLiveStatus(t('assistant.reconnecting'))
     } finally {
       const before = lastIdRef.current
       let recovered = false
@@ -1408,7 +1420,7 @@ export default function AssistantPage() {
       }
       const stillLive = !answered && !recovered && lastLiveRef.current
       if (!answered && !recovered && !stillLive) {
-        failInChat('这轮没有收到回答：连接已中断。后台可能还在处理，请稍后再问一次。')
+        failInChat(t('assistant.noAnswer'))
       }
       setTranscript((prev) => {
         let next = prev.filter((m) => !isThinking(m))
@@ -1417,7 +1429,7 @@ export default function AssistantPage() {
       }, turnSession)
       dropEchoIfPersisted()
       if (stillLive) {
-        startLiveTurn(turnSession, liveTurn.status || '正在思考…', 'server')
+        startLiveTurn(turnSession, liveTurn.status || t('assistant.thinking'), 'server')
       } else {
         endLiveTurn()
       }
@@ -1450,7 +1462,7 @@ export default function AssistantPage() {
 
   const deleteSession = async (item: AssistantSession) => {
     if (compatibilityMode) {
-      message.info('当前后端仅支持单会话，无法删除')
+      message.info(t('assistant.singleNoDelete'))
       return
     }
     try {
@@ -1476,27 +1488,27 @@ export default function AssistantPage() {
           await createSession()
         }
       }
-      message.success('会话已删除')
+      message.success(t('assistant.sessionDeleted'))
     } catch {
-      message.error('删除会话失败')
+      message.error(t('assistant.deleteSessionFail'))
     }
   }
 
   const createSession = async () => {
     if (compatibilityMode) {
-      message.info('当前后端仅支持单会话，请升级后使用新建会话')
+      message.info(t('assistant.singleNoCreate'))
       return
     }
     try {
       const created = await post<AssistantSession>('/ai/sessions', {
         mode,
-        title: '新会话',
+        title: t('assistant.newSession'),
         model_id: activeModel?.id,
       })
       await sessionsQuery.refetch()
       selectSession(created)
     } catch {
-      message.error('新建会话失败')
+      message.error(t('assistant.createSessionFail'))
     }
   }
 
@@ -1519,13 +1531,13 @@ export default function AssistantPage() {
       setSearchedSessions(Array.isArray(result) ? result : result.items || [])
     } catch {
       setSearchedSessions(null)
-      message.info('服务端搜索不可用，已使用本地会话过滤')
+      message.info(t('assistant.searchLocal'))
     }
   }
 
   const runSessionAction = async (action: 'inspect' | 'resume' | 'fork' | 'replay') => {
     if (compatibilityMode || sessionId == null || sessionId === 'legacy') {
-      message.info('该操作需要新版多会话 API')
+      message.info(t('assistant.needMultiApi'))
       return
     }
     try {
@@ -1533,7 +1545,7 @@ export default function AssistantPage() {
         const detail = await get<Record<string, unknown>>(`/ai/sessions/${sessionId}/inspect`)
         setTraceMessage({
           role: 'assistant',
-          content: '会话检查结果',
+          content: t('assistant.inspectResult'),
           events: [{ type: 'status', content: JSON.stringify(detail, null, 2) }],
         })
         setTraceOpen(true)
@@ -1542,22 +1554,22 @@ export default function AssistantPage() {
           `/ai/sessions/${sessionId}/${action}`,
           { mode },
         )
-        message.success({ resume: '会话已恢复', fork: '已创建分支会话', replay: '已开始回放' }[action])
+        message.success({ resume: t('assistant.resumed'), fork: t('assistant.forked'), replay: t('assistant.replayed') }[action])
         await sessionsQuery.refetch()
         if (action === 'fork') {
           const id = 'id' in result ? result.id : result.session_id
-          if (id) selectSession({ id, title: '分支会话', mode })
+          if (id) selectSession({ id, title: t('assistant.forkSession'), mode })
         }
         pull(0).catch(() => undefined)
       }
     } catch {
-      message.error('会话操作失败')
+      message.error(t('assistant.sessionActionFail'))
     }
   }
 
   const handleAction = async (action: ActionCard) => {
     if (!action.token) {
-      message.error('确认卡片无效，请重新向助手说明要发布哪条流水线')
+      message.error(t('assistant.invalidCard'))
       return
     }
     if (actingRef.current) return
@@ -1572,7 +1584,7 @@ export default function AssistantPage() {
       })
       setWatching(!!out.watching)
       refetchAttachments()
-      message.success(out.watching ? '已提交，完成后会回报结果' : '已处理')
+      message.success(out.watching ? t('assistant.submittedWatch') : t('assistant.handled'))
       // act 返回的是 AiMessage.id，会话列表用 event_seq。用错 id 会让轮询再也拉不到跟进。
       await pull(0, { replace: true })
     } catch {
@@ -1591,7 +1603,7 @@ export default function AssistantPage() {
             <Input
               allowClear
               prefix={<SearchOutlined />}
-              placeholder="搜索会话"
+              placeholder={t('assistant.searchSession')}
               value={sessionSearch}
               onChange={(event) => {
                 setSessionSearch(event.target.value)
@@ -1606,15 +1618,15 @@ export default function AssistantPage() {
               type="info"
               showIcon
               style={{ marginBottom: 8 }}
-              message="使用旧会话接口"
-              description="聊天和附件保持可用；分支、恢复与回放需新版 API。"
+              message={t('assistant.legacyApi')}
+              description={t('assistant.legacyApiHint')}
             />
           )}
           <List
             size="small"
             style={{ flex: 1, overflow: 'auto' }}
             loading={sessionsQuery.isLoading}
-            locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无会话" /> }}
+            locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('assistant.noSession')} /> }}
             dataSource={(searchedSessions || sessionsQuery.data || []).filter((item) =>
               item.title.toLowerCase().includes(sessionSearch.trim().toLowerCase())
             )}
@@ -1633,10 +1645,10 @@ export default function AssistantPage() {
                 extra={
                   <span onClick={(event) => event.stopPropagation()}>
                     <Popconfirm
-                      title="删除这个会话？"
-                      description="会话和里面的聊天记录都会删掉，不能恢复。不影响已经发起的发布。"
-                      okText="删除"
-                      cancelText="取消"
+                      title={t('assistant.deleteSession')}
+                      description={t('assistant.deleteSessionDesc')}
+                      okText={t('common.delete')}
+                      cancelText={t('common.cancel')}
                       okButtonProps={{ danger: true }}
                       onConfirm={() => deleteSession(item)}
                     >
@@ -1651,7 +1663,7 @@ export default function AssistantPage() {
                 }
               >
                 <List.Item.Meta
-                  title={<span style={{ fontSize: 13 }}>{item.title || '未命名会话'}</span>}
+                  title={<span style={{ fontSize: 13 }}>{item.title || t('assistant.untitled')}</span>}
                   description={
                     <Space size={4}>
                       <Tag bordered={false}>{item.mode || 'standard'}</Tag>
@@ -1671,22 +1683,22 @@ export default function AssistantPage() {
       title={
         <Space>
           AI Agent
-          {compatibilityMode && <Tag color="orange">单会话兼容模式</Tag>}
+          {compatibilityMode && <Tag color="orange">{t('assistant.compatMode')}</Tag>}
         </Space>
       }
       extra={
         <Space wrap>
           {isMobile && (
             <Button size="small" icon={<UnorderedListOutlined />} onClick={() => setSessionDrawer(true)}>
-              会话
+              {t('assistant.sessions')}
             </Button>
           )}
-          {watching && <Tag color="orange">跟进中</Tag>}
+          {watching && <Tag color="orange">{t('assistant.watching')}</Tag>}
           {!isMobile && (
           <Tag color="blue">
             {activeModel
-              ? `模型 · ${activeModel.provider_name} / ${activeModel.name}`
-              : '技能 + MCP · 权限与用户一致'}
+              ? t('assistant.modelTag', { provider: activeModel.provider_name, name: activeModel.name })
+              : t('assistant.skillMcpTag')}
           </Tag>
           )}
           {!isMobile && (
@@ -1701,40 +1713,41 @@ export default function AssistantPage() {
             ]}
           />
           )}
-          <Button size="small" icon={<ToolOutlined />} onClick={() => setCatalogOpen(true)}>目录</Button>
+          <Button size="small" icon={<ToolOutlined />} onClick={() => setCatalogOpen(true)}>{t('assistant.catalog')}</Button>
           <Popconfirm
-            title="清空聊天记录和上下文"
+            title={t('assistant.clearTitle')}
             description={
               <div style={{ maxWidth: 300 }}>
-                助手会忘掉之前聊过的全部内容，从头开始。
+                {t('assistant.clearDesc1')}
                 <br />
-                <b>不影响正在执行的发布</b>，也不会删掉已上传的附件。
+                <b>{t('assistant.clearDescBold')}</b>
+                {t('assistant.clearDesc2')}
                 <br />
-                聊歪了、它认死了一个错结论时用这个。
+                {t('assistant.clearDesc3')}
               </div>
             }
-            okText="清空"
-            cancelText="取消"
+            okText={t('assistant.clear')}
+            cancelText={t('common.cancel')} 
             okButtonProps={{ danger: true }}
             onConfirm={clearConversation}
           >
-            <Tooltip title="清空聊天记录和上下文">
+            <Tooltip title={t('assistant.clearTitle')}>
               <Button size="small" icon={<ClearOutlined />} loading={clearing}>
-                清空
+                {t('assistant.clear')}
               </Button>
             </Tooltip>
           </Popconfirm>
           <Dropdown
             menu={{
               items: [
-                { key: 'inspect', icon: <SearchOutlined />, label: '检查', onClick: () => runSessionAction('inspect') },
-                { key: 'resume', icon: <ReloadOutlined />, label: '恢复', onClick: () => runSessionAction('resume') },
-                { key: 'fork', icon: <BranchesOutlined />, label: '分支', onClick: () => runSessionAction('fork') },
-                { key: 'replay', icon: <PlayCircleOutlined />, label: '回放', onClick: () => runSessionAction('replay') },
+                { key: 'inspect', icon: <SearchOutlined />, label: t('assistant.inspect'), onClick: () => runSessionAction('inspect') },
+                { key: 'resume', icon: <ReloadOutlined />, label: t('assistant.resume'), onClick: () => runSessionAction('resume') },
+                { key: 'fork', icon: <BranchesOutlined />, label: t('assistant.fork'), onClick: () => runSessionAction('fork') },
+                { key: 'replay', icon: <PlayCircleOutlined />, label: t('assistant.replay'), onClick: () => runSessionAction('replay') },
               ],
             }}
           >
-            <Button size="small">会话操作 <DownOutlined /></Button>
+            <Button size="small">{t('assistant.sessionActions')} <DownOutlined /></Button>
           </Dropdown>
         </Space>
       }
@@ -1773,7 +1786,7 @@ export default function AssistantPage() {
             }}
           >
             <PaperClipOutlined style={{ fontSize: 28, color: '#1677ff' }} />
-            <span style={{ color: '#1677ff' }}>松手上传，文件夹会保留目录层级</span>
+            <span style={{ color: '#1677ff' }}>{t('assistant.dropHint')}</span>
           </div>
         )}
         {chips.length > 0 && (
@@ -1784,7 +1797,7 @@ export default function AssistantPage() {
                 className="assistant-chips-toggle"
                 onClick={() => setChipOpen((v) => !v)}
               >
-                快捷指令
+                {t('assistant.quickCmds')}
                 <DownOutlined style={{ transform: chipOpen ? 'rotate(180deg)' : undefined, fontSize: 10 }} />
               </button>
             ) : null}
@@ -1797,7 +1810,7 @@ export default function AssistantPage() {
                       style={{ cursor: 'pointer' }}
                       onClick={() => sendText(s.examples[0])}
                     >
-                      {CATEGORY_LABEL[s.category] || s.category} · {s.examples[0]}
+                      {categoryLabel(s.category)} · {s.examples[0]}
                     </Tag>
                   ))}
                 </Space>
@@ -1808,12 +1821,12 @@ export default function AssistantPage() {
         {sessionLoading && (
           <div className="assistant-session-hint">
             <LoadingOutlined />
-            正在读取记录…
+            {t('assistant.reading')}
           </div>
         )}
         <div ref={listRef} className="assistant-msg-list">
           {messages.map((msg, idx) => {
-            const toolFailed = (msg.traces || []).some((t) => Boolean(traceError(t.result)))
+            const toolFailed = (msg.traces || []).some((row) => Boolean(traceError(row.result)))
             const failed = Boolean(msg.failed || msg.kind === 'error' || toolFailed)
             const thinking = isThinking(msg)
             return (
@@ -1876,7 +1889,7 @@ export default function AssistantPage() {
                 {msg.images && msg.images.length > 0 && (
                   <div className="assistant-bubble-images">
                     {msg.images.map((url, i) => (
-                      <ChatBubbleImage key={`${i}-${url.slice(0, 48)}`} url={url} alt={`附图 ${i + 1}`} />
+                      <ChatBubbleImage key={`${i}-${url.slice(0, 48)}`} url={url} alt={t('assistant.imageAlt', { n: i + 1 })} />
                     ))}
                   </div>
                 )}
@@ -1900,13 +1913,13 @@ export default function AssistantPage() {
                       setTraceOpen(true)
                     }}
                   >
-                    打开完整轨迹
+                    {t('assistant.openTrace')}
                   </Button>
                 )}
                 {msg.actions && msg.actions.length > 0 && (
                   <Card
                     size="small"
-                    title={<Space><Badge status="warning" />需要审批</Space>}
+                    title={<Space><Badge status="warning" />{t('assistant.needApprove')}</Space>}
                     style={{ marginTop: 12, background: '#fffbe6' }}
                   >
                     <Space wrap>
@@ -1959,7 +1972,7 @@ export default function AssistantPage() {
                   border: '1px solid #b7eb8f',
                 }}
               >
-                {status || '正在思考…'}
+                {status || t('assistant.thinking')}
               </div>
             </div>
           )}
@@ -1974,7 +1987,7 @@ export default function AssistantPage() {
               alignItems: 'center',
             }}
           >
-            <span style={{ fontSize: 12, color: '#999' }}>待下发到节点：</span>
+            <span style={{ fontSize: 12, color: '#999' }}>{t('assistant.pendingPush')}</span>
             {attachments.map((a) => (
               <Tag
                 key={a.id}
@@ -1992,7 +2005,7 @@ export default function AssistantPage() {
               </Tag>
             ))}
             <span style={{ fontSize: 12, color: '#999' }}>
-              说「传到 xxx 节点的 D:\wwwroot\site」即可下发
+              {t('assistant.pushHint')}
             </span>
           </div>
         )}
@@ -2030,7 +2043,7 @@ export default function AssistantPage() {
                   sendText(input)
                 }
               }}
-              placeholder={supportsVision ? '输入指令，可直接粘贴截图给模型看…' : '输入指令，或把文件拖进来…'}
+              placeholder={supportsVision ? t('assistant.inputVision') : t('assistant.inputPlain')}
             />
             <div className="assistant-composer-bar">
               <ModelPicker
@@ -2038,7 +2051,7 @@ export default function AssistantPage() {
                 value={activeModel?.id}
                 disabled={loading}
                 onChange={chooseModel}
-                empty={modelsQuery.isError ? '模型清单读取失败' : '模型管理里还没有可用模型'}
+                empty={modelsQuery.isError ? t('assistant.modelListFail') : t('assistant.noModel')}
               />
               <div className="assistant-composer-bar-right">
                 <Upload
@@ -2059,8 +2072,8 @@ export default function AssistantPage() {
                   <Tooltip
                     title={
                       supportsVision
-                        ? '选文件上传；图片会直接给模型看，其余文件用于下发到节点'
-                        : '选文件上传，也可以直接把文件拖进对话框或粘贴'
+                        ? t('assistant.uploadVision')
+                        : t('assistant.uploadPlain')
                     }
                   >
                     <Button type="text" icon={<PaperClipOutlined />} loading={uploading} />
@@ -2079,31 +2092,31 @@ export default function AssistantPage() {
         </div>
       </div>
       </div>
-      <Drawer title="会话" open={sessionDrawer} onClose={() => setSessionDrawer(false)} width="100%">
+      <Drawer title={t('assistant.sessions')} open={sessionDrawer} onClose={() => setSessionDrawer(false)} width="100%">
         {sessionPane}
       </Drawer>
-      <Drawer title="会话级技能 / 工具目录" open={catalogOpen} width={560} onClose={() => setCatalogOpen(false)}>
+      <Drawer title={t('assistant.catalogTitle')} open={catalogOpen} width={560} onClose={() => setCatalogOpen(false)}>
         <Alert
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
-          message="目录选择仅作用于当前会话"
-          description="内置技能始终可用。服务端仍会按用户权限、工具签名和审批策略做最终裁决。"
+          message={t('assistant.catalogScope')}
+          description={t('assistant.catalogHint')}
         />
-        <Card size="small" title={<Space><ToolOutlined />内置技能（始终可用）</Space>} style={{ marginBottom: 16 }}>
+        <Card size="small" title={<Space><ToolOutlined />{t('assistant.builtinSkills')}</Space>} style={{ marginBottom: 16 }}>
           <Space size={[4, 8]} wrap>
             {skills.length ? skills.map((item) => (
               <Tag key={item.name} color="blue">
-                {CATEGORY_LABEL[item.category] || item.category} · {item.name}
+                {categoryLabel(item.category)} · {item.name}
               </Tag>
-            )) : <span style={{ color: '#999' }}>暂无</span>}
+            )) : <span style={{ color: '#999' }}>{t('assistant.noneShort')}</span>}
           </Space>
         </Card>
-        <Card size="small" title={<Space><ApartmentOutlined />Agent 技能包</Space>} style={{ marginBottom: 16 }}>
+        <Card size="small" title={<Space><ApartmentOutlined />{t('assistant.skillPacks')}</Space>} style={{ marginBottom: 16 }}>
           <Select
             mode="multiple"
             style={{ width: '100%' }}
-            placeholder="选择当前会话可用技能"
+            placeholder={t('assistant.pickSkills')}
             value={selectedSkills}
             onChange={setSelectedSkills}
             options={(catalogQuery.data || []).filter((item) => item.kind === 'agent-skill').map((item) => ({
@@ -2113,11 +2126,11 @@ export default function AssistantPage() {
             }))}
           />
         </Card>
-        <Card size="small" title={<Space><ToolOutlined />第三方 Agent 工具</Space>}>
+        <Card size="small" title={<Space><ToolOutlined />{t('assistant.thirdPartyTools')}</Space>}>
           <Select
             mode="multiple"
             style={{ width: '100%' }}
-            placeholder="选择当前会话可用工具"
+            placeholder={t('assistant.pickTools')}
             value={selectedTools}
             onChange={setSelectedTools}
             options={(catalogQuery.data || []).filter((item) => item.kind === 'agent-tool').map((item) => ({
@@ -2128,7 +2141,7 @@ export default function AssistantPage() {
           />
         </Card>
       </Drawer>
-      <Drawer title="Agent 运行轨迹" open={traceOpen} width={680} onClose={() => setTraceOpen(false)}>
+      <Drawer title={t('assistant.traceTitle')} open={traceOpen} width={680} onClose={() => setTraceOpen(false)}>
         {traceMessage ? (
           <>
             {traceMessage.reasoning && (
@@ -2150,7 +2163,7 @@ export default function AssistantPage() {
             ))}
             <TraceDetailList traces={traceMessage.traces || []} />
           </>
-        ) : <Empty description="暂无轨迹" />}
+        ) : <Empty description={t('assistant.noTrace')} />}
       </Drawer>
     </Card>
   )

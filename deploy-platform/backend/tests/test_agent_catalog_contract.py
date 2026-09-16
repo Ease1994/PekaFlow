@@ -1,4 +1,4 @@
-"""Agent 目录契约：工具/技能/插件说明按 Cursor 文案，说明书里点名的工具必须存在。"""
+"""Agent 目录契约：工具/技能/插件说明按统一文案，说明书里点名的工具必须存在。"""
 from __future__ import annotations
 
 import json
@@ -54,16 +54,16 @@ _PLUGIN_ROOT = Path(__file__).resolve().parents[1] / "plugins"
 
 
 def _has_when(text: str) -> bool:
-    """Cursor 的 Use when：中文写成「在…时调用/时使用」。"""
+    """何时调用：中文写成「在…时调用/时使用」。"""
     return "时调用" in text or "时使用" in text
 
 
 def _has_not(text: str) -> bool:
-    """Cursor 的 Do not use：和易混工具/步骤划界，排除「是不是」误伤。"""
+    """何时不用：和易混工具/步骤划界，排除「是不是」误伤。"""
     return bool(_CONFUSABLE.search(text or ""))
 
 
-def test_visible_tools_use_cursor_when_and_not() -> None:
+def test_visible_tools_have_when_and_not() -> None:
     """发给模型的 140 字摘要必须同时有何时调用、和易混工具的差别。"""
     load_all()
     missing: list[str] = []
@@ -79,7 +79,7 @@ def test_visible_tools_use_cursor_when_and_not() -> None:
 
 
 def test_playbook_descriptions_have_what_and_when() -> None:
-    """技能目录摘要对齐 Cursor：做什么 + 何时用 + 不是什么。"""
+    """技能目录摘要：做什么 + 何时用 + 不是什么。"""
     missing: list[str] = []
     for item in all_playbooks():
         text = item.description or ""

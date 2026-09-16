@@ -3,6 +3,7 @@ import { Form, Input, Radio, Select, Checkbox, InputNumber, Alert } from 'antd'
 import { useQuery } from '@tanstack/react-query'
 import { get } from '@/api/client'
 import type { Pipeline, Project } from '@/api/types'
+import { useT } from '@/i18n'
 
 export interface StartParam {
   name: string
@@ -30,6 +31,7 @@ export default function RunPipelineFields({
   /** 当前流水线环境码，子流水线必须同环境，生产和测试不能互调 */
   envCode?: string
 }) {
+  const t = useT()
   const projectId = (value.projectId as number | string | undefined) ?? undefined
   const pipelineId = (value.pipelineId as number | string | undefined) ?? undefined
   const runMode = String(value.runMode || 'sync')
@@ -84,10 +86,10 @@ export default function RunPipelineFields({
 
   return (
     <>
-      <Form.Item label={<>项目 <span style={{ color: '#ff4d4f' }}>*</span></>}>
+      <Form.Item label={<>{t('pipe.project')} <span style={{ color: '#ff4d4f' }}>*</span></>}>
         <Select
           value={projectId != null && projectId !== '' ? Number(projectId) : undefined}
-          placeholder="选择项目"
+          placeholder={t("pipe.pickProject")}
           showSearch
           optionFilterProp="label"
           options={projects.map((p) => ({ value: p.id, label: `${p.name}（${p.code}）` }))}
@@ -95,10 +97,10 @@ export default function RunPipelineFields({
           style={{ width: '100%' }}
         />
       </Form.Item>
-      <Form.Item label={<>流水线 <span style={{ color: '#ff4d4f' }}>*</span></>}>
+      <Form.Item label={<>{t('pipe.pipeline')} <span style={{ color: '#ff4d4f' }}>*</span></>}>
         <Select
           value={pipelineId != null && pipelineId !== '' ? Number(pipelineId) : undefined}
-          placeholder={want ? `选择同环境（${want}）流水线` : '选择要启动的流水线（需有执行权限）'}
+          placeholder={want ? t('pipe.pickSameEnv', { want }) : t('pipe.pickPipeline')}
           showSearch
           optionFilterProp="label"
           options={pipelineOptions}
@@ -112,17 +114,17 @@ export default function RunPipelineFields({
           type="info"
           showIcon
           style={{ marginBottom: 12 }}
-          message="生产和测试强制隔离，只能调用同一环境分组下的流水线"
+          message={t("pipe.envIsolated")}
         />
       ) : null}
-      <Form.Item label="执行方式">
+      <Form.Item label={t("pipe.runMode")}>
         <Radio.Group value={runMode} onChange={(e) => set({ runMode: e.target.value })}>
-          <Radio value="sync">同步（等待子流水线结束）</Radio>
-          <Radio value="async">异步（启动后立即继续）</Radio>
+          <Radio value="sync">{t("pipe.runSync")}</Radio>
+          <Radio value="async">{t("pipe.runAsync")}</Radio>
         </Radio.Group>
       </Form.Item>
       {runMode === 'sync' && (
-        <Form.Item label="轮询间隔（秒）" extra="平台编排器检查子流水线状态的间隔，默认 10 秒">
+        <Form.Item label={t("pipe.pollInterval")} extra={t("pipe.pollHint")}>
           <InputNumber
             min={1}
             max={600}
@@ -133,7 +135,7 @@ export default function RunPipelineFields({
         </Form.Item>
       )}
       {runMode === 'sync' && (
-        <Form.Item label="输出变量命名空间" extra="末尾不是下划线时会自动补上">
+        <Form.Item label={t("pipe.outNs")} extra={t("pipe.outNsHint")}>
           <Input
             value={(value.outputNamespace as string) ?? 'sub_pipeline_'}
             onChange={(e) => set({ outputNamespace: e.target.value })}
@@ -142,7 +144,7 @@ export default function RunPipelineFields({
         </Form.Item>
       )}
       {runMode === 'sync' && (
-        <Form.Item label="子流水线输出变量" extra="多个变量用英文逗号分隔；空则导出全部启动参数">
+        <Form.Item label={t("pipe.outVars")} extra={t("pipe.outVarsHint")}>
           <Input
             value={(value.outputVars as string) ?? ''}
             onChange={(e) => set({ outputVars: e.target.value })}
@@ -151,10 +153,10 @@ export default function RunPipelineFields({
         </Form.Item>
       )}
       {isError && pipelineId && (
-        <Alert type="warning" showIcon style={{ marginBottom: 12 }} message="无权读取该流水线启动参数（需要执行权限）" />
+        <Alert type="warning" showIcon style={{ marginBottom: 12 }} message={t("pipe.noStartParams")} />
       )}
       {startParams.length > 0 && (
-        <Form.Item label="子流水线启动参数" extra="未填写则使用流水线默认值；除多选外均为输入框">
+        <Form.Item label={t("pipe.childParams")} extra={t("pipe.childParamsHint")}>
           <div style={{ border: '1px solid #f0f0f0', borderRadius: 6, padding: 12 }}>
             {startParams.map((p) => {
               const v = params[p.name] !== undefined ? params[p.name] : p.default_value

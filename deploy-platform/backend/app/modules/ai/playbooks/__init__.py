@@ -1,6 +1,6 @@
 """内置 Agent 技能：仓库里每份 rp-*.md 就是一份 SKILL.md。
 
-对齐 Cursor / Agent Skills：YAML frontmatter 提供 name + description（做什么、何时用、不是什么），
+YAML frontmatter 提供 name + description（做什么、何时用、不是什么），
 正文写流程、反例和例子。系统提示只放摘要，正文由 `skill` 工具按需加载。
 
 改领域规则改这些 md，不要再往 prompt.py 里拼 if。

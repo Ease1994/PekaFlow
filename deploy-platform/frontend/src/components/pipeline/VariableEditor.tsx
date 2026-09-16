@@ -3,25 +3,29 @@ import { Alert, Button, Empty, Input, Select, Space, Switch, Tooltip, Typography
 import { CopyOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import type { Variable } from '@/api/types'
 import { copyText } from '@/utils/clipboard'
+import { t, useT } from '@/i18n'
 
 const { Text } = Typography
 
 /** 变量控件类型。执行弹窗按类型渲染输入框 / 下拉 / 多行文本。 */
-const VARIABLE_TYPES = [
-  { value: 'text', label: '文本' },
-  { value: 'textarea', label: '多行文本' },
-  { value: 'number', label: '数字' },
-  { value: 'boolean', label: '是/否' },
-  { value: 'select', label: '下拉选择' },
-  { value: 'git_ref', label: 'Git 分支' },
-  { value: 'code_lib', label: '代码库' },
-  { value: 'artifact', label: '构建产物' },
-  { value: 'pool', label: '构建机池' },
-]
+/** 变量类型下拉的显示名，随界面语言。 */
+function variableTypes(tt: (k: string) => string) {
+  return [
+    { value: 'text', label: tt('pipe.typeText') },
+    { value: 'textarea', label: tt('pipe.typeTextarea') },
+    { value: 'number', label: tt('pipe.typeNumber') },
+    { value: 'boolean', label: tt('pipe.typeBoolean') },
+    { value: 'select', label: tt('pipe.typeSelect') },
+    { value: 'git_ref', label: tt('pipe.typeGitBranch') },
+    { value: 'code_lib', label: tt('pipe.typeRepo') },
+    { value: 'artifact', label: tt('pipe.typeArtifact') },
+    { value: 'pool', label: tt('pipe.typeAgentPool') },
+  ]
+}
 
 /** 步骤里引用时的占位符，例如 ${{VERSION}} */
 function placeholderOf(name: string): string {
-  return `\${{${name || '变量名'}}}`
+  return `\${{${name || t('pipe.varNamePh')}}}`
 }
 
 /** 名称只能当占位符用，必须是标识符。 */
@@ -44,9 +48,9 @@ function nextParamName(variables: Variable[]): string {
  */
 function nameIssue(name: string, idx: number, variables: Variable[]): string {
   const trimmed = name.trim()
-  if (!trimmed) return '请填写名称'
-  if (!NAME_RE.test(trimmed)) return '用英文字母或下划线开头'
-  if (variables.some((v, i) => i !== idx && v.name === trimmed)) return '名称已存在'
+  if (!trimmed) return t('pipe.fillName')
+  if (!NAME_RE.test(trimmed)) return t('pipe.nameAlpha')
+  if (variables.some((v, i) => i !== idx && v.name === trimmed)) return t('pipe.nameExists')
   return ''
 }
 
@@ -63,6 +67,7 @@ export function VariableEditor({
   variables: Variable[]
   onChange: (next: Variable[]) => void
 }) {
+  const tt = useT()
   const update = (idx: number, patch: Partial<Variable>) => {
     onChange(variables.map((v, i) => (i === idx ? { ...v, ...patch } : v)))
   }
@@ -88,28 +93,25 @@ export function VariableEditor({
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="步骤参数里写占位符，执行时替换成这里的值"
+        message={tt("pipe.varHint")}
         description={
-          <span>
-            例如镜像 tag 填 <Text code>{'${{VERSION}}'}</Text>
-            。勾选「执行时填写」的变量会在点执行时弹出来让人改，不勾就固定用默认值。
-          </span>
+          <span>{tt('pipe.varHintExtra')}</span>
         }
       />
 
       {variables.length === 0 ? (
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="还没有变量。需要每次执行填不同值（版本号、分支）时再加。"
+          description={tt("pipe.noVars")}
           style={{ padding: '32px 0' }}
         />
       ) : (
         <div>
           <div style={HEADER}>
-            <span style={{ width: COL.type }}>类型</span>
-            <span style={{ width: COL.name }}>名称</span>
-            <span style={{ flex: 1 }}>默认值</span>
-            <span style={{ width: COL.runtime, textAlign: 'center' }}>执行时填写</span>
+            <span style={{ width: COL.type }}>{tt("pipe.colType")}</span>
+            <span style={{ width: COL.name }}>{tt("common.name")}</span>
+            <span style={{ flex: 1 }}>{tt("pipe.defaultValue")}</span>
+            <span style={{ width: COL.runtime, textAlign: 'center' }}>{tt("pipe.runtimeFill")}</span>
             <span style={{ width: COL.action }} />
           </div>
           <Space direction="vertical" size={10} style={{ width: '100%' }}>
@@ -164,6 +166,7 @@ function VariableCard({
   onChange: (patch: Partial<Variable>) => void
   onRemove: () => void
 }) {
+  const tt = useT()
   const [hovered, setHovered] = useState(false)
   const refText = placeholderOf(variable.name)
 
@@ -184,7 +187,7 @@ function VariableCard({
         <Select
           value={variable.type}
           onChange={(t) => onChange({ type: t })}
-          options={VARIABLE_TYPES}
+          options={variableTypes(tt)}
           style={{ width: COL.type, flexShrink: 0 }}
         />
         <div style={{ width: COL.name, flexShrink: 0 }}>
@@ -200,7 +203,7 @@ function VariableCard({
           <DefaultValueField variable={variable} onChange={onChange} />
         </div>
         <div style={{ width: COL.runtime, flexShrink: 0, display: 'flex', justifyContent: 'center', paddingTop: 5 }}>
-          <Tooltip title={variable.show_on_execution ? '点执行时弹出，可改这次的值' : '不弹窗，一直用默认值'}>
+          <Tooltip title={variable.show_on_execution ? tt('pipe.runtimeYes') : tt('pipe.runtimeNo')}>
             <Switch
               checked={variable.show_on_execution}
               onChange={(checked) => onChange({ show_on_execution: checked })}
@@ -217,12 +220,12 @@ function VariableCard({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-        <Tooltip title="复制到步骤参数里">
+        <Tooltip title={tt("pipe.copyToStep")}>
           <Button
             size="small"
             type="text"
             icon={<CopyOutlined />}
-            onClick={() => void copyText(refText, `已复制 ${refText}`)}
+            onClick={() => void copyText(refText, tt('pipe.copiedRef', { ref: refText }))}
             style={{ color: '#1677ff', paddingInline: 6 }}
           >
             <Text code style={{ fontSize: 12 }}>
@@ -233,7 +236,7 @@ function VariableCard({
         <Input
           value={variable.description}
           onChange={(e) => onChange({ description: e.target.value })}
-          placeholder="给协作的人看的说明，可空"
+          placeholder={tt("pipe.descOptional")}
           variant="borderless"
           style={{ flex: 1, background: '#f7f8fa', borderRadius: 6 }}
         />
@@ -245,7 +248,7 @@ function VariableCard({
           value={variable.options || []}
           onChange={(opts) => onChange({ options: opts })}
           tokenSeparators={[',']}
-          placeholder="下拉选项，回车添加，例如 prod、test"
+          placeholder={tt("pipe.selectOptions")}
           style={{ width: '100%', marginTop: 8 }}
         />
       ) : null}
@@ -263,16 +266,17 @@ function DefaultValueField({
   variable: Variable
   onChange: (patch: Partial<Variable>) => void
 }) {
+  const tt = useT()
   if (variable.type === 'boolean') {
     return (
       <Select
         allowClear
         value={variable.default_value || undefined}
         onChange={(val) => onChange({ default_value: val || '' })}
-        placeholder="默认"
+        placeholder={tt("pipe.defaultLabel")}
         options={[
-          { value: 'true', label: '是' },
-          { value: 'false', label: '否' },
+          { value: 'true', label: tt('pipe.yes') },
+          { value: 'false', label: tt('pipe.no') },
         ]}
         style={{ width: '100%' }}
       />
@@ -283,7 +287,7 @@ function DefaultValueField({
       <Input.TextArea
         value={variable.default_value}
         onChange={(e) => onChange({ default_value: e.target.value })}
-        placeholder="默认值"
+        placeholder={tt("pipe.defaultValue")}
         autoSize={{ minRows: 1, maxRows: 4 }}
       />
     )
@@ -295,7 +299,7 @@ function DefaultValueField({
         allowClear
         value={variable.default_value || undefined}
         onChange={(val) => onChange({ default_value: val || '' })}
-        placeholder="默认选项"
+        placeholder={tt("pipe.defaultOption")}
         options={options}
         style={{ width: '100%' }}
       />
@@ -305,7 +309,7 @@ function DefaultValueField({
     <Input
       value={variable.default_value}
       onChange={(e) => onChange({ default_value: e.target.value })}
-      placeholder="默认值，可空"
+      placeholder={tt("pipe.defaultEmpty")}
     />
   )
 }

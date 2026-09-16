@@ -16,8 +16,9 @@ import {
 import { AuditOutlined } from '@ant-design/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { get, post } from '@/api/client'
-import { envLabel } from '@/env'
+import { envLabel, groupOptionLabel } from '@/env'
 import { useAuthStore } from '@/stores/auth'
+import { t as translate, useT } from '@/i18n'
 
 /** 申请覆盖范围：整项目 / 环境分组 / 单条流水线。 */
 type ApplyScope = 'project' | 'group' | 'pipeline'
@@ -76,35 +77,46 @@ interface Application {
   id: number
 }
 
-const APPLY_ACTION_OPTIONS = [
-  { value: 'read', label: '查看' },
-  { value: 'create', label: '创建' },
-  { value: 'update', label: '更新' },
-  { value: 'delete', label: '删除' },
-  { value: 'execute', label: '执行' },
-  { value: 'approve', label: '审批' },
-  { value: 'approval_exempt', label: '豁免审批' },
-]
-
-const TYPE_LABEL: Record<string, string> = {
-  project: '项目',
-  group: '分组',
-  pipeline: '流水线',
-  node: '节点',
-  node_group: '节点组',
-  repository: '代码库',
-  credential: '凭证',
+/** 可申请的动作。标签走 acl.*，切语言时现取。 */
+function applyActionOptions() {
+  return [
+    { value: 'read', label: translate('acl.view') },
+    { value: 'create', label: translate('acl.create') },
+    { value: 'update', label: translate('acl.update') },
+    { value: 'delete', label: translate('acl.delete') },
+    { value: 'execute', label: translate('acl.execute') },
+    { value: 'approve', label: translate('acl.approve') },
+    { value: 'approval_exempt', label: translate('acl.exempt') },
+  ]
 }
 
-const ACTION_LABEL: Record<string, string> = {
-  read: '查看',
-  create: '创建',
-  update: '更新',
-  delete: '删除',
-  execute: '执行',
-  approve: '审批',
-  approval_exempt: '豁免审批',
-  deploy: '下发文件',
+/** 资源类型码 → 界面名称。未知码原样返回。 */
+function typeLabel(rtype: string): string {
+  const keys: Record<string, string> = {
+    project: 'acl.project',
+    group: 'acl.group',
+    pipeline: 'acl.pipeline',
+    node: 'acl.node',
+    node_group: 'acl.nodeGroup',
+    repository: 'acl.repo',
+    credential: 'acl.credential',
+  }
+  return keys[rtype] ? translate(keys[rtype]) : rtype
+}
+
+/** 动作码 → 界面名称。未知码原样返回。 */
+function actionLabel(code: string): string {
+  const keys: Record<string, string> = {
+    read: 'acl.view',
+    create: 'acl.create',
+    update: 'acl.update',
+    delete: 'acl.delete',
+    execute: 'acl.execute',
+    approve: 'acl.approve',
+    approval_exempt: 'acl.exempt',
+    deploy: 'acl.pushFile',
+  }
+  return keys[code] ? translate(keys[code]) : code
 }
 
 /**
@@ -112,11 +124,11 @@ const ACTION_LABEL: Record<string, string> = {
  */
 function permissionTags(permissions: Record<string, string[]>) {
   const entries = Object.entries(permissions || {})
-  if (!entries.length) return <span style={{ color: '#999' }}>未配置权限</span>
+  if (!entries.length) return <span style={{ color: '#999' }}>{translate('access.noPerms')}</span>
   return entries.flatMap(([rtype, actions]) =>
     (actions || []).map((a) => (
       <Tag key={`${rtype}-${a}`}>
-        {TYPE_LABEL[rtype] || rtype} · {ACTION_LABEL[a] || a}
+        {typeLabel(rtype)} · {actionLabel(a)}
       </Tag>
     )),
   )
@@ -126,6 +138,7 @@ function permissionTags(permissions: Record<string, string[]>) {
  * 权限申请 Tab：上半提交（资源权或项目角色），下半看自己已经有的授权。
  */
 export default function AccessApplyPanel() {
+  const t = useT()
   const qc = useQueryClient()
   const user = useAuthStore((s) => s.user)
   const isAdmin = !!user?.is_admin
@@ -201,7 +214,7 @@ export default function AccessApplyPanel() {
       })
     },
     onSuccess: (row) => {
-      message.success(`已提交申请 #${row.id}，等待审批`)
+      message.success(t('access.submitted', { n: row.id }))
       setReason('')
       qc.invalidateQueries({ queryKey: ['access-applications'] })
       qc.invalidateQueries({ queryKey: ['access-me'] })
@@ -220,16 +233,16 @@ export default function AccessApplyPanel() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="申请权限"
-        description="一次只申请一种东西：资源权限（项目 / 环境 / 流水线，默认查看+执行）或项目角色。审批通过后资源权写入直授，角色成为该角色成员。也可以对 AI 助手说「申请某某执行权限」或「申请某某角色」。"
+        message={t('access.alertTitle')}
+        description={t('access.applyDesc')}
       />
 
-      <Card title={<><AuditOutlined /> 发起申请</>} style={{ marginBottom: 16 }}>
+      <Card title={<><AuditOutlined /> {t('access.startApply')}</>} style={{ marginBottom: 16 }}>
         {isAdmin ? (
-          <Alert type="success" showIcon message="你是管理员，已有全部权限，无需申请。" />
+          <Alert type="success" showIcon message={t('access.adminAll')} />
         ) : (
           <Form layout="vertical">
-            <Form.Item label="申请类型" style={{ marginBottom: 16 }}>
+            <Form.Item label={t('access.applyKind')} style={{ marginBottom: 16 }}>
               <Radio.Group
                 value={applyKind}
                 onChange={(e) => {
@@ -238,32 +251,32 @@ export default function AccessApplyPanel() {
                 }}
                 optionType="button"
                 options={[
-                  { value: 'resource', label: '资源权限' },
-                  { value: 'role', label: '项目角色' },
+                  { value: 'resource', label: t('access.kindResource') },
+                  { value: 'role', label: t('access.kindRole') },
                 ]}
               />
             </Form.Item>
             {applyKind === 'resource' ? (
               <>
-                <Form.Item label="申请范围" style={{ marginBottom: 16 }}>
+                <Form.Item label={t('access.applyScope')} style={{ marginBottom: 16 }}>
                   <Radio.Group
                     value={applyScope}
                     onChange={(e) => setApplyScope(e.target.value)}
                     optionType="button"
                     options={[
-                      { value: 'pipeline', label: '单条流水线' },
-                      { value: 'group', label: '整个环境' },
-                      { value: 'project', label: '整个项目' },
+                      { value: 'pipeline', label: t('access.scopePipelineBtn') },
+                      { value: 'group', label: t('access.scopeGroupBtn') },
+                      { value: 'project', label: t('access.scopeProjectBtn') },
                     ]}
                   />
                 </Form.Item>
                 <Space wrap size="middle" style={{ width: '100%' }} align="start">
-                  <Form.Item label="项目" style={{ marginBottom: 0, minWidth: 220 }}>
+                  <Form.Item label={t('acl.project')} style={{ marginBottom: 0, minWidth: 220 }}>
                     <Select
                       allowClear
                       showSearch
                       optionFilterProp="label"
-                      placeholder="选择项目"
+                      placeholder={t('access.selectProject')}
                       value={projectId}
                       onChange={(v) => {
                         setProjectId(v)
@@ -275,10 +288,10 @@ export default function AccessApplyPanel() {
                     />
                   </Form.Item>
                   {applyScope !== 'project' ? (
-                    <Form.Item label="分组" style={{ marginBottom: 0, minWidth: 220 }}>
+                    <Form.Item label={t('acl.group')} style={{ marginBottom: 0, minWidth: 220 }}>
                       <Select
                         allowClear
-                        placeholder="选择分组"
+                        placeholder={t('access.selectGroup')}
                         value={groupId}
                         onChange={(v) => {
                           setGroupId(v)
@@ -286,18 +299,18 @@ export default function AccessApplyPanel() {
                         }}
                         options={groups.map((g) => ({
                           value: g.id,
-                          label: `${g.name}（${envLabel(g.type)}）`,
+                          label: groupOptionLabel(g),
                         }))}
                       />
                     </Form.Item>
                   ) : null}
                   {applyScope === 'pipeline' ? (
-                    <Form.Item label="流水线" style={{ marginBottom: 0, minWidth: 260 }}>
+                    <Form.Item label={t('acl.pipeline')} style={{ marginBottom: 0, minWidth: 260 }}>
                       <Select
                         allowClear
                         showSearch
                         optionFilterProp="label"
-                        placeholder="选择流水线"
+                        placeholder={t('access.selectPipeline')}
                         value={pipelineId}
                         onChange={setPipelineId}
                         options={pipelines.map((p) => ({
@@ -308,9 +321,9 @@ export default function AccessApplyPanel() {
                     </Form.Item>
                   ) : null}
                 </Space>
-                <Form.Item label="申请权限" style={{ marginTop: 16 }}>
+                <Form.Item label={t('access.applyPerms')} style={{ marginTop: 16 }}>
                   <Checkbox.Group
-                    options={APPLY_ACTION_OPTIONS}
+                    options={applyActionOptions()}
                     value={applyActions}
                     onChange={(v) => {
                       const next = v as string[]
@@ -326,12 +339,12 @@ export default function AccessApplyPanel() {
             ) : (
               <>
                 <Space wrap size="middle" style={{ width: '100%' }} align="start">
-                  <Form.Item label="项目" style={{ marginBottom: 0, minWidth: 220 }}>
+                  <Form.Item label={t('acl.project')} style={{ marginBottom: 0, minWidth: 220 }}>
                     <Select
                       allowClear
                       showSearch
                       optionFilterProp="label"
-                      placeholder="选择项目"
+                      placeholder={t('access.selectProject')}
                       value={projectId}
                       onChange={(v) => {
                         setProjectId(v)
@@ -340,18 +353,18 @@ export default function AccessApplyPanel() {
                       options={(catalog?.projects || []).map((p) => ({ value: p.id, label: p.name }))}
                     />
                   </Form.Item>
-                  <Form.Item label="角色" style={{ marginBottom: 0, minWidth: 260 }}>
+                  <Form.Item label={t('access.role')} style={{ marginBottom: 0, minWidth: 260 }}>
                     <Select
                       allowClear
                       showSearch
                       optionFilterProp="label"
-                      placeholder={projectId ? '选择角色' : '先选项目'}
+                      placeholder={projectId ? t('access.selectRole') : t('access.selectProjectFirst')}
                       disabled={!projectId}
                       value={roleId}
                       onChange={setRoleId}
                       options={projectRoles.map((r) => ({
                         value: r.id,
-                        label: r.description ? `${r.name}（${r.description}）` : r.name,
+                        label: r.description ? t('access.roleWithDesc', { name: r.name, desc: r.description }) : r.name,
                       }))}
                     />
                   </Form.Item>
@@ -361,25 +374,25 @@ export default function AccessApplyPanel() {
                     style={{ marginTop: 16 }}
                     type="warning"
                     showIcon
-                    message="该项目还没有角色。请改申请资源权限，或请管理员先在「项目角色」里建模板。"
+                    message={t('access.noRoles')}
                   />
                 ) : null}
                 {selectedRole ? (
                   <div style={{ marginTop: 16 }}>
                     <div style={{ marginBottom: 8, color: '#666' }}>
-                      加入后获得该角色当前配置的权限，角色以后改权限包会跟着变。
+                      {t('access.roleHint')}
                     </div>
                     {permissionTags(selectedRole.permissions)}
                   </div>
                 ) : null}
               </>
             )}
-            <Form.Item label="申请说明" style={{ marginTop: 16, maxWidth: 720 }}>
+            <Form.Item label={t('access.colReason')} style={{ marginTop: 16, maxWidth: 720 }}>
               <Input.TextArea
                 rows={3}
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="说明用途，便于审批人判断"
+                placeholder={t('access.reasonPlaceholder')}
               />
             </Form.Item>
             <Button
@@ -388,17 +401,17 @@ export default function AccessApplyPanel() {
               loading={applyMut.isPending}
               onClick={() => applyMut.mutate()}
             >
-              提交申请
+              {t('access.submitApply')}
             </Button>
           </Form>
         )}
       </Card>
 
-      <Card title="我已有的权限">
+      <Card title={t('access.myPerms')}>
         {entitlements?.is_admin ? (
-          <Alert type="success" showIcon message="管理员拥有全部权限，不逐条列出。" />
+          <Alert type="success" showIcon message={t('access.adminAllListed')} />
         ) : mineEmpty ? (
-          <Empty description="还没有任何授权。在上方提交申请，或对 AI 助手说「申请某某执行权限」。" />
+          <Empty description={t('access.emptyMine')} />
         ) : (
           <Space direction="vertical" size={16} style={{ width: '100%' }}>
             {(entitlements?.projects || []).map((p) => (
@@ -406,41 +419,41 @@ export default function AccessApplyPanel() {
                 <div style={{ fontWeight: 600, marginBottom: 8 }}>{p.project_name}</div>
                 {p.roles.map((r) => (
                   <div key={`role-${r.role_id}`} style={{ marginBottom: 8 }}>
-                    <Tag color="purple">角色</Tag>
+                    <Tag color="purple">{t('access.roleTag')}</Tag>
                     <span style={{ marginRight: 8 }}>{r.name}</span>
                     {permissionTags(r.permissions)}
                   </div>
                 ))}
                 {p.direct.map((d) => (
                   <div key={`${d.resource_type}-${d.resource_id}`} style={{ marginBottom: 8 }}>
-                    <Tag>直接授权</Tag>
+                    <Tag>{t('access.directGrant')}</Tag>
                     <span style={{ marginRight: 8 }}>
-                      {TYPE_LABEL[d.resource_type] || d.resource_type} · {d.resource_name}
+                      {typeLabel(d.resource_type)} · {d.resource_name}
                     </span>
                     {d.actions.map((a) => (
                       <Tag color="cyan" key={a}>
-                        {ACTION_LABEL[a] || a}
+                        {actionLabel(a)}
                       </Tag>
                     ))}
                   </div>
                 ))}
                 {!p.roles.length && !p.direct.length ? (
-                  <div style={{ color: '#999' }}>该项目下暂无明细</div>
+                  <div style={{ color: '#999' }}>{t('access.noDetail')}</div>
                 ) : null}
               </div>
             ))}
             {(entitlements?.nodes || []).length ? (
               <div>
-                <div style={{ fontWeight: 600, marginBottom: 8 }}>节点下发</div>
+                <div style={{ fontWeight: 600, marginBottom: 8 }}>{t('access.nodePush')}</div>
                 {entitlements!.nodes.map((d) => (
                   <div key={`${d.resource_type}-${d.resource_id}`} style={{ marginBottom: 8 }}>
-                    <Tag>直接授权</Tag>
+                    <Tag>{t('access.directGrant')}</Tag>
                     <span style={{ marginRight: 8 }}>
-                      {TYPE_LABEL[d.resource_type] || d.resource_type} · {d.resource_name}
+                      {typeLabel(d.resource_type)} · {d.resource_name}
                     </span>
                     {d.actions.map((a) => (
                       <Tag color="cyan" key={a}>
-                        {ACTION_LABEL[a] || a}
+                        {actionLabel(a)}
                       </Tag>
                     ))}
                   </div>

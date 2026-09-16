@@ -3,6 +3,7 @@ import { ThunderboltOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import { get } from '@/api/client'
 import type { GraphTrigger } from '@/api/types'
+import { formatDateTime, useT } from '@/i18n'
 
 const { Text } = Typography
 
@@ -17,7 +18,8 @@ interface TriggerPanelProps {
  * 选定时后到点自动跑；列表里的「执行」按钮两种都能用。
  */
 export default function TriggerPanel({ triggers, onChange, pipelineId }: TriggerPanelProps) {
-  const current = triggers[0] || { type: 'manual', cron: null, label: '手动触发' }
+  const t = useT()
+  const current = triggers[0] || { type: 'manual', cron: null, label: t('pipe.manualTrigger') }
   const isCron = current.type === 'cron'
 
   const { data: nextRun } = useQuery({
@@ -33,18 +35,18 @@ export default function TriggerPanel({ triggers, onChange, pipelineId }: Trigger
         {
           type: 'cron',
           cron: current.cron || '0 2 * * *',
-          label: '定时触发',
+          label: t('pipe.cronTrigger'),
         },
       ])
       return
     }
-    onChange([{ type: 'manual', cron: null, label: '手动触发' }])
+    onChange([{ type: 'manual', cron: null, label: t('pipe.manualTrigger') }])
   }
 
   return (
     <div style={{ padding: 16, maxWidth: 640 }}>
       <div style={{ marginBottom: 16, color: '#666', fontSize: 13 }}>
-        <ThunderboltOutlined /> 触发方式是流水线级配置：手动或定时，只能选一种。
+        <ThunderboltOutlined /> {t('pipe.triggerModeHint')}
       </div>
 
       <Radio.Group
@@ -54,24 +56,24 @@ export default function TriggerPanel({ triggers, onChange, pipelineId }: Trigger
         buttonStyle="solid"
         style={{ marginBottom: 16 }}
       >
-        <Radio.Button value="manual">手动触发</Radio.Button>
-        <Radio.Button value="cron">定时触发</Radio.Button>
+        <Radio.Button value="manual">{t('pipe.manualTrigger')}</Radio.Button>
+        <Radio.Button value="cron">{t('pipe.cronTrigger')}</Radio.Button>
       </Radio.Group>
 
       {isCron ? (
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
           <div>
-            <Text type="secondary">Cron 表达式</Text>
+            <Text type="secondary">{t('pipe.cronExpr')}</Text>
             <Input
               value={current.cron || ''}
               onChange={(e) =>
-                onChange([{ type: 'cron', cron: e.target.value, label: '定时触发' }])
+                onChange([{ type: 'cron', cron: e.target.value, label: t('pipe.cronTrigger') }])
               }
               placeholder="0 2 * * *"
               style={{ marginTop: 6, maxWidth: 280 }}
             />
             <div style={{ color: '#999', fontSize: 12, marginTop: 6 }}>
-              例：每天 2 点 <code>0 2 * * *</code>，每 15 分钟 <code>*/15 * * * *</code>
+              {t('pipe.cronExample', { daily: '0 2 * * *', every: '*/15 * * * *' })}
             </div>
           </div>
           <Alert
@@ -79,18 +81,18 @@ export default function TriggerPanel({ triggers, onChange, pipelineId }: Trigger
             showIcon
             message={
               nextRun?.next_run_at
-                ? `已生效，下次执行：${new Date(nextRun.next_run_at).toLocaleString()}`
-                : '保存编排后才会写入定时队列。需在「平台设置」配置 Redis。'
+                ? t('pipe.cronNext', { time: formatDateTime(nextRun.next_run_at) })
+                : t('pipe.cronNeedRedis')
             }
-            description="到点自动跑。流水线列表里仍可以手动点「执行」。"
+            description={t("pipe.cronDesc")}
           />
         </Space>
       ) : (
         <Alert
           type="info"
           showIcon
-          message="手动触发"
-          description="在项目流水线列表或执行历史页点击「执行」。不会按时间自动跑。"
+          message={t("pipe.manualTrigger")}
+          description={t("pipe.manualDesc")}
         />
       )}
     </div>

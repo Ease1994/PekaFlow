@@ -29,6 +29,7 @@ import { useNavigate } from 'react-router-dom'
 import { del, get, getBlob, post } from '@/api/client'
 import type { Project } from '@/api/types'
 import { envColor, envLabel, envOptions } from '@/env'
+import { formatDateTime, useT } from '@/i18n'
 
 const { Text } = Typography
 
@@ -65,14 +66,6 @@ interface ArtifactSummary {
   policy: { prod_retention_days: number; test_retention_days: number }
 }
 
-const TYPE_OPTIONS = [
-  { value: 'iis-package', label: '增量发布包' },
-  { value: 'zip', label: 'zip' },
-  { value: 'jar', label: 'jar' },
-  { value: 'war', label: 'war' },
-  { value: 'docker', label: 'docker' },
-]
-
 function humanSize(bytes: number | null | undefined): string {
   if (!bytes) return '-'
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
@@ -92,6 +85,7 @@ function humanSize(bytes: number | null | undefined): string {
  * 同时把自动清理规则明写出来——否则包不见了没人知道是被谁删的。
  */
 export default function Artifacts() {
+  const t = useT()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [projectFilter, setProjectFilter] = useState<number>()
@@ -140,7 +134,7 @@ export default function Artifacts() {
         ? del(`/artifacts/${ids[0]}`)
         : post('/artifacts/batch-delete', { ids }),
     onSuccess: () => {
-      message.success('已删除')
+      message.success(t('project.deleted'))
       refresh()
     },
   })
@@ -178,9 +172,17 @@ export default function Artifacts() {
     [selected],
   )
 
+  const typeOptions = [
+    { value: 'iis-package', label: t('art.incPackage') },
+    { value: 'zip', label: 'zip' },
+    { value: 'jar', label: 'jar' },
+    { value: 'war', label: 'war' },
+    { value: 'docker', label: 'docker' },
+  ]
+
   const columns = [
     {
-      title: '制品',
+      title: t('art.artifact'),
       dataIndex: 'name',
       render: (v: string, r: ArtifactRow) => (
         <Space direction="vertical" size={0}>
@@ -194,7 +196,7 @@ export default function Artifacts() {
       ),
     },
     {
-      title: '归属',
+      title: t('art.owner'),
       dataIndex: 'pipeline_name',
       width: 260,
       render: (v: string, r: ArtifactRow) =>
@@ -217,24 +219,24 @@ export default function Artifacts() {
             </Space>
           </Space>
         ) : (
-          <Tooltip title="产出它的流水线已被删除，这类制品会在下一次自动清理时回收">
-            <Tag>流水线已删除</Tag>
+          <Tooltip title={t('art.orphanHint')}>
+            <Tag>{t('art.orphan')}</Tag>
           </Tooltip>
         ),
     },
     {
-      title: '来源发布',
+      title: t('art.fromRelease'),
       dataIndex: 'build_number',
       width: 110,
       render: (v: number | null, r: ArtifactRow) =>
         v && r.pipeline_id ? (
           <a onClick={() => navigate(`/executions/${r.pipeline_id}/${r.release_id}`)}>#{v}</a>
         ) : (
-          <Text type="secondary">手工登记</Text>
+          <Text type="secondary">{t('art.manual')}</Text>
         ),
     },
     {
-      title: '大小',
+      title: t('art.size'),
       dataIndex: 'size_bytes',
       width: 110,
       sorter: true,
@@ -242,27 +244,26 @@ export default function Artifacts() {
       render: (v: number | null) => humanSize(v),
     },
     {
-      title: '产出时间',
+      title: t('art.createdAt'),
       dataIndex: 'created_at',
       width: 170,
       sorter: true,
-      render: (v: string | null) =>
-        v ? new Date(v).toLocaleString('zh-CN', { hour12: false }) : '-',
+      render: (v: string | null) => (v ? formatDateTime(v) : '-'),
     },
     {
-      title: '操作',
+      title: t('common.action'),
       width: 150,
       render: (_: unknown, r: ArtifactRow) => (
         <Space>
           <Button size="small" icon={<DownloadOutlined />} onClick={() => download(r)}>
-            下载
+            {t('art.download')}
           </Button>
           <Popconfirm
-            title="删除这个制品？"
-            description="文件会从磁盘上一并删除，不可恢复"
-            okText="删除"
+            title={t('art.deleteOne')}
+            description={t('art.deleteOneDesc')}
+            okText={t('common.delete')}
             okButtonProps={{ danger: true }}
-            cancelText="取消"
+            cancelText={t('common.cancel')}
             onConfirm={() => deleteMutation.mutateAsync([r.id])}
           >
             <Button size="small" danger icon={<DeleteOutlined />} />
@@ -280,13 +281,13 @@ export default function Artifacts() {
       title={
         <Space>
           <InboxOutlined />
-          制品库
+          {t('menu.artifacts')}
         </Space>
       }
       extra={
         <Space>
           <Button icon={<ReloadOutlined />} onClick={refresh} loading={isFetching}>
-            刷新
+            {t('common.refresh')}
           </Button>
         </Space>
       }
@@ -295,25 +296,26 @@ export default function Artifacts() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="制品会自动清理，别把它当长期存储"
+        message={t('art.autoClean')}
         description={
           <>
-            测试环境的包
-            {testDays > 0 ? `保留 ${testDays} 天` : '只保留当天'}
-            ，每天凌晨清理；生产按流水线保留最近 <b>{keepDays}</b> 天的包，更早的会清，但每条线至少留下最新 2 个，避免服务很久没发、回滚时包已经没了。
-            需要长期留存的产物请另行归档。这里只列出你有权限的流水线产出的制品。
+            {t('art.policyLead')}
+            {testDays > 0 ? t('art.keepDays', { n: testDays }) : t('art.keepToday')}
+            {t('art.policyMid')}
+            <b>{keepDays}</b>
+            {t('art.policyTail')}
           </>
         }
       />
 
       <Space size="large" style={{ marginBottom: 16 }}>
-        <Statistic title="可见制品" value={summary?.count ?? 0} suffix="个" />
-        <Statistic title="占用空间" value={humanSize(summary?.total_bytes ?? 0)} />
+        <Statistic title={t('art.visible')} value={summary?.count ?? 0} suffix={t('art.unit')} />
+        <Statistic title={t('art.space')} value={humanSize(summary?.total_bytes ?? 0)} />
         {selected.length > 0 && (
           <Statistic
-            title="已选中"
+            title={t('art.selected')}
             value={selected.length}
-            suffix={`个 · ${humanSize(selectedBytes)}`}
+            suffix={t('art.selectedSuffix', { size: humanSize(selectedBytes) })}
             valueStyle={{ color: '#1677ff' }}
           />
         )}
@@ -322,7 +324,7 @@ export default function Artifacts() {
       <Space wrap style={{ marginBottom: 12, width: '100%' }}>
         <Select
           allowClear
-          placeholder="按项目筛选"
+          placeholder={t('deploy.filterProject')}
           style={{ width: 200 }}
           value={projectFilter}
           onChange={(v) => {
@@ -335,7 +337,7 @@ export default function Artifacts() {
         />
         <Select
           allowClear
-          placeholder="按环境筛选"
+          placeholder={t('art.filterEnv')}
           style={{ width: 140 }}
           value={envFilter}
           onChange={(v) => {
@@ -346,18 +348,18 @@ export default function Artifacts() {
         />
         <Select
           allowClear
-          placeholder="按类型筛选"
+          placeholder={t('art.filterType')}
           style={{ width: 160 }}
           value={typeFilter}
           onChange={(v) => {
             setTypeFilter(v)
             setPage(1)
           }}
-          options={TYPE_OPTIONS}
+          options={typeOptions}
         />
         <Input.Search
           allowClear
-          placeholder="搜索制品名"
+          placeholder={t('art.searchName')}
           style={{ width: 220 }}
           onSearch={(v) => {
             setKeyword(v)
@@ -365,11 +367,11 @@ export default function Artifacts() {
           }}
         />
         <Popconfirm
-          title={`删除选中的 ${selected.length} 个制品？`}
-          description={`将释放 ${humanSize(selectedBytes)} 磁盘空间，文件不可恢复`}
-          okText="删除"
+          title={t('art.deleteN', { n: selected.length })}
+          description={t('art.deleteNDesc', { size: humanSize(selectedBytes) })}
+          okText={t('common.delete')}
           okButtonProps={{ danger: true }}
-          cancelText="取消"
+          cancelText={t('common.cancel')}
           disabled={selected.length === 0}
           onConfirm={() => deleteMutation.mutateAsync(selected.map((r) => r.id))}
         >
@@ -379,7 +381,7 @@ export default function Artifacts() {
             disabled={selected.length === 0}
             loading={deleteMutation.isPending}
           >
-            批量删除{selected.length > 0 ? `（${selected.length}）` : ''}
+            {selected.length > 0 ? t('art.batchDeleteN', { n: selected.length }) : t('art.batchDelete')}
           </Button>
         </Popconfirm>
       </Space>
@@ -403,10 +405,10 @@ export default function Artifacts() {
           pageSize: data?.page_size || pageSize,
           total: data?.total || 0,
           showSizeChanger: true,
-          showTotal: (t) => `共计 ${t} 个制品，合计 ${humanSize(data?.total_bytes ?? 0)}`,
+          showTotal: (n) => t('art.total', { n, size: humanSize(data?.total_bytes ?? 0) }),
         }}
         locale={{
-          emptyText: <Empty description="还没有制品，或者你没有相关流水线的权限" />,
+          emptyText: <Empty description={t('art.empty')} />,
         }}
       />
     </Card>

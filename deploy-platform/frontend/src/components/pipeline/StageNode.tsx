@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query'
 import { get } from '@/api/client'
 import { agentDisplay } from '@/utils/agentLabel'
 import type { BuildAgent, GraphStage, GraphJob, GraphStep, Plugin } from '@/api/types'
+import { useT } from '@/i18n'
 
 interface StageNodeProps {
   data: {
@@ -25,6 +26,7 @@ interface StageNodeProps {
  * 蓝鲸风格的 Stage 节点：阶段标题 + 内部 Job 卡片 + Job 内 Step 列表。
  */
 function StageNode({ data, selected }: StageNodeProps) {
+  const t = useT()
   const { stage, plugins } = data
 
   const stepMenu = (stageId: string, jobId: string): MenuProps => ({
@@ -65,11 +67,11 @@ function StageNode({ data, selected }: StageNodeProps) {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <HolderOutlined style={{ color: '#bbb', cursor: 'grab' }} />
-          <Tooltip title="点击重命名">
+          <Tooltip title={t("pipe.clickRename")}>
             <span
               style={{ fontWeight: 600, cursor: 'text' }}
               onClick={() => {
-                const name = window.prompt('阶段名称', stage.name)
+                const name = window.prompt(t('pipe.stageNamePrompt'), stage.name)
                 if (name) data.onRenameStage(stage.id, name)
               }}
             >
@@ -77,7 +79,7 @@ function StageNode({ data, selected }: StageNodeProps) {
             </span>
           </Tooltip>
           <Tag color="blue" style={{ marginLeft: 4 }}>
-            阶段{stage.order}
+            {t('pipe.stageN', { n: stage.order })}
           </Tag>
         </div>
         <Space size={4}>
@@ -86,7 +88,7 @@ function StageNode({ data, selected }: StageNodeProps) {
             size="small"
             icon={<PlusOutlined />}
             onClick={() => data.onAddJob(stage.id)}
-            title="添加作业"
+            title={t("pipe.addJobShort")}
           />
           <Button
             type="text"
@@ -94,7 +96,7 @@ function StageNode({ data, selected }: StageNodeProps) {
             danger
             icon={<DeleteOutlined />}
             onClick={() => data.onDeleteStage(stage.id)}
-            title="删除阶段"
+            title={t("pipe.deleteStageShort")}
           />
         </Space>
       </div>
@@ -103,7 +105,7 @@ function StageNode({ data, selected }: StageNodeProps) {
       <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
         {stage.jobs.length === 0 && (
           <div style={{ textAlign: 'center', color: '#bbb', padding: 16 }}>
-            暂无作业，点击上方 + 添加
+            {t('pipe.noJobsHint')}
           </div>
         )}
         {stage.jobs.map((job: GraphJob) => (
@@ -131,6 +133,7 @@ function JobCard({
   stepMenu: MenuProps
   onDeleteStep: (stageId: string, jobId: string, stepOrder: number) => void
 }) {
+  const t = useT()
   // 构建机列表已被编辑器里的其它组件拉取过，同 key 复用缓存，不会多发请求
   const { data: agents = [] } = useQuery({
     queryKey: ['agents', 'builder'],
@@ -172,7 +175,7 @@ function JobCard({
       <div style={{ padding: '6px 0' }}>
         {job.steps.length === 0 && (
           <div style={{ textAlign: 'center', color: '#ccc', padding: 8, fontSize: 12 }}>
-            暂无步骤
+            {t('pipe.noSteps')}
           </div>
         )}
         {job.steps.map((step: GraphStep, idx: number) => (
@@ -211,7 +214,7 @@ function JobCard({
               fontSize: 12,
             }}
           >
-            <PlusOutlined /> 添加步骤
+            <PlusOutlined /> {t('pipe.addStep')}
           </div>
         </Dropdown>
       </div>

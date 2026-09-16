@@ -32,6 +32,8 @@ import type { Dayjs } from 'dayjs'
 import { get, post, postR } from '@/api/client'
 import { envColor, envLabel } from '@/env'
 import { useAuthStore } from '@/stores/auth'
+import { useT } from '@/i18n'
+import { releaseStatusMeta } from '@/utils/releaseStatus'
 
 const { Text, Paragraph } = Typography
 
@@ -105,21 +107,11 @@ interface Workbench {
   is_pm: boolean
 }
 
-const STATUS: Record<string, { color: string; text: string }> = {
-  pending: { color: 'orange', text: '待确认/待审批' },
-  queued: { color: 'cyan', text: '排队中' },
-  assigned: { color: 'cyan', text: '已派发' },
-  running: { color: 'processing', text: '执行中' },
-  success: { color: 'success', text: '成功' },
-  failed: { color: 'error', text: '失败' },
-  rejected: { color: 'error', text: '已驳回' },
-  cancelled: { color: 'default', text: '已取消' },
-  rolling_back: { color: 'gold', text: '回滚中' },
-  rolled_back: { color: 'purple', text: '已回滚' },
-}
-
+/** 工作台状态标签。pending 同时覆盖待确认和待审批；其余码走 status.*。 */
 function StatusTag({ status }: { status: string }) {
-  const s = STATUS[status] || { color: 'default', text: status }
+  const t = useT()
+  if (status === 'pending') return <Tag color="orange">{t('pm.pending')}</Tag>
+  const s = releaseStatusMeta(status)
   return <Tag color={s.color}>{s.text}</Tag>
 }
 
@@ -137,6 +129,7 @@ function dayMarkColor(items: CalItem[]): string | undefined {
 }
 
 export default function PmWorkbench() {
+  const t = useT()
   const navigate = useNavigate()
   const qc = useQueryClient()
   const user = useAuthStore((s) => s.user)
@@ -157,7 +150,7 @@ export default function PmWorkbench() {
     mutationFn: ({ id, approved, comment: c }: { id: number; approved: boolean; comment: string }) =>
       postR(`/pm/decisions/${id}/decide`, { approved, comment: c }),
     onSuccess: (res, vars) => {
-      message.success(res.message || (vars.approved ? '已确认' : '已驳回'))
+      message.success(res.message || (vars.approved ? t('pm.decided') : t('pm.rejectedMsg')))
       setDecide(null)
       setComment('')
       qc.invalidateQueries({ queryKey: ['pm-workbench'] })
@@ -169,7 +162,7 @@ export default function PmWorkbench() {
     mutationFn: ({ id, text }: { id: number; text: string }) =>
       post(`/pm/releases/${id}/announce`, { text }),
     onSuccess: () => {
-      message.success('已发送通报')
+      message.success(t('pm.announced'))
       setAnnounce(null)
       qc.invalidateQueries({ queryKey: ['pm-workbench'] })
     },
@@ -194,7 +187,7 @@ export default function PmWorkbench() {
 
   const recentColumns = [
     {
-      title: '项目 / 流水线',
+      title: t('pm.colPipe'),
       render: (_: unknown, r: ReleaseCard) => (
         <a onClick={() => navigate(`/executions/${r.pipeline_id}/${r.id}`)}>
           {r.pipeline_name} #{r.build_number}
@@ -202,14 +195,14 @@ export default function PmWorkbench() {
       ),
     },
     {
-      title: '环境',
+      title: t('common.environment'),
       width: 80,
       render: (_: unknown, r: ReleaseCard) => (
         <Tag color={envColor(r.group_type)}>{envLabel(r.group_type) || r.group_name}</Tag>
       ),
     },
     {
-      title: '状态',
+      title: t('common.status'),
       width: 88,
       render: (_: unknown, r: ReleaseCard) => <StatusTag status={r.status} />,
     },
@@ -219,7 +212,7 @@ export default function PmWorkbench() {
       render: (_: unknown, r: ReleaseCard) =>
         (data?.is_pm || user?.is_admin) && ['success', 'rolled_back', 'failed'].includes(r.status) ? (
           <Button size="small" icon={<SoundOutlined />} onClick={() => openAnnounce(r)}>
-            通报
+            {t('pm.announce')}
           </Button>
         ) : null,
     },
@@ -227,7 +220,7 @@ export default function PmWorkbench() {
 
   const columns = [
     {
-      title: '项目 / 流水线',
+      title: t('pm.colPipe'),
       render: (_: unknown, r: ReleaseCard) => (
         <div>
           <div>
@@ -236,34 +229,34 @@ export default function PmWorkbench() {
             </a>
           </div>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            {r.operator_name} · {r.iteration_tag || '未标迭代'}
+            {r.operator_name} · {r.iteration_tag || t('pm.noIteration')}
           </Text>
         </div>
       ),
     },
     {
-      title: '环境',
+      title: t('common.environment'),
       width: 90,
       render: (_: unknown, r: ReleaseCard) => (
         <Tag color={envColor(r.group_type)}>{envLabel(r.group_type) || r.group_name}</Tag>
       ),
     },
     {
-      title: '业务说明',
-      render: (_: unknown, r: ReleaseCard) => r.business_summary || <Text type="secondary">未填写</Text>,
+      title: t('pm.colSummary'),
+      render: (_: unknown, r: ReleaseCard) => r.business_summary || <Text type="secondary">{t('pm.notFilled')}</Text>,
     },
     {
-      title: '现在卡在',
+      title: t('pm.blockedAt'),
       width: 220,
       render: (_: unknown, r: ReleaseCard) => r.blocker?.label || '—',
     },
     {
-      title: '状态',
+      title: t('common.status'),
       width: 120,
       render: (_: unknown, r: ReleaseCard) => <StatusTag status={r.status} />,
     },
     {
-      title: '窗口',
+      title: t('pm.colWindow'),
       width: 140,
       dataIndex: 'planned_window',
     },
@@ -273,7 +266,7 @@ export default function PmWorkbench() {
       render: (_: unknown, r: ReleaseCard) =>
         (data?.is_pm || user?.is_admin) && ['success', 'rolled_back', 'failed'].includes(r.status) ? (
           <Button size="small" icon={<SoundOutlined />} onClick={() => openAnnounce(r)}>
-            通报
+            {t('pm.announce')}
           </Button>
         ) : null,
     },
@@ -285,19 +278,19 @@ export default function PmWorkbench() {
         title={
           <Space>
             <ScheduleOutlined />
-            项目工作台
+            {t('pm.title')}
           </Space>
         }
         extra={
           <Space>
             <Select
               allowClear
-              placeholder="全部项目"
+              placeholder={t('pm.allProjects')}
               style={{ width: 220 }}
               value={projectId}
               options={(data?.projects || []).map((p) => ({
                 value: p.id,
-                label: p.is_pm ? `${p.name}（我是项目经理）` : p.name,
+                label: p.is_pm ? t('pm.iAmPm', { name: p.name }) : p.name,
               }))}
               onChange={(id) => {
                 const next = new URLSearchParams(params)
@@ -307,7 +300,7 @@ export default function PmWorkbench() {
               }}
             />
             <Button icon={<ReloadOutlined />} onClick={() => qc.invalidateQueries({ queryKey: ['pm-workbench'] })} loading={isFetching}>
-              刷新
+              {t('common.refresh')}
             </Button>
           </Space>
         }
@@ -317,7 +310,7 @@ export default function PmWorkbench() {
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
-          message="按项目看发布，不进编排器。生产审批仍按原流程；这里多出来的确认默认是关着的。"
+          message={t('pm.hint')}
         />
         <Row gutter={16}>
           {(data?.stability || []).map((s) => (
@@ -332,29 +325,29 @@ export default function PmWorkbench() {
           ))}
           {!data?.stability?.length ? (
             <Col span={24}>
-              <Empty description="还没有最近的发布，稳定性会在有数据后出现" />
+              <Empty description={t('pm.emptyStability')} />
             </Col>
           ) : null}
         </Row>
       </Card>
 
       {(data?.pending_mine || []).length > 0 && (
-        <Card title={`待我确认（${data?.pending_mine.length}）`} style={{ marginBottom: 16 }}>
+        <Card title={t('pm.pendingMine', { n: (data?.pending_mine || []).length })} style={{ marginBottom: 16 }}>
           <Space direction="vertical" style={{ width: '100%' }} size={12}>
             {data?.pending_mine.map((d) => (
               <Card key={d.id} size="small">
                 <Descriptions size="small" column={{ xs: 1, sm: 2 }}>
-                  <Descriptions.Item label="发布">
+                  <Descriptions.Item label={t('pm.colRelease')}>
                     {d.release.project_name} / {d.release.pipeline_name} #{d.release.build_number}
                   </Descriptions.Item>
-                  <Descriptions.Item label="环境">
+                  <Descriptions.Item label={t('common.environment')}>
                     <Tag color={envColor(d.release.group_type)}>{envLabel(d.release.group_type)}</Tag>
                   </Descriptions.Item>
-                  <Descriptions.Item label="业务说明" span={2}>
-                    {d.release.business_summary || '尚未填写'}
+                  <Descriptions.Item label={t('pm.colSummary')} span={2}>
+                    {d.release.business_summary || t('pm.notFilledYet')}
                   </Descriptions.Item>
-                  <Descriptions.Item label="影响">{d.release.impact_scope || '—'}</Descriptions.Item>
-                  <Descriptions.Item label="窗口">{d.release.planned_window || '未约'}</Descriptions.Item>
+                  <Descriptions.Item label={t('pm.impact')}>{d.release.impact_scope || '—'}</Descriptions.Item>
+                  <Descriptions.Item label={t('pm.colWindow')}>{d.release.planned_window || t('pm.notScheduled')}</Descriptions.Item>
                 </Descriptions>
                 <Space style={{ marginTop: 12 }}>
                   <Button
@@ -362,16 +355,16 @@ export default function PmWorkbench() {
                     icon={<CheckOutlined />}
                     onClick={() => setDecide({ id: d.id, approved: true })}
                   >
-                    确认今晚可以上
+                    {t('pm.confirmTonight')}
                   </Button>
                   <Button danger icon={<CloseOutlined />} onClick={() => setDecide({ id: d.id, approved: false })}>
-                    驳回
+                    {t('pm.reject')}
                   </Button>
                   <Button
                     icon={<AuditOutlined />}
                     onClick={() => navigate(`/executions/${d.release.pipeline_id}/${d.release.id}`)}
                   >
-                    看执行
+                    {t('pm.viewExec')}
                   </Button>
                 </Space>
               </Card>
@@ -380,7 +373,7 @@ export default function PmWorkbench() {
         </Card>
       )}
 
-      <Card title="进行中" style={{ marginBottom: 16 }}>
+      <Card title={t('pm.inProgress')} style={{ marginBottom: 16 }}>
         <DataTable
           chromeKey="pm-in-progress"
           rowKey="id"
@@ -388,34 +381,34 @@ export default function PmWorkbench() {
           columns={columns}
           dataSource={data?.in_progress || []}
           pagination={false}
-          locale={{ emptyText: '当前没有进行中的发布' }}
+          locale={{ emptyText: t('pm.emptyInProgress') }}
         />
       </Card>
 
-      <Card title="计划中（已提单未发）" style={{ marginBottom: 16 }}>
+      <Card title={t('pm.planned')} style={{ marginBottom: 16 }}>
         <DataTable
           chromeKey="pm-planned"
           rowKey="id"
           size="small"
           dataSource={data?.planned || []}
           pagination={false}
-          locale={{ emptyText: '没有待发的提交单' }}
+          locale={{ emptyText: t('pm.emptyPlanned') }}
           columns={[
-            { title: '项目', dataIndex: 'project_name', width: 140 },
-            { title: '标题', dataIndex: 'title' },
-            { title: '流水线', dataIndex: 'pipeline_name', width: 160 },
+            { title: t('acl.project'), dataIndex: 'project_name', width: 140 },
+            { title: t('pm.colTitle'), dataIndex: 'title' },
+            { title: t('acl.pipeline'), dataIndex: 'pipeline_name', width: 160 },
             {
-              title: '业务说明',
-              render: (_: unknown, r: PlannedItem) => r.business_summary || <Text type="secondary">未填写</Text>,
+              title: t('pm.colSummary'),
+              render: (_: unknown, r: PlannedItem) => r.business_summary || <Text type="secondary">{t('pm.notFilled')}</Text>,
             },
-            { title: '迭代', dataIndex: 'iteration_tag', width: 120 },
-            { title: '窗口', dataIndex: 'planned_window', width: 160 },
+            { title: t('pm.iteration'), dataIndex: 'iteration_tag', width: 120 },
+            { title: t('pm.colWindow'), dataIndex: 'planned_window', width: 160 },
             {
-              title: '操作',
+              title: t('common.action'),
               width: 100,
               render: (_: unknown, r: PlannedItem) => (
                 <Button size="small" onClick={() => navigate('/deploy-requests')}>
-                  去提交单
+                  {t('pm.goRequest')}
                 </Button>
               ),
             },
@@ -425,20 +418,20 @@ export default function PmWorkbench() {
 
       <Row gutter={16}>
         <Col xs={24} lg={14}>
-          <Card title="最近完成">
+          <Card title={t('pm.recent')}>
             <DataTable
               chromeKey="pm-recent"
               rowKey="id"
               size="small"
               columns={recentColumns}
               dataSource={data?.recent || []}
-              pagination={{ pageSize: 5, size: 'small', showSizeChanger: false, showTotal: (n) => `共 ${n} 条` }}
-              locale={{ emptyText: '这一周还没有完成的发布' }}
+              pagination={{ pageSize: 5, size: 'small', showSizeChanger: false, showTotal: (n) => t('common.total', { n }) }}
+              locale={{ emptyText: t('pm.emptyRecent') }}
             />
           </Card>
         </Col>
         <Col xs={24} lg={10}>
-          <Card title="发布日历">
+          <Card title={t('pm.calendar')}>
             <Calendar
               fullscreen={false}
               fullCellRender={(value: Dayjs, info) => {
@@ -483,20 +476,20 @@ export default function PmWorkbench() {
               }}
             />
             <Space size={12} wrap style={{ marginTop: 8 }}>
-              <Text type="secondary"><span style={{ color: '#52c41a' }}>●</span> 成功</Text>
-              <Text type="secondary"><span style={{ color: '#fa8c16' }}>●</span> 进行中</Text>
-              <Text type="secondary"><span style={{ color: '#ff4d4f' }}>●</span> 失败</Text>
-              <Text type="secondary"><span style={{ color: '#1677ff' }}>●</span> 计划</Text>
+              <Text type="secondary"><span style={{ color: '#52c41a' }}>●</span> {t('dash.success')}</Text>
+              <Text type="secondary"><span style={{ color: '#fa8c16' }}>●</span> {t('pm.legendRunning')}</Text>
+              <Text type="secondary"><span style={{ color: '#ff4d4f' }}>●</span> {t('dash.failed')}</Text>
+              <Text type="secondary"><span style={{ color: '#1677ff' }}>●</span> {t('pm.legendPlan')}</Text>
             </Space>
             <div>
-              <Text type="secondary">点色块日期可跳到执行详情。悬停可看名称。</Text>
+              <Text type="secondary">{t('pm.calendarHint')}</Text>
             </div>
           </Card>
         </Col>
       </Row>
 
       <Modal
-        title={decide?.approved ? '确认这次上线' : '驳回这次上线'}
+        title={decide?.approved ? t('pm.confirmOnline') : t('pm.rejectOnline')}
         open={!!decide}
         onCancel={() => {
           setDecide(null)
@@ -504,31 +497,31 @@ export default function PmWorkbench() {
         }}
         confirmLoading={decideMut.isPending}
         okButtonProps={{ danger: decide?.approved === false, disabled: decide?.approved === false && !comment.trim() }}
-        okText={decide?.approved ? '确认' : '驳回'}
+        okText={decide?.approved ? t('common.confirm') : t('pm.reject')}
         onOk={() => decide && decideMut.mutate({ id: decide.id, approved: decide.approved, comment })}
       >
         <p>
           {decide?.approved
-            ? '确认的是范围和窗口。技术审批仍按原流程；两边都过了才会进队列。'
-            : '驳回后这次发布结束。必须写原因。'}
+            ? t('pm.confirmHint')
+            : t('pm.rejectHint')}
         </p>
         <Input.TextArea
           rows={3}
           value={comment}
           onChange={(e) => setComment(e.target.value)}
-          placeholder={decide?.approved ? '意见（可选）' : '驳回原因（必填）'}
+          placeholder={decide?.approved ? t('pm.commentOptional') : t('pm.rejectRequired')}
         />
       </Modal>
 
       <Modal
-        title="上线通报"
+        title={t('pm.announceTitle')}
         open={!!announce}
         onCancel={() => setAnnounce(null)}
         confirmLoading={announceMut.isPending}
-        okText="发送"
+        okText={t('pm.send')}
         onOk={() => announce && announceMut.mutate({ id: announce.id, text: announceText })}
       >
-        <Paragraph type="secondary">发给项目经理、发起人，并按平台设置推企微/邮件。可改再发。</Paragraph>
+        <Paragraph type="secondary">{t('pm.announceHint')}</Paragraph>
         <Input.TextArea rows={8} value={announceText} onChange={(e) => setAnnounceText(e.target.value)} />
       </Modal>
     </div>

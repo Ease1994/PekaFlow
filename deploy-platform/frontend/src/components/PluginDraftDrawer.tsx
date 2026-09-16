@@ -23,14 +23,10 @@ import { useNavigate } from 'react-router-dom'
 import { del, get, post } from '@/api/client'
 import type { LintFinding, Pipeline, PluginDraft } from '@/api/types'
 import { useAuthStore } from '@/stores/auth'
+import { useT } from '@/i18n'
+import { releaseStatusMeta } from '@/utils/releaseStatus'
 
 const { Text } = Typography
-
-const LEVEL_META: Record<string, { color: string; text: string }> = {
-  error: { color: 'error', text: '错误' },
-  high: { color: 'volcano', text: '高危' },
-  warn: { color: 'gold', text: '提醒' },
-}
 
 interface Props {
   draftId: number | null
@@ -42,6 +38,7 @@ interface Props {
  * 发布只是让它进插件仓库（未安装状态），要流水线能用还得再点安装。
  */
 export default function PluginDraftDrawer({ draftId, onClose }: Props) {
+  const t = useT()
   const queryClient = useQueryClient()
   const isAdmin = !!useAuthStore((s) => s.user?.is_admin)
   const navigate = useNavigate()
@@ -49,6 +46,14 @@ export default function PluginDraftDrawer({ draftId, onClose }: Props) {
   const [trialForm] = Form.useForm()
   const [acknowledged, setAcknowledged] = useState(false)
   const [busy, setBusy] = useState(false)
+
+  /** 体检级别：颜色固定，句子按当前语言现取。 */
+  const levelMeta = (level: string) => {
+    if (level === 'error') return { color: 'error', text: t('draft.error') }
+    if (level === 'high') return { color: 'volcano', text: t('draft.high') }
+    if (level === 'warn') return { color: 'gold', text: t('draft.warn') }
+    return { color: 'default', text: level }
+  }
 
   const { data: draft, isLoading } = useQuery({
     queryKey: ['plugin-draft', draftId],
@@ -87,7 +92,7 @@ export default function PluginDraftDrawer({ draftId, onClose }: Props) {
       )
       setTrialOpen(false)
       refresh()
-      message.success('已提交试跑，正在跳转执行详情')
+      message.success(t('draft.trialSubmitted'))
       navigate(`/executions/${release.pipeline_id}/${release.id}`)
     } finally {
       setBusy(false)
@@ -98,7 +103,7 @@ export default function PluginDraftDrawer({ draftId, onClose }: Props) {
     setBusy(true)
     try {
       await post(`/store/plugin-drafts/${draftId}/publish`, { acknowledge_high: acknowledged })
-      message.success('已发布到插件仓库，还需在插件列表点「安装」才会出现在编排器')
+      message.success(t('draft.published'))
       refresh()
       onClose()
     } finally {
@@ -111,7 +116,7 @@ export default function PluginDraftDrawer({ draftId, onClose }: Props) {
     setBusy(true)
     try {
       await del(`/store/plugin-drafts/${draftId}`)
-      message.success('已删除草稿')
+      message.success(t('draft.deletedDraft'))
       refresh()
       onClose()
     } finally {
@@ -122,26 +127,26 @@ export default function PluginDraftDrawer({ draftId, onClose }: Props) {
   const handleReject = () => {
     let comment = ''
     Modal.confirm({
-      title: '驳回该插件草稿',
+      title: t('draft.rejectTitle'),
       content: (
         <Input.TextArea
           rows={3}
-          placeholder="必填：说明哪里有问题，便于重新起草"
+          placeholder={t('draft.rejectPh')}
           onChange={(e) => {
             comment = e.target.value
           }}
         />
       ),
-      okText: '驳回',
+      okText: t('deploy.rejectOk'),
       okButtonProps: { danger: true },
-      cancelText: '取消',
+      cancelText: t('common.cancel'),
       onOk: async () => {
         if (!comment.trim()) {
-          message.error('请填写驳回原因')
+          message.error(t('draft.needRejectReason'))
           throw new Error('no comment')
         }
         await post(`/store/plugin-drafts/${draftId}/reject`, { comment: comment.trim() })
-        message.success('已驳回')
+        message.success(t('deploy.statusRejected'))
         refresh()
         onClose()
       },
@@ -151,7 +156,11 @@ export default function PluginDraftDrawer({ draftId, onClose }: Props) {
   return (
     <>
       <Drawer
-        title={draft ? `插件草稿 #${draft.id}：${draft.display_name || draft.name}` : '插件草稿'}
+        title={
+          draft
+            ? t('draft.titleN', { id: draft.id, name: draft.display_name || draft.name })
+            : t('draft.title')
+        }
         open={!!draftId}
         onClose={onClose}
         width={860}
@@ -159,11 +168,11 @@ export default function PluginDraftDrawer({ draftId, onClose }: Props) {
           <Space>
             {pending ? (
               <>
-                <Button onClick={() => setTrialOpen(true)}>沙箱试跑</Button>
+                <Button onClick={() => setTrialOpen(true)}>{t('draft.trial')}</Button>
                 {isAdmin ? (
                   <>
                     <Button danger onClick={handleReject}>
-                      驳回
+                      {t('deploy.rejectOk')}
                     </Button>
                     <Button
                       type="primary"
@@ -171,15 +180,15 @@ export default function PluginDraftDrawer({ draftId, onClose }: Props) {
                       disabled={errorCount > 0 || (highCount > 0 && !acknowledged)}
                       onClick={handlePublish}
                     >
-                      发布到仓库
+                      {t('draft.publishRepo')}
                     </Button>
                   </>
                 ) : null}
               </>
             ) : null}
-            <Popconfirm title="删除后无法恢复" onConfirm={handleDelete}>
+            <Popconfirm title={t('draft.deleteForever')} onConfirm={handleDelete}>
               <Button danger loading={busy}>
-                删除
+                {t('common.delete')}
               </Button>
             </Popconfirm>
           </Space>
@@ -195,33 +204,36 @@ export default function PluginDraftDrawer({ draftId, onClose }: Props) {
               type="warning"
               showIcon
               style={{ marginBottom: 16 }}
-              message="插件会在构建机上以 Agent 子进程执行"
-              description="发布前请逐行读一遍代码，重点看它起了什么进程、访问了哪些地址、读了哪些文件。发布后仍需再点一次「安装」才会被流水线用到。"
+              message={t('draft.agentWarn')}
+              description={t('draft.agentWarnDesc')}
             />
 
             <Descriptions size="small" column={2} bordered style={{ marginBottom: 16 }}>
-              <Descriptions.Item label="标识">
+              <Descriptions.Item label={t('draft.ident')}>
                 <code>{draft.name}</code>
               </Descriptions.Item>
-              <Descriptions.Item label="版本">{draft.version}</Descriptions.Item>
-              <Descriptions.Item label="分类">{draft.category}</Descriptions.Item>
-              <Descriptions.Item label="语言">{draft.language}</Descriptions.Item>
-              <Descriptions.Item label="入口命令" span={2}>
+              <Descriptions.Item label={t('common.version')}>{draft.version}</Descriptions.Item>
+              <Descriptions.Item label={t('draft.category')}>{draft.category}</Descriptions.Item>
+              <Descriptions.Item label={t('draft.language')}>{draft.language}</Descriptions.Item>
+              <Descriptions.Item label={t('draft.entry')} span={2}>
                 <code>{draft.entrypoint}</code>
               </Descriptions.Item>
-              <Descriptions.Item label="来源">
-                {draft.source === 'ai' ? <Tag color="purple">AI 起草</Tag> : <Tag>人工提交</Tag>}
+              <Descriptions.Item label={t('draft.source')}>
+                {draft.source === 'ai' ? <Tag color="purple">{t('draft.aiDraft')}</Tag> : <Tag>{t('draft.manual')}</Tag>}
               </Descriptions.Item>
-              <Descriptions.Item label="试跑">
+              <Descriptions.Item label={t('draft.trialLabel')}>
                 {draft.trial_release_id ? (
                   <Tag color={draft.trial_status === 'success' ? 'green' : draft.trial_status === 'failed' ? 'red' : 'default'}>
-                    发布 #{draft.trial_release_id} · {draft.trial_status || '未知'}
+                    {t('draft.trialRel', {
+                      id: draft.trial_release_id,
+                      status: draft.trial_status ? releaseStatusMeta(draft.trial_status).text : t('common.unknown'),
+                    })}
                   </Tag>
                 ) : (
-                  <Text type="secondary">未试跑</Text>
+                  <Text type="secondary">{t('draft.notTried')}</Text>
                 )}
               </Descriptions.Item>
-              <Descriptions.Item label="原始诉求" span={2}>
+              <Descriptions.Item label={t('draft.intent')} span={2}>
                 {draft.intent || <Text type="secondary">—</Text>}
               </Descriptions.Item>
             </Descriptions>
@@ -231,13 +243,13 @@ export default function PluginDraftDrawer({ draftId, onClose }: Props) {
               items={[
                 {
                   key: 'lint',
-                  label: `体检（${findings.length}）`,
+                  label: t('draft.lintN', { n: findings.length }),
                   children: findings.length === 0 ? (
-                    <Empty description="没有发现问题" />
+                    <Empty description={t('draft.noIssues')} />
                   ) : (
                     <Space direction="vertical" style={{ width: '100%' }}>
                       {findings.map((f, idx) => {
-                        const meta = LEVEL_META[f.level] || { color: 'default', text: f.level }
+                        const meta = levelMeta(f.level)
                         return (
                           <Alert
                             key={`${f.code}-${idx}`}
@@ -258,7 +270,7 @@ export default function PluginDraftDrawer({ draftId, onClose }: Props) {
                           checked={acknowledged}
                           onChange={(e) => setAcknowledged(e.target.checked)}
                         >
-                          我已逐条读过上述 {highCount} 个高危项对应的代码，确认可以发布
+                          {t('draft.ackHigh', { n: highCount })}
                         </Checkbox>
                       )}
                     </Space>
@@ -266,7 +278,7 @@ export default function PluginDraftDrawer({ draftId, onClose }: Props) {
                 },
                 {
                   key: 'files',
-                  label: `源码（${Object.keys(draft.files || {}).length}）`,
+                  label: t('draft.filesN', { n: Object.keys(draft.files || {}).length }),
                   children: (
                     <Tabs
                       tabPosition="left"
@@ -294,7 +306,7 @@ export default function PluginDraftDrawer({ draftId, onClose }: Props) {
                 style={{ marginTop: 16 }}
                 type={draft.status === 'published' ? 'success' : 'error'}
                 showIcon
-                message={draft.status === 'published' ? '该草稿已发布到插件仓库' : '该草稿已驳回'}
+                message={draft.status === 'published' ? t('draft.publishedAlert') : t('draft.rejectedAlert')}
                 description={draft.review_comment || undefined}
               />
             )}
@@ -303,43 +315,46 @@ export default function PluginDraftDrawer({ draftId, onClose }: Props) {
       </Drawer>
 
       <Modal
-        title="沙箱试跑"
+        title={t('draft.trial')}
         open={trialOpen}
         onCancel={() => setTrialOpen(false)}
         onOk={handleTrial}
         confirmLoading={busy}
-        okText="开始试跑"
+        okText={t('draft.startTrial')}
       >
         <Alert
           type="info"
           showIcon
           style={{ marginBottom: 12 }}
-          message="试跑会在选中的流水线上产生一条执行记录"
-          description="建议专门建一条测试流水线用于试跑。插件会真的在构建机上跑起来，请先读过代码再试。"
+          message={t('draft.trialAlert')}
+          description={t('draft.trialDesc')}
         />
         <Form form={trialForm} layout="vertical" initialValues={{ agent_tag: 'linux', params: '{}' }}>
           <Form.Item
             name="pipeline_id"
-            label="试跑流水线"
-            rules={[{ required: true, message: '请选择一条流水线' }]}
+            label={t('draft.trialPipe')}
+            rules={[{ required: true, message: t('draft.pickPipe') }]}
           >
             <Select
               showSearch
               optionFilterProp="label"
-              placeholder="建议选测试环境的流水线"
-              options={pipelines.map((p) => ({ value: p.id, label: `${p.name}（#${p.id}）` }))}
+              placeholder={t('draft.trialPipePh')}
+              options={pipelines.map((p) => ({
+                value: p.id,
+                label: t('draft.pipeOpt', { name: p.name, id: p.id }),
+              }))}
             />
           </Form.Item>
           <Form.Item
             name="agent_tag"
-            label="构建机标签"
-            tooltip="任务按标签匹配构建机，填 linux / windows 或某台机器的标签"
+            label={t('draft.agentTag')}
+            tooltip={t('draft.agentTagTip')}
           >
             <Input placeholder="linux" />
           </Form.Item>
           <Form.Item
             name="params"
-            label="插件参数（JSON）"
+            label={t('draft.paramsJson')}
             rules={[
               {
                 validator: (_, v) => {
@@ -348,7 +363,7 @@ export default function PluginDraftDrawer({ draftId, onClose }: Props) {
                     JSON.parse(v)
                     return Promise.resolve()
                   } catch {
-                    return Promise.reject(new Error('不是合法 JSON'))
+                    return Promise.reject(new Error(t('draft.badJson')))
                   }
                 },
               },

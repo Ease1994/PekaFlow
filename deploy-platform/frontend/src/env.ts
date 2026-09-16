@@ -1,11 +1,25 @@
+import { t } from '@/i18n'
+
 /** 环境码：分组、构建机、节点共用。匹配必须全等，禁止「不是 test 就当 prod」。 */
 
+/** 内置环境码。句子走 t('env.*')，不要把中文写死在这里。 */
+export const KNOWN_ENV_CODES = ['prod', 'test', 'uat', 'staging', 'dev'] as const
+
+const ENV_I18N: Record<string, string> = {
+  prod: 'env.prod',
+  test: 'env.test',
+  uat: 'env.uat',
+  staging: 'env.staging',
+  dev: 'env.dev',
+}
+
+/** @deprecated 只留下码表兼容旧引用；显示名请用 envLabel()。 */
 export const KNOWN_ENV: Record<string, string> = {
-  prod: '生产',
-  test: '测试',
-  uat: 'UAT',
-  staging: '预发',
-  dev: '开发',
+  prod: 'prod',
+  test: 'test',
+  uat: 'uat',
+  staging: 'staging',
+  dev: 'dev',
 }
 
 export const ENV_COLOR: Record<string, string> = {
@@ -23,8 +37,8 @@ export const ENV_SLUG = /^[a-z][a-z0-9_-]{0,15}$/
 
 export function envLabel(code?: string | null): string {
   const c = (code || '').trim().toLowerCase()
-  if (!c) return '未标环境'
-  return KNOWN_ENV[c] || c
+  if (!c) return t('env.unlabeled')
+  return ENV_I18N[c] ? t(ENV_I18N[c]) : c
 }
 
 export function envColor(code?: string | null): string {
@@ -33,8 +47,8 @@ export function envColor(code?: string | null): string {
   return ENV_COLOR[c] || 'geekblue'
 }
 
-export function envOptions() {
-  return Object.entries(KNOWN_ENV).map(([value, label]) => ({ value, label }))
+export function envOptions(): { value: string; label: string }[] {
+  return KNOWN_ENV_CODES.map((value) => ({ value, label: t(ENV_I18N[value]) }))
 }
 
 /** 列表/下拉里带上已经存在的自定义码，避免选中值突然空白。 */
@@ -60,7 +74,7 @@ export function defaultApprovalRequired(code?: string | null): boolean {
 }
 
 export function groupOptionLabel(g: { name: string; type?: string | null }): string {
-  return `${g.name}（${envLabel(g.type)}）`
+  return t('env.groupWithEnv', { name: g.name, env: envLabel(g.type) })
 }
 
 /** 机器没标环境时不能当成生产；空串表示未隔离，下拉里匹配不到任何流水线。 */

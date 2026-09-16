@@ -6,7 +6,7 @@
 
 **发布部署平台** 是以 AI Agent 为交互核心的多形态发布部署平台。人用自然语言查询、申请权限、发起发布、诊断失败、编写插件；流水线编排与构建机 / 节点执行，把变更落到环境上。
 
-界面语言可在登录页和顶栏切换：简体中文、繁体中文、English、日本語、हिन्दी、Português（巴西）、Deutsch。流水线等内页尚未全部抽出文案时，会回落到简体。
+界面语言可在登录页和顶栏切换：简体中文、繁体中文、English、日本語、हिन्दी、Português（巴西）、Deutsch。
 
 编排是 Stage → Job → Step。助手运行时按 [DeepSeek AI-Harness](https://github.com/deepseek-ai/deepseek-harness) 的思路落地（session 事件溯源、agent-loop、tools 守卫管线、compaction、Skills、MCP、sandbox），不是把 dsh 进程嵌进来。
 
@@ -25,9 +25,143 @@
 - [全模块业务架构图](deploy-platform/docs/全模块业务架构图.png)
 - [技术架构图](deploy-platform/docs/技术架构图.png)
 
-## 快速开始
+---
 
-需要 Python 3.10+、Node.js 18+。Windows 用 `py`，不要用 `python3`。
+# 系统部署
+
+完整栈用 Docker Compose：MySQL、Redis、Elasticsearch、后端、前端、harness-runner。编排文件在 **`deploy-platform/`**，不要在仓库根目录执行。
+
+构建机、节点、HTTPS、备份的细节见 [部署文档](deploy-platform/docs/部署文档.md)。
+
+### 步骤 1 · 准备机器
+
+- 已安装 [Docker](https://docs.docker.com/get-docker/)（含 Compose v2）
+- 能访问镜像仓库，第一次构建会拉镜像并编译前后端，可能要几分钟
+
+```bash
+git clone https://github.com/Ease1994/release-platform.git
+cd release-platform/deploy-platform
+```
+
+### 步骤 2 · 写环境文件
+
+```bash
+cp .env.example .env
+```
+
+Windows 没有 `cp` 时，把 `.env.example` 复制一份改名为 `.env`。`.env` 必须和 `docker-compose.yml` 同级。填了值的 `.env` **不要提交进 Git**。
+
+| 用途 | 怎么处理 `.env` |
+|------|----------------|
+| 本机试用 | 直接用 example 里的口令即可 |
+| 生产 / 对外 | 改掉每一项口令和密钥再启动。`DATABASE_URL` 里的密码必须和 `MYSQL_ROOT_PASSWORD` 逐字相同 |
+
+已经在跑的数据卷上改 MySQL / Redis 口令不会生效。要换口令只能 `docker compose down -v` 后重来（**库会清空**）。**已经在跑的环境不要换 JWT / AES**，否则库里加密的 Git 凭证解不开。迁机把 `.env` 一起带走。
+
+### 步骤 3 · 启动
+
+```bash
+docker compose up -d --build
+```
+
+### 步骤 4 · 确认就绪
+
+```bash
+docker compose ps
+docker compose logs -f backend
+```
+
+等到 backend、frontend 为 `healthy` 或 `running`，且后端日志里出现建表、管理员就绪，再打开浏览器。
+
+| 入口 | 地址 |
+|------|------|
+| 前端 | http://localhost:8000 |
+| API | http://localhost:8080（默认不开 `/docs`） |
+| 健康检查 | http://localhost:8080/api/v1/health |
+
+生产不要把 MySQL 3306、Redis 6379、ES 9200 映射到宿主机。Compose 已带本栈 ES，构建日志写入 `rp-exec-logs-YYYY-MM-DD`。
+
+### 步骤 5 · 第一次登录后必做
+
+1. 用 `admin` / `admin123` 登录（若设了 `BOOTSTRAP_ADMIN_PASSWORD` 则用新口令）
+2. 打开「用户管理」，立刻改掉管理员密码
+3. 打开「平台设置」，填写站点根地址：本机用 `http://localhost:8000`，局域网改成平台机 IP 或域名
+4. 打开「模型管理」，配一个 OpenAI 兼容模型，否则 AI Agent 不能用
+5. 需要构建或往环境上发时，按 [部署文档](deploy-platform/docs/部署文档.md) 安装构建机和部署节点
+
+### 步骤 6 · 停机（不删数据）
+
+```bash
+docker compose down
+```
+
+**不要**加 `-v`。加了会删掉 MySQL、密钥文件、制品和日志卷，等于拆掉这套环境。
+
+---
+
+# 版本升级
+
+升级只换代码和镜像，**数据卷必须留下**。不要改正在用的 JWT / AES。
+
+### 步骤 1 · 建议先备份
+
+至少留这三样：MySQL、`backend-data` 卷（密钥 / 制品 / 插件）、当时的 JWT 与 AES。做法见 [部署文档 · 备份](deploy-platform/docs/部署文档.md)。
+
+### 步骤 2 · 拉新代码
+
+在当初 clone 的目录里：
+
+```bash
+cd release-platform
+git pull
+cd deploy-platform
+```
+
+### 步骤 3 · 若改过 Java Agent 源码
+
+改过 `deploy-platform/backend/agent-java/src` 时，必须先重编 jar，再构建后端镜像。否则平台继续下发旧包，和源码对不上。
+
+```bash
+cd backend/agent-java
+# Windows（需要 JDK 8 的 javac）
+build.bat
+# Linux / macOS
+./build.sh
+cd ../..
+```
+
+产出 `deploy-agent.jar` 和更新后的 `.srcsha`。
+
+### 步骤 4 · 重建并启动
+
+仍在 `deploy-platform/` 下：
+
+```bash
+docker compose up -d --build
+```
+
+不要加 `-v`。镜像更新后，库、密钥、制品都还在。后端启动会跑库表补丁，一般不必手工迁库。
+
+### 步骤 5 · 确认升级成功
+
+1. `docker compose ps`：backend、frontend 为 `healthy` 或 `running`
+2. 打开健康检查：http://localhost:8080/api/v1/health
+3. 浏览器能登录，流水线和历史还在
+
+### 步骤 6 · 更新构建机和节点上的 Agent
+
+| 角色 | 怎么升级 jar |
+|------|----------------|
+| 构建机 | 空闲时自己向平台拉新包，一般不用上手 |
+| 部署节点 | 在「节点管理」里点升级，等当前发布做完再点 |
+
+不要在机器上另起一套进程「手工换 jar」。
+
+---
+
+## 本机开发（不用 Compose）
+
+需要 Python 3.10+、Node.js 18+。Windows 用 `py`，不要用 `python3`。适合改代码，不是生产装法。
 
 ```bash
 git clone https://github.com/Ease1994/release-platform.git
@@ -47,41 +181,7 @@ npm install
 npm run dev -- --host 0.0.0.0
 ```
 
-浏览器打开 http://localhost:5173 。演示账号 `admin` / `admin123`（只适合本机；生产必须改密或设置 `BOOTSTRAP_ADMIN_PASSWORD`）。
-
-先在「模型管理」配一个 OpenAI 兼容模型，再到 AI Agent 里对一条测试流水线说「发布一下」，核对确认卡片上的流水线 id。
-
-### Docker Compose（MySQL + Redis + Elasticsearch + 后端 + 前端 + harness-runner）
-
-需要本机已装 [Docker](https://docs.docker.com/get-docker/)（含 Compose v2）。编排文件在 **`deploy-platform/`**，不要在仓库根目录执行。
-
-**1. 复制环境文件并启动**
-
-```bash
-cd release-platform/deploy-platform
-cp .env.example .env
-docker compose up -d --build
-docker compose ps
-docker compose logs -f backend
-```
-
-Windows 没有 `cp` 就手动复制 `.env.example` 为 `.env`。`.env.example` 已带试用口令，复制后就能起，不必先改。填了值的 `.env` 不要提交进 Git。
-
-登录 `admin` / `admin123`。生产或对外服务请改 `.env` 里每一项口令和密钥后重新 `docker compose up -d`。已经在跑的数据卷改 MySQL / Redis 口令不会生效，要换就 `docker compose down -v` 后重来（库会清空）。**已经在跑的环境不要换 JWT/AES**，否则库里加密的 Git 凭证解不开。
-
-第一次会拉镜像、编前端和后端，可能要几分钟。看到 backend / frontend 为 `healthy` 或 `running`，且后端日志里建表、管理员就绪后再打开浏览器。
-
-**2. 打开页面**
-
-| 入口 | 地址 |
-|------|------|
-| 前端 | http://localhost:8000 |
-| API | http://localhost:8080（默认不开 `/docs`） |
-| 健康检查 | http://localhost:8080/api/v1/health |
-
-登录账号 `admin` / `admin123`（`.env` 里改过 `BOOTSTRAP_ADMIN_PASSWORD` 则用新口令）。然后：在「平台设置」填站点根地址 `http://localhost:8000`（局域网改成平台机 IP）；在「模型管理」配一个 OpenAI 兼容模型。生产不要把 MySQL 3306 / Redis 6379 / ES 9200 映射到宿主机。Compose 已带本栈 ES，构建日志写入 `rp-exec-logs-YYYY-MM-DD`。要换集群在平台设置改地址。
-
-停服务用 `docker compose down`（**不要**加 `-v`，否则会删掉库、密钥和制品卷）。装构建机 / 节点、HTTPS、备份升级见 [部署文档](deploy-platform/docs/部署文档.md)。
+浏览器打开 http://localhost:5173 。演示账号 `admin` / `admin123`（只适合本机）。
 
 ## 文档
 

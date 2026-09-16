@@ -4,9 +4,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { get, post } from '@/api/client'
 import { fromNow, kindTitle, noticeHref, type Notice } from './types'
+import { useT } from '@/i18n'
 
 export default function NoticeBell() {
   const navigate = useNavigate()
+  const t = useT()
   const qc = useQueryClient()
   const { data: unread } = useQuery({
     queryKey: ['notices-unread'],
@@ -57,20 +59,20 @@ export default function NoticeBell() {
               borderBottom: '1px solid #f0f0f0',
             }}
           >
-            <span style={{ fontWeight: 600, borderBottom: '2px solid #1677ff', paddingBottom: 2 }}>通知</span>
+            <span style={{ fontWeight: 600, borderBottom: '2px solid #1677ff', paddingBottom: 2 }}>{t('notify.title')}</span>
             <a
               onClick={(e) => {
                 e.preventDefault()
                 navigate('/notifications')
               }}
             >
-              通知中心 &gt;
+              {t('notify.center')} &gt;
             </a>
           </div>
           {isFetching && !notices.length ? (
             <Spin style={{ display: 'block', margin: 24 }} />
           ) : notices.length === 0 ? (
-            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无通知" style={{ margin: 24 }} />
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('notify.empty')} style={{ margin: 24 }} />
           ) : (
             <List
               dataSource={notices}
@@ -125,7 +127,7 @@ export default function NoticeBell() {
                               open(n)
                             }}
                           >
-                            查看详情
+                            {t('notify.viewDetail')}
                           </a>
                         </div>
                       </div>

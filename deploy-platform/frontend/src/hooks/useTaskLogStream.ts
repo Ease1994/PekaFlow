@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { post } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
+import { t } from '@/i18n'
 
 /**
  * 订阅单个构建任务的日志流（SSE：先回放历史，再推增量）。
@@ -9,12 +10,11 @@ import { useAuthStore } from '@/stores/auth'
  * 先用会话换一张 60 秒 stream_token，断线再换一张继续。
  */
 const MAX_LINES = 20000
-const TRIMMED = '…（前面的日志已超出浏览器缓冲，只保留最近 20000 行）'
 
 function capped(prev: string[], incoming: string[]): string[] {
   const merged = prev.concat(incoming)
   if (merged.length <= MAX_LINES) return merged
-  return [TRIMMED, ...merged.slice(merged.length - MAX_LINES)]
+  return [t('log.trimmed'), ...merged.slice(merged.length - MAX_LINES)]
 }
 
 /** 用登录会话换 SSE 短时票。失败返回空串，调用方不要去连。 */

@@ -8,6 +8,7 @@ import { agentDisplay } from '@/utils/agentLabel'
 import { envLabel, machineEnv } from '@/env'
 import VariableReference from './VariableReference'
 import PluginFormRenderer from './PluginFormRenderer'
+import { useT } from '@/i18n'
 
 export type ConfigTarget =
   | { type: 'stage'; stage: GraphStage; index: number }
@@ -60,6 +61,7 @@ export default function ConfigDrawer({
   onReselectPlugin,
 }: ConfigDrawerProps) {
   const [variableRefOpen, setVariableRefOpen] = useState(false)
+  const t = useT()
 
   // 项目代码库列表（git-checkout 下拉用）
   const { data: repos = [] } = useQuery({
@@ -72,9 +74,9 @@ export default function ConfigDrawer({
 
   const title =
     target.type === 'stage'
-      ? `配置 Stage`
+      ? t('pipe.configStage')
       : target.type === 'job'
-      ? `构建环境 ${agentDisplay(target.job.agent).text} (${target.job.id})`
+      ? t('pipe.configJob', { name: agentDisplay(target.job.agent).text, id: target.job.id })
       : target.type === 'step'
       ? target.step.name || target.step.display_name || target.step.plugin
       : ''
@@ -90,26 +92,26 @@ export default function ConfigDrawer({
         extra={
           <Space>
             <Button type="link" onClick={() => setVariableRefOpen(true)}>
-              引用变量
+              {t('pipe.refVar')}
             </Button>
             {target.type === 'stage' && onDeleteStage && (
               <Button danger icon={<DeleteOutlined />} onClick={onDeleteStage}>
-                删除 Stage
+                {t('pipe.deleteStage')}
               </Button>
             )}
             {target.type === 'job' && onDeleteJob && (
               <Button danger icon={<DeleteOutlined />} onClick={onDeleteJob}>
-                删除 Job
+                {t('pipe.deleteJob')}
               </Button>
             )}
             {target.type === 'step' && onDuplicateStep && (
               <Button icon={<CopyOutlined />} onClick={onDuplicateStep}>
-                复制 Step
+                {t('pipe.copyStep')}
               </Button>
             )}
             {target.type === 'step' && onDeleteStep && (
               <Button danger icon={<DeleteOutlined />} onClick={onDeleteStep}>
-                删除 Step
+                {t('pipe.deleteStep')}
               </Button>
             )}
           </Space>
@@ -159,6 +161,7 @@ export default function ConfigDrawer({
 
 // ============ Stage 配置 ============
 function StageForm({ stage, onChange }: { stage: GraphStage; onChange: (s: GraphStage) => void }) {
+  const t = useT()
   const [form] = Form.useForm()
 
   useEffect(() => {
@@ -171,14 +174,14 @@ function StageForm({ stage, onChange }: { stage: GraphStage; onChange: (s: Graph
       layout="vertical"
       onValuesChange={(_, all) => onChange({ ...stage, name: all.name || stage.name })}
     >
-      <Form.Item label="Stage 名称" name="name" rules={[{ required: true }]}>
-        <Input placeholder="如：构建" />
+      <Form.Item label={t("pipe.stageName")} name="name" rules={[{ required: true }]}>
+        <Input placeholder={t("pipe.stageNamePh")} />
       </Form.Item>
-      <Divider>触发器</Divider>
+      <Divider>{t('pipe.triggersTab')}</Divider>
       <Alert
         type="info"
         showIcon
-        message="触发器在「流水线 / 通知」页可详细配置；修改后关闭抽屉，再点右上角「保存」写入服务器"
+        message={t("pipe.stageTriggerHint")}
         style={{ marginBottom: 16 }}
       />
     </Form>
@@ -197,6 +200,7 @@ function JobForm({
   onOpenVariableRef?: () => void
   onChange: (j: GraphJob) => void
 }) {
+  const t = useT()
   const [form] = Form.useForm()
 
   // 从构建机管理动态加载（部署节点不在此列，它们由部署插件按步骤指定）
@@ -234,11 +238,11 @@ function JobForm({
           const envBit = envLabel(a.env || 'prod')
           return {
             value: `agent:${a.id}`,
-            label: `${online ? '🟢' : '⚪'} ${a.name}（${envBit} · ${osIcon(a.os)} ${a.os}${online ? '' : '，当前离线'}）`,
+            label: `${online ? '🟢' : '⚪'} ${a.name}（${envBit} · ${osIcon(a.os)} ${a.os}${online ? '' : t('pipe.agentOffline')}）`,
           }
         })
     },
-    [agents, envCode, job.agent],
+    [agents, envCode, job.agent, t],
   )
 
   // 标签只保留人工打的：Agent 没配标签时会自动按系统打一个，那和下面的「按环境匹配」
@@ -262,13 +266,13 @@ function JobForm({
       }
     }
     if (current && !byTag.has(current)) {
-      byTag.set(current, { names: ['当前所选，环境不匹配'], online: 0 })
+      byTag.set(current, { names: [t('pipe.currentMismatch')], online: 0 })
     }
     return Array.from(byTag.entries()).map(([tag, info]) => ({
       value: tag,
       label: `🏷 ${tag}（${info.names.join('、')}）`,
     }))
-  }, [agents, envCode, job.agent])
+  }, [agents, envCode, job.agent, t])
 
   useEffect(() => {
     form.setFieldsValue({ id: job.id, name: job.name, agent: job.agent })
@@ -299,7 +303,7 @@ function JobForm({
     <>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
         <Button type="link" onClick={onOpenVariableRef}>
-          引用变量
+          {t('pipe.refVar')}
         </Button>
       </div>
 
@@ -309,45 +313,45 @@ function JobForm({
         onValuesChange={(_, all) => onChange(buildJob(all))}
       >
         <Form.Item label="Job ID" name="id" rules={[{ required: true }]}>
-          <Input placeholder="如：Job_EHC" />
+          <Input placeholder={t("pipe.jobNamePh")} />
         </Form.Item>
-        <Form.Item label="Job 名称" name="name" rules={[{ required: true }]}>
-          <Input placeholder="如：构建环境-Linux" />
+        <Form.Item label={t("pipe.jobName")} name="name" rules={[{ required: true }]}>
+          <Input placeholder={t("pipe.jobNameExample")} />
         </Form.Item>
         <Form.Item
-          label="构建资源"
+          label={t("pipe.buildResource")}
           name="agent"
           rules={[{ required: true }]}
-          tooltip="选具体机器就固定在那台上跑；选按系统匹配则任意一台符合的机器都能跑，某台离线不影响流水线。只会派给与本流水线环境码相同的构建机。"
+          tooltip={t("pipe.buildResourceHint")}
         >
           <Select
-            placeholder="选一台构建机，或按系统匹配"
+            placeholder={t("pipe.pickAgent")}
             showSearch
             optionFilterProp="label"
           >
-            <Select.OptGroup label={`指定构建机（${machineOptions.length} 台）`}>
+            <Select.OptGroup label={t('pipe.specifiedAgents', { n: machineOptions.length })}>
               {machineOptions.map((m) => (
                 <Select.Option key={m.value} value={m.value} label={m.label}>
                   {m.label}
                 </Select.Option>
               ))}
             </Select.OptGroup>
-            <Select.OptGroup label="按系统匹配（不挑机器，哪台空闲哪台跑）">
-              <Select.Option value="linux" label="🐧 任意 Linux 机器">
-                🐧 任意 Linux 机器
+            <Select.OptGroup label={t("pipe.matchByOs")}>
+              <Select.Option value="linux" label={t("pipe.matchLinux")}>
+                {t("pipe.matchLinux")}
               </Select.Option>
-              <Select.Option value="windows" label="🪟 任意 Windows 机器">
-                🪟 任意 Windows 机器
+              <Select.Option value="windows" label={t("pipe.matchWindows")}>
+                {t("pipe.matchWindows")}
               </Select.Option>
-              <Select.Option value="macos" label="🍎 任意 macOS 机器">
-                🍎 任意 macOS 机器
+              <Select.Option value="macos" label={t("pipe.matchMacos")}>
+                {t("pipe.matchMacos")}
               </Select.Option>
-              <Select.Option value="any" label="⚙ 任意可用机器">
-                ⚙ 任意可用机器
+              <Select.Option value="any" label={t("pipe.matchAny")}>
+                {t("pipe.matchAny")}
               </Select.Option>
             </Select.OptGroup>
             {agentTagOptions.length > 0 && (
-              <Select.OptGroup label="按标签匹配">
+              <Select.OptGroup label={t("pipe.matchByTag")}>
                 {agentTagOptions.map((t) => (
                   <Select.Option key={`tag-${t.value}`} value={t.value} label={t.label}>
                     {t.label}
@@ -362,8 +366,8 @@ function JobForm({
             type="warning"
             showIcon
             style={{ marginBottom: 16 }}
-            message="还没有构建机"
-            description="到「构建机管理」装一台后再回来选择，否则流水线跑起来会一直卡在等待机器。"
+            message={t("pipe.noAgents")}
+            description={t("pipe.noAgentsHint")}
           />
         )}
         {!!envCode && agents.length > 0 && machineOptions.length === 0 && (
@@ -371,14 +375,14 @@ function JobForm({
             type="warning"
             showIcon
             style={{ marginBottom: 16 }}
-            message={`没有${envLabel(envCode)}环境的构建机`}
-            description="这条流水线只会派给同环境码的机器。到「构建机管理」把一台标成对应环境，或改选「按系统匹配」。"
+            message={t('pipe.noEnvAgents', { env: envLabel(envCode) })}
+            description={t("pipe.noEnvAgentsHint")}
           />
         )}
         <Alert
           type="info"
           showIcon
-          message="修改后关闭抽屉，再点右上角「保存」写入服务器"
+          message={t("pipe.closeThenSave")}
           style={{ marginTop: 8 }}
         />
       </Form>
@@ -408,6 +412,7 @@ function StepForm({
   onOpenVariableRef?: () => void
   onChange: (s: GraphStep) => void
 }) {
+  const t = useT()
   const [form] = Form.useForm()
   const currentPlugin = plugins.find((p) => p.name === step.plugin)
   // 步骤名称：已填写的优先，否则用插件显示名
@@ -461,7 +466,7 @@ function StepForm({
       items={[
         {
           key: 'basic',
-          label: '基础信息',
+          label: t('pipe.basics'),
           children: (
             <Form
               form={form}
@@ -469,29 +474,29 @@ function StepForm({
               onValuesChange={(_, all) => pushChange({ name: all.name || '' })}
               initialValues={{ name: defaultName }}
             >
-              <Form.Item label="步骤名称" name="name">
-                <Input placeholder="默认等于插件名称，可改成更具体的叫法" />
+              <Form.Item label={t("pipe.stepName")} name="name">
+                <Input placeholder={t("pipe.stepNameHint")} />
               </Form.Item>
               <Form.Item label="Step ID">
                 <Input value={`step-${step.order}`} disabled />
               </Form.Item>
-              <Form.Item label="插件">
+              <Form.Item label={t("pipe.plugin")}>
                 <Input
                   value={currentPlugin?.display_name || step.plugin}
                   addonAfter={
                     <a onClick={() => onReselectPlugin?.()} style={{ cursor: 'pointer' }}>
-                      重选
+                      {t('pipe.reselect')}
                     </a>
                   }
                   readOnly
                 />
               </Form.Item>
-              <Form.Item label="版本">
+              <Form.Item label={t("pipe.version")}>
                 <Input value={currentPlugin?.version || '1.latest'} readOnly />
               </Form.Item>
-              <Form.Item label="说明">
+              <Form.Item label={t("pipe.description")}>
                 <Input.TextArea
-                  value={currentPlugin?.description || '该插件未提供描述'}
+                  value={currentPlugin?.description || t('pipe.noPluginDesc')}
                   readOnly
                   autoSize={{ minRows: 1, maxRows: 3 }}
                 />
@@ -499,24 +504,24 @@ function StepForm({
               <Alert
                 type="info"
                 showIcon
-                message="修改会即时记住；关闭抽屉后点右上角「保存」写入服务器"
+                message={t("pipe.rememberThenSave")}
               />
             </Form>
           ),
         },
         {
           key: 'params',
-          label: '参数配置',
+          label: t('pipe.params'),
           children: (
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                 <span style={{ fontSize: 12, color: '#666' }}>
                   {currentPlugin
-                    ? `基于插件 ${currentPlugin.display_name} 的配置 schema 自动渲染`
-                    : '以 JSON 格式编辑插件参数'}
+                    ? t('pipe.paramsSchemaHint', { name: currentPlugin.display_name })
+                    : t('pipe.paramsJsonHint')}
                 </span>
                 <Button type="link" onClick={onOpenVariableRef}>
-                  引用变量
+                  {t('pipe.refVar')}
                 </Button>
               </div>
 
@@ -550,7 +555,7 @@ function StepForm({
               <Alert
                 type="info"
                 showIcon
-                message="参数修改会即时记住；关闭抽屉后点右上角「保存」写入服务器"
+                message={t("pipe.paramsRemember")}
                 style={{ marginTop: 12 }}
               />
             </>

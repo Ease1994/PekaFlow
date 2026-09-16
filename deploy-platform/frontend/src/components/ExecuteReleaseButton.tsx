@@ -8,6 +8,7 @@ import type { StartParam } from '@/components/pipeline/RunPipelineFields'
 import ReleaseGateFields from '@/components/ReleaseGateFields'
 import { pipelineNeedsManifest, manifestInputRequired } from '@/utils/releaseGate'
 import { envColor, envLabel } from '@/env'
+import { useT } from '@/i18n'
 
 interface Props {
   pipeline?: Pipeline
@@ -30,10 +31,11 @@ export default function ExecuteReleaseButton({
   pipelineId,
   type = 'primary',
   size,
-  text = '执行',
+  text,
   onDone,
 }: Props) {
   const qc = useQueryClient()
+  const t = useT()
   const [open, setOpen] = useState(false)
   const [bypass, setBypass] = useState(false)
   const [reason, setReason] = useState('')
@@ -71,11 +73,11 @@ export default function ExecuteReleaseButton({
       )
       const release = res.data
       const num = release?.build_number || release?.id
-      if (release?.status === 'failed' || (res.message && res.message !== 'ok' && res.message.includes('未能启动'))) {
-        message.error(res.message && res.message !== 'ok' ? res.message : '发布未能启动', 8)
-      } else if (release?.status === 'pending') message.success(`已提交发布 #${num}，等待审批`)
-      else if (payload?.emergency_bypass) message.warning(`已应急跳审，发布 #${num} 直接执行`)
-      else message.success('已触发执行')
+      if (release?.status === 'failed' || (res.message && res.message !== 'ok' && res.message.includes(t('pipe.startFailedToken')))) {
+        message.error(res.message && res.message !== 'ok' ? res.message : t('pipe.publishStartFailed'), 8)
+      } else if (release?.status === 'pending') message.success(t('pipe.submittedPending', { n: num }))
+      else if (payload?.emergency_bypass) message.warning(t('pipe.emergencyRan', { n: num }))
+      else message.success(t('execBtn.triggered'))
       setOpen(false)
       setBypass(false)
       setReason('')
@@ -128,7 +130,7 @@ export default function ExecuteReleaseButton({
     setOpen(true)
   }
 
-  const okText = needApproval ? (bypass ? '应急跳审并执行' : '提交审批') : '执行'
+  const okText = needApproval ? (bypass ? t('execBtn.emergencyRun') : t('execBtn.submitApproval')) : t('execBtn.run')
   const blockManifest = manifestInputRequired(
     needManifest,
     pipeline?.deploy_manifest_default || '',
@@ -138,15 +140,15 @@ export default function ExecuteReleaseButton({
   return (
     <>
       <Button type={type} size={size} icon={<RocketOutlined />} loading={loading && !open} onClick={handleClick}>
-        {text}
+        {text || t('execBtn.run')}
       </Button>
 
       <Modal
         title={
           <Space>
-            发起发布
+            {t('execBtn.startTitle')}
             {envType ? (
-              <Tag color={envColor(envType)}>{envLabel(envType)}环境</Tag>
+              <Tag color={envColor(envType)}>{t('execBtn.envTag', { env: envLabel(envType) })}</Tag>
             ) : null}
           </Space>
         }
@@ -170,8 +172,8 @@ export default function ExecuteReleaseButton({
               type="info"
               showIcon
               style={{ marginBottom: 12 }}
-              message="本次执行参数"
-              description="留空按流水线默认值执行；这些值会替换步骤里的 ${变量名} 占位符。"
+              message={t('pipe.runParams')}
+              description={t('pipe.runParamsHint')}
             />
             {startParams.map((p) => {
               const value = params[p.name] ?? ''

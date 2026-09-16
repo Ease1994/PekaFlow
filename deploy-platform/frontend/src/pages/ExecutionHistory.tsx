@@ -13,29 +13,10 @@ import DiagnoseDrawer from '@/components/DiagnoseDrawer'
 import ExecuteReleaseButton from '@/components/ExecuteReleaseButton'
 import PipelineContextBreadcrumb from '@/components/PipelineContextBreadcrumb'
 import RiskActionButton from '@/components/RiskActionButton'
+import { useT } from '@/i18n'
+import { releaseStatusMeta } from '@/utils/releaseStatus'
 
 const { Text } = Typography
-
-const statusMap: Record<string, { color: string; text: string }> = {
-  pending: { color: 'orange', text: '待审批' },
-  queued: { color: 'cyan', text: '排队中' },
-  running: { color: 'processing', text: '执行中' },
-  success: { color: 'success', text: '成功' },
-  failed: { color: 'error', text: '失败' },
-  rejected: { color: 'error', text: '审批驳回' },
-  rolling_back: { color: 'warning', text: '回滚中' },
-  rolled_back: { color: 'default', text: '已回滚' },
-  cancelled: { color: 'default', text: '已取消' },
-}
-
-const triggerByMap: Record<string, string> = {
-  manual: '手动',
-  webhook: 'Webhook',
-  cron: '定时',
-  ai: 'AI',
-  rebuild: 'Rebuild',
-  rollback: '回滚',
-}
 
 interface CommitInfo {
   short_id: string
@@ -102,9 +83,20 @@ interface SequenceData {
 }
 
 export default function ExecutionHistory() {
+  const t = useT()
   const { pipelineId } = useParams<{ pipelineId: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+
+  /** 触发方式：Webhook / AI / Rebuild 保持原文，其余按当前语言。 */
+  const triggerByMap: Record<string, string> = {
+    manual: t('exec.trigManual'),
+    webhook: 'Webhook',
+    cron: t('exec.trigCron'),
+    ai: 'AI',
+    rebuild: 'Rebuild',
+    rollback: t('pipe.actionRollback'),
+  }
   const [activeDetailId, setActiveDetailId] = useState<number | null>(null)
   const [diagnoseId, setDiagnoseId] = useState<number | null>(null)
   const [selectedStep, setSelectedStep] = useState<{ taskId: number; stepOrder: number } | null>(null)
@@ -177,13 +169,13 @@ export default function ExecutionHistory() {
   // 取消正在执行的发布（执行卡死/主动取消）
   const handleCancel = async (id: number) => {
     await post(`/releases/${id}/cancel`)
-    message.success('已取消发布')
+    message.success(t('exec.cancelled'))
     queryClient.invalidateQueries({ queryKey: ['history', pipelineId] })
   }
 
   const columns = [
     {
-      title: '构建号',
+      title: t('deploy.buildNo'),
       dataIndex: 'build_number',
       width: 90,
       render: (num: number | undefined, r: Release) => (
@@ -196,7 +188,7 @@ export default function ExecutionHistory() {
       ),
     },
     {
-      title: '源材料',
+      title: t('exec.source'),
       dataIndex: 'source_ref',
       width: 320,
       render: (v: string | null, r: Release) => {
@@ -217,13 +209,13 @@ export default function ExecutionHistory() {
       },
     },
     {
-      title: '触发方式',
+      title: t('exec.trigger'),
       dataIndex: 'trigger_by',
       width: 90,
       render: (v: string) => <Tag>{triggerByMap[v] || v}</Tag>,
     },
     {
-      title: '发布人',
+      title: t('exec.operator'),
       dataIndex: 'operator_name',
       width: 110,
       render: (v: string) => (
@@ -234,7 +226,7 @@ export default function ExecutionHistory() {
       ),
     },
     {
-      title: '开始于',
+      title: t('exec.startedAt'),
       dataIndex: 'started_at',
       width: 160,
       render: (v: string | null) =>
@@ -248,7 +240,7 @@ export default function ExecutionHistory() {
         ),
     },
     {
-      title: '完成于',
+      title: t('exec.finishedAt'),
       dataIndex: 'finished_at',
       width: 160,
       render: (v: string | null) =>
@@ -262,17 +254,17 @@ export default function ExecutionHistory() {
         ),
     },
     {
-      title: '构件列表',
+      title: t('exec.artifacts'),
       dataIndex: 'version',
       width: 120,
       render: (v: string) => <Tag>{v || '--'}</Tag>,
     },
     {
-      title: '状态',
+      title: t('common.status'),
       dataIndex: 'status',
       width: 220,
       render: (v: string, r: Release) => {
-        const s = statusMap[v] || { color: 'default', text: v }
+        const s = releaseStatusMeta(v)
         return (
           <div>
             <Tag color={s.color}>{s.text}</Tag>
@@ -298,7 +290,7 @@ export default function ExecutionHistory() {
       },
     },
     {
-      title: '操作',
+      title: t('common.action'),
       width: 250,
       fixed: 'right' as const,
       render: (_: unknown, r: Release) => (
@@ -314,7 +306,7 @@ export default function ExecutionHistory() {
                 setDiagnoseId(r.id)
               }}
             >
-              AI 诊断
+              {t('exec.aiDiagnose')}
             </Button>
           )}
           <span onClick={(e) => e.stopPropagation()}>
@@ -328,7 +320,7 @@ export default function ExecutionHistory() {
                 groupType={r.group_type ?? pipeline?.group_type}
                 pipeline={pipeline}
                 disabled={['pending', 'queued', 'running'].includes(r.status) || !r.source_ref}
-                title={!r.source_ref ? '该次发布未记录 commit，无法 Rebuild' : `用 ${r.source_ref?.slice(0, 8)} 重建`}
+                title={!r.source_ref ? t('exec.noCommit') : t('exec.rebuildWith', { ref: r.source_ref?.slice(0, 8) })}
                 onDone={(nr) => {
                   queryClient.invalidateQueries({ queryKey: ['history', pipelineId] })
                   if (nr.status !== 'pending') navigate(`/executions/${pipelineId}/${nr.id}`)
@@ -359,7 +351,7 @@ export default function ExecutionHistory() {
                 handleCancel(r.id)
               }}
             >
-              取消
+              {t('common.cancel')}
             </Button>
           )}
         </Space>
@@ -381,7 +373,7 @@ export default function ExecutionHistory() {
           padding: '8px 0',
         }}
       >
-        <PipelineContextBreadcrumb pipeline={pipeline} current="执行历史" />
+        <PipelineContextBreadcrumb pipeline={pipeline} current={t('exec.history')} />
         <Space>
           {canExecute && (
             <ExecuteReleaseButton
@@ -395,7 +387,7 @@ export default function ExecutionHistory() {
               icon={<EditOutlined />}
               onClick={() => navigate(`/pipeline/${pipelineId}/edit`)}
             >
-              编辑
+              {t('common.edit')}
             </Button>
           )}
         </Space>
@@ -406,8 +398,8 @@ export default function ExecutionHistory() {
         title={
           <Space>
             <ExperimentOutlined />
-            <span>执行历史 · {pipeline?.name || '...'}</span>
-            <Tag>{releasePage?.total ?? 0} 次执行</Tag>
+            <span>{t('exec.historyTitle', { name: pipeline?.name || '...' })}</span>
+            <Tag>{t('exec.nRuns', { n: releasePage?.total ?? 0 })}</Tag>
           </Space>
         }
         size="small"
@@ -417,7 +409,7 @@ export default function ExecutionHistory() {
             chromeKey="execution-history"
             rowKey="id"
             loading={isLoading}
-            columns={canExecute ? columns : columns.filter((c) => c.title !== '操作')}
+            columns={canExecute ? columns : columns.filter((c) => c.title !== t('common.action'))}
             dataSource={releases}
             size="small"
             locale={isLoading ? { emptyText: ' ' } : undefined}
@@ -426,7 +418,7 @@ export default function ExecutionHistory() {
               pageSize: releasePage?.page_size || pageSize,
               total: releasePage?.total || 0,
               showSizeChanger: true,
-              showTotal: (t) => `共计 ${t} 次执行`,
+              showTotal: (n) => t('exec.total', { n }),
             }}
             onChange={(p) => {
               setPage(p.current || 1)
@@ -438,12 +430,12 @@ export default function ExecutionHistory() {
             })}
           />
         ) : (
-          <Empty description="暂无执行记录">
+          <Empty description={t('exec.empty')}>
             {canExecute && (
               <ExecuteReleaseButton
                 pipeline={pipeline}
                 pipelineId={pipelineId}
-                text="立即执行"
+                text={t('exec.runNow')}
                 onDone={() => queryClient.invalidateQueries({ queryKey: ['history', pipelineId] })}
               />
             )}

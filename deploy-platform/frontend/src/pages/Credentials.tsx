@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { get, post, put, del } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
+import { useT } from '@/i18n'
 
 interface Credential {
   id: number
@@ -23,18 +24,6 @@ interface ProjectItem {
   code: string
 }
 
-const TYPE_OPTIONS = [
-  { label: 'Token', value: 'token' },
-  { label: 'SSH Key', value: 'ssh' },
-  { label: '账号密码', value: 'password' },
-]
-
-const TYPE_TAG: Record<string, JSX.Element> = {
-  token: <Tag color="blue">Token</Tag>,
-  ssh: <Tag color="green">SSH Key</Tag>,
-  password: <Tag color="orange">账号密码</Tag>,
-}
-
 /**
  * 按凭证类型切换录入框。
  *
@@ -44,6 +33,7 @@ const TYPE_TAG: Record<string, JSX.Element> = {
  * @param editing 是否正在改已有凭证；新建时用户名密码必填
  */
 function CredentialSecretFields({ editing }: { editing: boolean }) {
+  const t = useT()
   const form = Form.useFormInstance()
   const type = Form.useWatch('type', form) || 'token'
   if (type === 'password') {
@@ -53,44 +43,45 @@ function CredentialSecretFields({ editing }: { editing: boolean }) {
           type="info"
           showIcon
           style={{ marginBottom: 12 }}
-          message="华为云 SWR、阿里云 ACR 等镜像仓库用账号密码登录。流水线里 Docker 构建 / 编译 / 部署步骤可以选择这份凭证，不必把密码写进步骤参数。"
+          message={t('cred.registryHint')}
         />
         <Form.Item
           name="username"
-          label="用户名"
-          rules={editing ? [] : [{ required: true, message: '请填写镜像仓库用户名' }]}
+          label={t('cred.username')}
+          rules={editing ? [] : [{ required: true, message: t('cred.usernameRequired') }]}
         >
-          <Input placeholder="镜像仓库登录用户名" autoComplete="off" />
+          <Input placeholder={t('cred.usernamePh')} autoComplete="off" />
         </Form.Item>
         <Form.Item
           name="password"
-          label="密码"
-          rules={editing ? [] : [{ required: true, message: '请填写镜像仓库密码' }]}
-          extra={editing ? '留空则保留原账号密码；要改就用户名和密码一起填' : '加密存储，不回显'}
+          label={t('cred.password')}
+          rules={editing ? [] : [{ required: true, message: t('cred.passwordRequired') }]}
+          extra={editing ? t('cred.passwordKeep') : t('cred.encrypted')}
         >
-          <Input.Password placeholder={editing ? '留空表示不修改' : '镜像仓库登录密码'} />
+          <Input.Password placeholder={editing ? t('cred.leaveUnchanged') : t('cred.passwordPh')} />
         </Form.Item>
       </>
     )
   }
-  const label = type === 'ssh' ? 'SSH 私钥' : 'Token'
+  const label = type === 'ssh' ? t('pipe.sshKey') : 'Token'
   return (
     <Form.Item
       name="secret"
       label={label}
-      rules={editing ? [] : [{ required: true, message: `请输入${label}` }]}
-      extra={editing ? '留空则保留原密文；填写则覆盖（加密存储，不回显）' : '加密存储，不回显'}
+      rules={editing ? [] : [{ required: true, message: t('cred.enterField', { label }) }]}
+      extra={editing ? t('cred.secretKeep') : t('cred.encrypted')}
     >
       {type === 'ssh' ? (
-        <Input.TextArea rows={4} placeholder={editing ? '留空表示不修改密文' : '粘贴私钥全文'} />
+        <Input.TextArea rows={4} placeholder={editing ? t('cred.leaveSecret') : t('cred.pasteKey')} />
       ) : (
-        <Input.Password placeholder={editing ? '留空表示不修改密文' : '输入 Token（加密存储，不回显）'} />
+        <Input.Password placeholder={editing ? t('cred.leaveSecret') : t('cred.tokenPh')} />
       )}
     </Form.Item>
   )
 }
 
 export default function Credentials() {
+  const t = useT()
   const queryClient = useQueryClient()
   const isAdmin = useAuthStore((s) => s.user?.is_admin)
   const [tab, setTab] = useState('project')
@@ -138,13 +129,13 @@ export default function Credentials() {
       if (credType === 'password') {
         if (values.username || values.password) {
           if (!values.username || !values.password) {
-            message.warning('要改账号密码请用户名和密码一起填')
+            message.warning(t('cred.bothUserPass'))
             return
           }
           payload.username = values.username
           payload.password = values.password
         } else if (!editing) {
-          message.warning('请填写用户名和密码')
+          message.warning(t('cred.needUserPass'))
           return
         }
       } else if (values.secret) {
@@ -152,10 +143,10 @@ export default function Credentials() {
       }
       if (editing) {
         await put(`/credentials/${editing.id}`, payload)
-        message.success('已更新，引用该凭证的代码库/流水线下次执行即用新值')
+        message.success(t('cred.updatedHint'))
       } else {
         await post('/credentials', { ...payload, project_id: values.project_id ?? null })
-        message.success('已创建')
+        message.success(t('common.created'))
       }
       queryClient.invalidateQueries({ queryKey: ['credentials'] })
       closeModal()
@@ -191,9 +182,29 @@ export default function Credentials() {
     setOpen(true)
   }
 
+  /** 凭证类型下拉：Token / SSH Key 保持原样，账号密码走现有 pipe 键。 */
+  const typeOptions = [
+    { label: 'Token', value: 'token' },
+    { label: 'SSH Key', value: 'ssh' },
+    { label: t('pipe.password'), value: 'password' },
+  ]
+
+  /** 列表上的类型标签，颜色按类型固定。 */
+  const typeTag = (v: string) => {
+    if (v === 'token') return <Tag color="blue">Token</Tag>
+    if (v === 'ssh') return <Tag color="green">SSH Key</Tag>
+    if (v === 'password') return <Tag color="orange">{t('pipe.password')}</Tag>
+    return v
+  }
+
+  const projectOptions = projects.map((p) => ({
+    value: p.id,
+    label: t('cred.namedCode', { name: p.name, code: p.code }),
+  }))
+
   const baseColumns = [
     {
-      title: '名称',
+      title: t('common.name'),
       dataIndex: 'name',
       render: (v: string) => (
         <Space>
@@ -202,20 +213,20 @@ export default function Credentials() {
         </Space>
       ),
     },
-    { title: '类型', dataIndex: 'type', width: 120, render: (v: string) => TYPE_TAG[v] || v },
-    { title: '密文（脱敏）', dataIndex: 'ciphertext', render: (v: string) => <code>{v}</code> },
-    { title: '描述', dataIndex: 'description', ellipsis: true },
+    { title: t('common.type'), dataIndex: 'type', width: 120, render: (v: string) => typeTag(v) },
+    { title: t('cred.ciphertext'), dataIndex: 'ciphertext', render: (v: string) => <code>{v}</code> },
+    { title: t('common.description'), dataIndex: 'description', ellipsis: true },
     {
-      title: '操作',
+      title: t('common.action'),
       width: 160,
       render: (_: unknown, r: Credential) => (
         <Space>
           <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>
-            修改
+            {t('cred.modify')}
           </Button>
-          <Popconfirm title="确认删除该凭证？" onConfirm={() => handleDelete(r.id)}>
+          <Popconfirm title={t('cred.deleteConfirm')} onConfirm={() => handleDelete(r.id)}>
             <Button size="small" danger icon={<DeleteOutlined />}>
-              删除
+              {t('common.delete')}
             </Button>
           </Popconfirm>
         </Space>
@@ -226,7 +237,7 @@ export default function Credentials() {
   const projectColumns = [
     baseColumns[0],
     {
-      title: '所属项目',
+      title: t('cred.belongProject'),
       dataIndex: 'project_name',
       width: 180,
       render: (v: string) => <Tag color="geekblue">{v || '-'}</Tag>,
@@ -236,10 +247,10 @@ export default function Credentials() {
 
   return (
     <Card
-      title="凭证管理"
+      title={t('menu.credentials')}
       extra={
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-          新建凭证
+          {t('cred.newCred')}
         </Button>
       }
     >
@@ -249,27 +260,27 @@ export default function Credentials() {
         items={[
           {
             key: 'project',
-            label: `项目凭证 (${credentials.filter((c) => c.project_id).length})`,
+            label: t('cred.projectTab', { n: credentials.filter((c) => c.project_id).length }),
             children: (
               <div>
                 <Space style={{ marginBottom: 12 }}>
-                  <span style={{ color: '#666' }}>项目：</span>
+                  <span style={{ color: '#666' }}>{t('cred.projectColon')}</span>
                   <Select
                     style={{ width: 260 }}
                     allowClear
                     showSearch
                     optionFilterProp="label"
-                    placeholder="全部项目"
+                    placeholder={t('cred.allProjects')}
                     value={projectFilter}
                     onChange={setProjectFilter}
-                    options={projects.map((p) => ({ value: p.id, label: `${p.name}（${p.code}）` }))}
+                    options={projectOptions}
                   />
                 </Space>
                 <Alert
                   type="info"
                   showIcon
                   style={{ marginBottom: 12 }}
-                  message="项目凭证只对所属项目可见，项目下的代码库和流水线步骤可以直接引用。"
+                  message={t('cred.projectHint')}
                 />
                 <DataTable chromeKey="credentials-project" rowKey="id" columns={projectColumns} dataSource={projectCreds} pagination={false} />
               </div>
@@ -277,14 +288,14 @@ export default function Credentials() {
           },
           {
             key: 'global',
-            label: `全局凭证 (${globalCreds.length})`,
+            label: t('cred.globalTab', { n: globalCreds.length }),
             children: (
               <div>
                 <Alert
                   type="info"
                   showIcon
                   style={{ marginBottom: 12 }}
-                  message="全局凭证可被所有项目引用，仅管理员可维护。Token 过期后改这里的密文即可，已关联的代码库和流水线自动使用新值。"
+                  message={t('cred.globalHint')}
                 />
                 <DataTable chromeKey="credentials-global" rowKey="id" columns={baseColumns} dataSource={globalCreds} pagination={false} />
               </div>
@@ -294,7 +305,7 @@ export default function Credentials() {
       />
 
       <Modal
-        title={editing ? '修改凭证' : '新建凭证'}
+        title={editing ? t('cred.editCred') : t('cred.newCred')}
         open={open}
         onOk={handleSubmit}
         onCancel={closeModal}
@@ -304,26 +315,26 @@ export default function Credentials() {
         <Form form={form} layout="vertical">
           <Form.Item
             name="project_id"
-            label="归属"
-            extra={isAdmin ? '选具体项目=项目凭证；留空=全局凭证（所有项目可引用）' : '普通用户只能创建项目凭证'}
+            label={t('cred.owner')}
+            extra={isAdmin ? t('cred.ownerAdminExtra') : t('cred.ownerUserExtra')}
           >
             <Select
               allowClear={!!isAdmin}
               disabled={!!editing}
               showSearch
               optionFilterProp="label"
-              placeholder={isAdmin ? '留空表示全局凭证' : '选择项目'}
-              options={projects.map((p) => ({ value: p.id, label: `${p.name}（${p.code}）` }))}
+              placeholder={isAdmin ? t('cred.globalPh') : t('deploy.pickProject')}
+              options={projectOptions}
             />
           </Form.Item>
-          <Form.Item name="name" label="凭证名称" rules={[{ required: true }]}>
-            <Input placeholder="如：阿里云 ACR、华为云 SWR" />
+          <Form.Item name="name" label={t('cred.credName')} rules={[{ required: true }]}>
+            <Input placeholder={t('cred.namePh')} />
           </Form.Item>
-          <Form.Item name="type" label="类型" initialValue="token">
-            <Select options={TYPE_OPTIONS} />
+          <Form.Item name="type" label={t('common.type')} initialValue="token">
+            <Select options={typeOptions} />
           </Form.Item>
           <CredentialSecretFields editing={!!editing} />
-          <Form.Item name="description" label="描述">
+          <Form.Item name="description" label={t('common.description')}>
             <Input.TextArea rows={2} />
           </Form.Item>
         </Form>

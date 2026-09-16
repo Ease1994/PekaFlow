@@ -8,6 +8,7 @@ import DataTable from '@/components/DataTable'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { get, put } from '@/api/client'
 import { MENU_ICONS, type MenuCatalog, type MenuNode } from '@/menus'
+import { useT } from '@/i18n'
 
 interface GroupedMenus {
   group: string
@@ -17,6 +18,7 @@ interface GroupedMenus {
 
 export default function MenuManagement() {
   const qc = useQueryClient()
+  const t = useT()
   const { data, isFetching } = useQuery({
     queryKey: ['menus'],
     queryFn: () => get<MenuCatalog>('/menus'),
@@ -60,29 +62,27 @@ export default function MenuManagement() {
     onSuccess: (next) => {
       qc.setQueryData(['menus'], next)
       setDraft(null)
-      message.success('菜单可见范围已保存，全员侧栏按新规则显示')
+      message.success(t('menusPage.saved'))
     },
   })
 
   return (
     <div>
       <div style={{ marginBottom: 12, color: '#666', fontSize: 13, lineHeight: 1.7 }}>
-        菜单按范围开放，不要在「添加授权」里给个人勾页面。工作台给所有登录用户；系统管理固定仅管理员。
-        资源与工具可以改成仅管理员。看得见技能库的人可以共享技能给全员，删除只有发布者或管理员。
-        第三方插件和工具含可执行代码，上架和安装始终只有管理员能做。轮换接入凭证、改模型 Key 也是。
+        {t('menusPage.hint')}
       </div>
       <Space style={{ marginBottom: 12 }}>
         <Button type="primary" disabled={!dirty} loading={saveMut.isPending} onClick={() => saveMut.mutate()}>
-          保存
+          {t('common.save')}
         </Button>
         <Button disabled={!dirty || saveMut.isPending} onClick={() => setDraft(null)}>
-          取消
+          {t('common.cancel')}
         </Button>
       </Space>
       {groups.map((group) => (
         <div key={group.group} style={{ marginBottom: 20 }}>
           <Typography.Title level={5} style={{ marginBottom: 8 }}>
-            {group.group_label}
+            {t(`menu.${group.group}`)}
           </Typography.Title>
           <DataTable
             chromeKey={`menus-${group.group}`}
@@ -93,22 +93,22 @@ export default function MenuManagement() {
             dataSource={group.items}
             columns={[
               {
-                title: '菜单',
+                title: t('menusPage.colMenu'),
                 dataIndex: 'label',
                 render: (label: string, row) => (
                   <Space>
                     {MENU_ICONS[row.key]}
-                    <span>{label}</span>
+                    <span>{t(`menu.${row.key}`)}</span>
                   </Space>
                 ),
               },
               {
-                title: '可见范围',
+                title: t('menusPage.audience'),
                 width: 360,
                 render: (_: unknown, row) =>
                   row.locked ? (
                     <Tag color={row.audience === 'admin' ? 'gold' : 'blue'}>
-                      {row.audience === 'admin' ? '仅管理员' : '全部登录用户'}
+                      {row.audience === 'admin' ? t('menusPage.adminOnly') : t('menusPage.allUsers')}
                     </Tag>
                   ) : (
                     <Radio.Group
@@ -118,8 +118,8 @@ export default function MenuManagement() {
                         setDraft((prev) => ({ ...(prev || {}), [row.key]: e.target.value }))
                       }
                     >
-                      <Radio value="all">全部登录用户</Radio>
-                      <Radio value="admin">仅管理员</Radio>
+                      <Radio value="all">{t('menusPage.allUsers')}</Radio>
+                      <Radio value="admin">{t('menusPage.adminOnly')}</Radio>
                     </Radio.Group>
                   ),
               },

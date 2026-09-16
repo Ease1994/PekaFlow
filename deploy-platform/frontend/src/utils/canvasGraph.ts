@@ -7,6 +7,7 @@
  * 右键「拆成并行 Job」才真正新建构建环境。
  */
 import type { GraphJob, GraphStage, GraphStep } from '@/api/types'
+import { t } from '@/i18n'
 import { canvasEdgeId, jobNodeId, stageNodeId, stepNodeId } from '@/utils/canvasLayout'
 
 export type CanvasRef =
@@ -28,8 +29,7 @@ export function isCanvasGraphErr(r: CanvasGraphResult): r is CanvasGraphErr {
 }
 
 /** 有断开的步骤连线时不允许保存，避免 YAML 里仍是顺序执行却和画布不一致。 */
-export const OPEN_CUTS_SAVE_ERROR =
-  '还有断开的步骤连线，不能保存。请拉回箭头，或右键步骤拆成并行 Job。'
+export const OPEN_CUTS_SAVE_ERROR = () => t('pipe.openCutsSave')
 
 /** 画布节点 id，和 EditorCanvas 里的节点 id 一致。 */
 export function canvasNodeId(ref: CanvasRef): string {
@@ -134,7 +134,7 @@ function insertStep(job: GraphJob, index: number, step: GraphStep): void {
 }
 
 function stepLabel(step: GraphStep): string {
-  return (step.name || step.display_name || step.plugin || '步骤').trim()
+  return (step.name || step.display_name || step.plugin || 'step').trim()
 }
 
 /**
@@ -147,7 +147,7 @@ export function applyCanvasLink(
   target: CanvasRef,
 ): CanvasGraphResult {
   if (sameRef(source, target)) {
-    return { error: '不能接到自己' }
+    return { error: t('pipe.cannotLinkSelf') }
   }
   const next = cloneStages(stages)
 
@@ -155,13 +155,13 @@ export function applyCanvasLink(
     return linkStepAfterStep(next, source, target)
   }
   if (source.kind === 'job' && target.kind === 'step') {
-    return moveStepToJob(next, target, source, 0, '已接到该 Job 开头')
+    return moveStepToJob(next, target, source, 0, t('pipe.linkedJobHead'))
   }
   if (source.kind === 'step' && target.kind === 'job') {
     const jobStage = stageOf(next, target.stageId)
     const job = jobStage ? jobOf(jobStage, target.jobId) : undefined
-    if (!job) return { error: '目标 Job 不存在' }
-    return moveStepToJob(next, source, target, job.steps.length, '已并入该 Job 末尾')
+    if (!job) return { error: t('pipe.destJobMissing') }
+    return moveStepToJob(next, source, target, job.steps.length, t('pipe.mergedJobTail'))
   }
   if (source.kind === 'stage' && target.kind === 'job') {
     return moveJobToStage(next, target, source.stageId)
@@ -169,7 +169,7 @@ export function applyCanvasLink(
   if (source.kind === 'job' && target.kind === 'job') {
     return mergeJobs(next, source, target)
   }
-  return { error: '这种箭头还不支持。请在步骤之间、或步骤和 Job 之间拉线' }
+  return { error: t('pipe.linkUnsupported') }
 }
 
 /**
@@ -182,18 +182,18 @@ export function applyCanvasUnlink(
   target: CanvasRef,
 ): CanvasGraphResult {
   if (source.kind !== 'step' || target.kind !== 'step') {
-    return { error: '阶段和构建环境之间的线表示从属关系，不能拆。要并行请右键步骤 → 拆成并行 Job' }
+    return { error: t('pipe.cannotUnlinkBelong') }
   }
   if (
     source.stageId !== target.stageId ||
     source.jobId !== target.jobId ||
     target.stepIndex !== source.stepIndex + 1
   ) {
-    return { error: '只能拆掉相邻步骤之间的箭头' }
+    return { error: t('pipe.unlinkAdjacentOnly') }
   }
   return {
     stages,
-    hint: '已断开连线，没有新建构建环境。保存前请拉回箭头，或右键把步骤拆成并行 Job',
+    hint: t('pipe.unlinkedHint'),
     cut_edge_id: canvasEdgeId(canvasNodeId(source), canvasNodeId(target)),
   }
 }
@@ -207,7 +207,7 @@ export function applyCanvasSplitParallel(
   stepRef: CanvasRef,
 ): CanvasGraphResult {
   if (stepRef.kind !== 'step') {
-    return { error: '只能把步骤拆成并行 Job' }
+    return { error: t('pipe.splitStepOnly') }
   }
   return splitStepToParallelJob(cloneStages(stages), stepRef)
 }
@@ -221,22 +221,22 @@ export function applyCanvasReorderStep(
   toIndex: number,
 ): CanvasGraphResult {
   if (stepRef.kind !== 'step') {
-    return { error: '只能调整步骤顺序' }
+    return { error: t('pipe.reorderStepOnly') }
   }
   const next = cloneStages(stages)
   const stage = stageOf(next, stepRef.stageId)
   const job = stage ? jobOf(stage, stepRef.jobId) : undefined
-  if (!job) return { error: 'Job 不存在' }
+  if (!job) return { error: t('pipe.jobMissing') }
   if (toIndex < 0 || toIndex >= job.steps.length) {
-    return { error: '已经到头了' }
+    return { error: t('pipe.atHead') }
   }
   if (toIndex === stepRef.stepIndex) {
-    return { error: '已经在这个位置' }
+    return { error: t('pipe.alreadyThere') }
   }
   const moved = takeStep(next, stepRef.stageId, stepRef.jobId, stepRef.stepIndex)
-  if (!moved) return { error: '步骤不存在' }
+  if (!moved) return { error: t('pipe.stepMissing') }
   insertStep(job, toIndex, moved)
-  return { stages: next, hint: `「${stepLabel(moved)}」已调整顺序` }
+  return { stages: next, hint: t('pipe.reordered', { name: stepLabel(moved) }) }
 }
 
 function sameRef(a: CanvasRef, b: CanvasRef): boolean {
@@ -259,14 +259,14 @@ function linkStepAfterStep(
     source.jobId === target.jobId &&
     target.stepIndex === source.stepIndex + 1
   ) {
-    return { stages, hint: '已接上' }
+    return { stages, hint: t('pipe.alreadyLinked') }
   }
   const moved = takeStep(stages, target.stageId, target.jobId, target.stepIndex)
-  if (!moved) return { error: '目标步骤不存在' }
+  if (!moved) return { error: t('pipe.destStepMissing') }
 
   const srcStage = stageOf(stages, source.stageId)
   const srcJob = srcStage ? jobOf(srcStage, source.jobId) : undefined
-  if (!srcJob) return { error: '源 Job 不存在' }
+  if (!srcJob) return { error: t('pipe.srcJobMissing') }
 
   let insertAt = source.stepIndex + 1
   if (source.stageId === target.stageId && source.jobId === target.jobId && target.stepIndex < source.stepIndex) {
@@ -274,7 +274,7 @@ function linkStepAfterStep(
   }
   insertStep(srcJob, insertAt, moved)
   for (const s of stages) dropEmptyJobs(s)
-  return { stages, hint: `「${stepLabel(moved)}」已接到后面，同一 Job 内按箭头顺序执行` }
+  return { stages, hint: t('pipe.linkedAfter', { name: stepLabel(moved) }) }
 }
 
 function moveStepToJob(
@@ -286,17 +286,17 @@ function moveStepToJob(
 ): CanvasGraphResult {
   const destStage = stageOf(stages, jobRef.stageId)
   const destJob = destStage ? jobOf(destStage, jobRef.jobId) : undefined
-  if (!destJob) return { error: '目标 Job 不存在' }
+  if (!destJob) return { error: t('pipe.destJobMissing') }
 
   let at = insertIndex
   if (stepRef.stageId === jobRef.stageId && stepRef.jobId === jobRef.jobId) {
     if (stepRef.stepIndex < insertIndex) at = insertIndex - 1
-    if (at === stepRef.stepIndex) return { error: '已经在这个位置' }
+    if (at === stepRef.stepIndex) return { error: t('pipe.alreadyThere') }
   }
   const moved = takeStep(stages, stepRef.stageId, stepRef.jobId, stepRef.stepIndex)
-  if (!moved) return { error: '步骤不存在' }
+  if (!moved) return { error: t('pipe.stepMissing') }
   const job = jobOf(stageOf(stages, jobRef.stageId)!, jobRef.jobId)
-  if (!job) return { error: '目标 Job 不存在' }
+  if (!job) return { error: t('pipe.destJobMissing') }
   insertStep(job, at, moved)
   for (const s of stages) dropEmptyJobs(s)
   return { stages, hint }
@@ -308,18 +308,18 @@ function moveJobToStage(
   stageId: string,
 ): CanvasGraphResult {
   if (jobRef.stageId === stageId) {
-    return { error: '这个 Job 已经在该阶段里' }
+    return { error: t('pipe.jobAlreadyInStage') }
   }
   const from = stageOf(stages, jobRef.stageId)
   const to = stageOf(stages, stageId)
-  if (!from || !to) return { error: '阶段不存在' }
+  if (!from || !to) return { error: t('pipe.stageMissing') }
   const idx = from.jobs.findIndex((j) => j.id === jobRef.jobId)
-  if (idx < 0) return { error: 'Job 不存在' }
+  if (idx < 0) return { error: t('pipe.jobMissing') }
   const [job] = from.jobs.splice(idx, 1)
   let id = job.id
   if (to.jobs.some((j) => j.id === id)) id = nextJobId(to)
   to.jobs.push({ ...job, id })
-  return { stages, hint: `Job 已移到「${to.name}」` }
+  return { stages, hint: t('pipe.jobMoved', { name: to.name }) }
 }
 
 function mergeJobs(
@@ -328,16 +328,16 @@ function mergeJobs(
   target: Extract<CanvasRef, { kind: 'job' }>,
 ): CanvasGraphResult {
   if (source.stageId !== target.stageId) {
-    return { error: '只能合并同一阶段里的 Job' }
+    return { error: t('pipe.mergeSameStage') }
   }
   const stage = stageOf(stages, source.stageId)
   const a = stage ? jobOf(stage, source.jobId) : undefined
   const b = stage ? jobOf(stage, target.jobId) : undefined
-  if (!a || !b) return { error: 'Job 不存在' }
+  if (!a || !b) return { error: t('pipe.jobMissing') }
   a.steps.push(...b.steps)
   reindex(a)
   stage!.jobs = stage!.jobs.filter((j) => j.id !== b.id)
-  return { stages, hint: '两个 Job 已合成一条顺序执行的链' }
+  return { stages, hint: t('pipe.jobsMerged') }
 }
 
 function splitStepToParallelJob(
@@ -346,16 +346,16 @@ function splitStepToParallelJob(
 ): CanvasGraphResult {
   const stage = stageOf(stages, stepRef.stageId)
   const job = stage ? jobOf(stage, stepRef.jobId) : undefined
-  if (!job) return { error: 'Job 不存在' }
+  if (!job) return { error: t('pipe.jobMissing') }
   const moved = takeStep(stages, stepRef.stageId, stepRef.jobId, stepRef.stepIndex)
-  if (!moved) return { error: '步骤不存在' }
+  if (!moved) return { error: t('pipe.stepMissing') }
   const fresh = newJobLike(stage!, job)
   insertStep(fresh, 0, moved)
   stage!.jobs.push(fresh)
   dropEmptyJobs(stage!)
   return {
     stages,
-    hint: `「${stepLabel(moved)}」已拆成并行 Job`,
+    hint: t('pipe.splitDone', { name: stepLabel(moved) }),
   }
 }
 

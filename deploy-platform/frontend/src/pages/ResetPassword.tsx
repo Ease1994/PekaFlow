@@ -19,8 +19,8 @@ export default function ResetPassword() {
   const navigate = useNavigate()
   const token = useMemo(() => (search.get('token') || '').trim(), [search])
   const { data: branding } = usePlatformBranding()
-  const displayName = resolveDisplayName(branding)
   const t = useT()
+  const displayName = resolveDisplayName(branding, t)
 
   const onFinish = async (values: { password: string }) => {
     if (!token) {

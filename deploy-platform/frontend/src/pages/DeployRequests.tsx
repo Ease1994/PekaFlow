@@ -24,9 +24,11 @@ import {
 } from '@ant-design/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { get, post, postR, put } from '@/api/client'
+import { get, post, postR } from '@/api/client'
 import DataTable from '@/components/DataTable'
 import type { Pipeline, Project } from '@/api/types'
+import { formatDateTime, useT } from '@/i18n'
+import { releaseStatusMeta } from '@/utils/releaseStatus'
 
 const { Text, Paragraph } = Typography
 
@@ -76,17 +78,33 @@ const STATUS_COLOR: Record<string, string> = {
   closed: 'default',
 }
 
+/** 单子状态码 → 界面句子。不用后端 status_label，否则切语言仍是中文。 */
+const REQUEST_STATUS_I18N: Record<string, string> = {
+  draft: 'deploy.statusDraft',
+  submitted: 'deploy.statusSubmitted',
+  releasing: 'deploy.statusReleasing',
+  released: 'deploy.statusReleased',
+  release_failed: 'deploy.statusFailed',
+  rejected: 'deploy.statusRejected',
+  closed: 'deploy.statusClosed',
+}
+
 /** 单子还能不能发：草稿、待发布，以及发失败了要重发的 */
 const RELEASABLE = ['draft', 'submitted', 'release_failed']
-
-const fmtTime = (v: string | null) =>
-  v ? new Date(v).toLocaleString('zh-CN', { hour12: false }) : ''
 
 const MANIFEST_PLACEHOLDER = `bin/*.dll
 Areas/
 Views/
 Content/o2o-theme.css
 !bin/*.pdb`
+
+/** 把单子状态码翻成当前语言；未收录的码原样显示，避免空白。 */
+function requestStatusText(
+  status: string,
+  translate: (key: string) => string,
+): string {
+  return REQUEST_STATUS_I18N[status] ? translate(REQUEST_STATUS_I18N[status]) : status
+}
 
 /**
  * 发布提交：开发人员报「这次要发哪些文件」，发布人员核对后一键发布。
@@ -97,6 +115,7 @@ Content/o2o-theme.css
 export default function DeployRequests() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const t = useT()
   const [createOpen, setCreateOpen] = useState(false)
   // 只记 id，内容从列表里现取，这样发布中的进度会跟着列表一起刷新
   const [detailId, setDetailId] = useState<number | null>(null)
@@ -151,7 +170,7 @@ export default function DeployRequests() {
   const createMutation = useMutation({
     mutationFn: (values: Record<string, unknown>) => post('/deploy-requests', values),
     onSuccess: () => {
-      message.success('已提交')
+      message.success(t('deploy.submitted'))
       setCreateOpen(false)
       form.resetFields()
       refresh()
@@ -166,7 +185,7 @@ export default function DeployRequests() {
       if (res.message && res.message !== 'ok' && (data?.status === 'failed' || data?.error)) {
         message.error(res.message, 8)
       } else {
-        message.success(res.message && res.message !== 'ok' ? res.message : '已发起发布')
+        message.success(res.message && res.message !== 'ok' ? res.message : t('deploy.started'))
       }
       setDetailId(null)
       refresh()
@@ -180,7 +199,7 @@ export default function DeployRequests() {
     mutationFn: ({ id, reason }: { id: number; reason: string }) =>
       post(`/deploy-requests/${id}/reject`, { reason }),
     onSuccess: () => {
-      message.success('已驳回')
+      message.success(t('deploy.rejected'))
       setDetailId(null)
       refresh()
     },
@@ -189,7 +208,7 @@ export default function DeployRequests() {
   const reopenMutation = useMutation({
     mutationFn: (id: number) => post(`/deploy-requests/${id}/reopen`),
     onSuccess: () => {
-      message.success('已重新提交')
+      message.success(t('deploy.resubmitted'))
       setDetailId(null)
       refresh()
     },
@@ -202,16 +221,16 @@ export default function DeployRequests() {
       try {
         manifest = (await get<DeployRequest>(`/deploy-requests/${req.id}`)).manifest
       } catch {
-        manifest = '（清单读取失败，请打开详情确认）'
+        manifest = t('deploy.manifestLoadFail')
       }
     }
     Modal.confirm({
-      title: `按提交单发布「${req.title}」`,
+      title: t('deploy.confirmReleaseTitle', { title: req.title }),
       width: 560,
       content: (
         <div>
           <Paragraph style={{ marginBottom: 8 }}>
-            将用流水线「{req.pipeline_name}」执行发布，本单的清单会作为执行参数传给流水线。
+            {t('deploy.confirmReleaseBody', { pipeline: req.pipeline_name })}
           </Paragraph>
           <pre
             style={{
@@ -226,8 +245,8 @@ export default function DeployRequests() {
           </pre>
         </div>
       ),
-      okText: '确认发布',
-      cancelText: '取消',
+      okText: t('deploy.confirmReleaseOk'),
+      cancelText: t('common.cancel'),
       onOk: () => releaseMutation.mutateAsync(req),
     })
   }
@@ -235,69 +254,69 @@ export default function DeployRequests() {
   const confirmReject = (req: DeployRequest) => {
     let reason = ''
     Modal.confirm({
-      title: `驳回「${req.title}」`,
+      title: t('deploy.rejectTitle', { title: req.title }),
       content: (
         <Input.TextArea
           rows={3}
-          placeholder="说明要改什么，提交人能看到"
+          placeholder={t('deploy.rejectPlaceholder')}
           onChange={(e) => {
             reason = e.target.value
           }}
         />
       ),
-      okText: '驳回',
+      okText: t('deploy.rejectOk'),
       okButtonProps: { danger: true },
-      cancelText: '取消',
+      cancelText: t('common.cancel'),
       onOk: () => rejectMutation.mutateAsync({ id: req.id, reason }),
     })
   }
 
   const columns = [
     {
-      title: '标题',
+        title: t('deploy.colTitle'),
       dataIndex: 'title',
       render: (v: string, r: DeployRequest) => (
         <a onClick={() => setDetailId(r.id)}>{v}</a>
       ),
     },
-    { title: '项目', dataIndex: 'project_name', width: 140 },
+      { title: t('deploy.colProject'), dataIndex: 'project_name', width: 140 },
     {
-      title: '发布流水线',
+        title: t('deploy.colPipeline'),
       dataIndex: 'pipeline_name',
       width: 160,
-      render: (v: string) => v || <Text type="secondary">未选择</Text>,
+        render: (v: string) => v || <Text type="secondary">{t('deploy.notSelected')}</Text>,
     },
     {
-      title: '文件条目',
+      title: t('deploy.colFiles'),
       dataIndex: 'manifest_count',
       width: 90,
       render: (v: number) => v ?? 0,
     },
-    { title: '提交人', dataIndex: 'created_by_name', width: 110 },
+      { title: t('deploy.colSubmitter'), dataIndex: 'created_by_name', width: 110 },
     {
-      title: '状态',
+        title: t('common.status'),
       dataIndex: 'status',
       width: 130,
       render: (v: string, r: DeployRequest) => (
         <>
-          <Tag color={STATUS_COLOR[v] || 'default'}>{r.status_label}</Tag>
-          {v === 'releasing' && r.release_status_label && (
-            <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>
-              {r.release_status_label}
-            </div>
-          )}
+            <Tag color={STATUS_COLOR[v] || 'default'}>{requestStatusText(v, t)}</Tag>
+            {v === 'releasing' && r.release_status && (
+              <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>
+                {releaseStatusMeta(r.release_status).text}
+              </div>
+            )}
         </>
       ),
     },
     {
-      title: '提交时间',
-      dataIndex: 'created_at',
-      width: 160,
-      render: (v: string | null) =>
-        v ? new Date(v).toLocaleString('zh-CN', { hour12: false }) : '-',
+        title: t('deploy.colTime'),
+        dataIndex: 'created_at',
+        width: 160,
+        render: (v: string | null) => formatDateTime(v) || '-',
     },
     {
-      title: '操作',
+        title: t('common.action'),
+        key: 'actions',
       width: 230,
       render: (_: unknown, r: DeployRequest) => (
         <Space>
@@ -308,7 +327,7 @@ export default function DeployRequests() {
               icon={<RocketOutlined />}
               onClick={() => confirmRelease(r)}
             >
-              {r.status === 'release_failed' ? '重新发布' : '发布'}
+                {r.status === 'release_failed' ? t('deploy.rerelease') : t('deploy.release')}
             </Button>
           )}
           <Button
@@ -316,14 +335,14 @@ export default function DeployRequests() {
             icon={<FileTextOutlined />}
             onClick={() => setDetailId(r.id)}
           >
-            发布详情
+              {t('deploy.detail')}
           </Button>
           {r.release_id && r.pipeline_id && (
             <Button
               size="small"
               onClick={() => navigate(`/executions/${r.pipeline_id}/${r.release_id}`)}
             >
-              执行详情
+                {t('deploy.execDetail')}
             </Button>
           )}
         </Space>
@@ -339,22 +358,22 @@ export default function DeployRequests() {
   return (
     <div>
       <Card
-        title="发布提交"
+        title={t("deploy.title")}
         extra={
           <Space>
             <Select
               allowClear
-              placeholder="按项目筛选"
+              placeholder={t("deploy.filterProject")}
               style={{ width: 180 }}
               options={projectOptions}
               value={projectFilter}
               onChange={setProjectFilter}
             />
             <Button icon={<ReloadOutlined />} onClick={refresh} loading={isFetching}>
-              刷新
+              {t("common.refresh")}
             </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
-              提交发布
+              {t("deploy.create")}
             </Button>
           </Space>
         }
@@ -362,8 +381,8 @@ export default function DeployRequests() {
         <Alert
           type="info"
           showIcon
-          message="开发提单，发布人员核对后一键发布"
-          description="填清楚这次要发哪些文件和改了什么；点「发布」时，清单会作为参数交给流水线去编译、打包、发到目标节点。"
+          message={t("deploy.alertTitle")}
+          description={t("deploy.alertDesc")}
           style={{ marginBottom: 16 }}
         />
         <DataTable
@@ -372,25 +391,25 @@ export default function DeployRequests() {
           columns={columns}
           dataSource={requests}
           pagination={{ current: page, onChange: setPage }}
-          locale={{ emptyText: '还没有发布单' }}
+          locale={{ emptyText: t("deploy.empty") }}
         />
       </Card>
 
       <Modal
-        title="提交发布"
+        title={t("deploy.createTitle")}
         open={createOpen}
         onCancel={() => setCreateOpen(false)}
         onOk={() => form.validateFields().then((v) => createMutation.mutateAsync(v))}
         confirmLoading={createMutation.isPending}
-        okText="提交"
-        cancelText="取消"
+        okText={t("common.submit")}
+        cancelText={t("common.cancel")}
         width={720}
         destroyOnClose
       >
         <Form form={form} layout="vertical">
-          <Form.Item label="项目" name="project_id" rules={[{ required: true, message: '请选择项目' }]}>
+          <Form.Item label={t("deploy.colProject")} name="project_id" rules={[{ required: true, message: t("deploy.pickProjectRequired") }]}>
             <Select
-              placeholder="选择项目"
+              placeholder={t("deploy.pickProject")}
               options={projectOptions}
               showSearch
               optionFilterProp="label"
@@ -398,71 +417,71 @@ export default function DeployRequests() {
           </Form.Item>
 
           <Form.Item
-            label="发布流水线"
+            label={t("deploy.pipeline")}
             name="pipeline_id"
-            rules={[{ required: true, message: '请选择发布用的流水线' }]}
+            rules={[{ required: true, message: t("deploy.pickPipelineRequired") }]}
             extra={
               selectedProject && pipelines.length === 0
-                ? '该项目下没有按清单增量发布的流水线（需含 pack-incremental 步骤），发布提交单只适用于这类流水线'
-                : '只列按清单增量发布的流水线（Windows/IIS 那类）。发布人员点「发布」时执行它，清单会作为参数交给它挑文件打增量包'
+                ? t("deploy.pipelineExtraNone")
+                : t("deploy.pipelineExtra")
             }
           >
             <Select
-              placeholder={selectedProject ? '选择流水线' : '请先选择项目'}
+              placeholder={selectedProject ? t("deploy.pickPipeline") : t("deploy.pickProjectFirst")}
               disabled={!selectedProject}
               options={pipelines.map((p) => ({ value: p.id, label: p.name }))}
               showSearch
               optionFilterProp="label"
-              notFoundContent="该项目下没有按清单增量发布的流水线"
+              notFoundContent={t("deploy.pipelineNotFound")}
             />
           </Form.Item>
 
-          <Form.Item label="标题" name="title" rules={[{ required: true, message: '请填写标题' }]}>
-            <Input placeholder="如：订单页样式修复 + 支付回调补偿" />
+          <Form.Item label={t("deploy.colTitle")} name="title" rules={[{ required: true, message: t("deploy.titleRequired") }]}>
+            <Input placeholder={t("deploy.titlePlaceholder")} />
           </Form.Item>
 
-          <Form.Item label="代码分支 / Tag / Commit" name="source_ref" extra="留空则用流水线默认分支">
-            <Input placeholder="如：release/2026-08 或 a1b2c3d" />
+          <Form.Item label={t("deploy.sourceRef")} name="source_ref" extra={t("deploy.sourceRefExtra")}>
+            <Input placeholder={t("deploy.sourceRefPlaceholder")} />
           </Form.Item>
 
           <Form.Item
-            label="发布清单"
+            label={t("deploy.manifest")}
             name="manifest"
-            rules={[{ required: true, message: '请填写这次要发布哪些文件' }]}
-            extra="一行一条，相对编译产物根目录；目录以 / 结尾表示整个递归，! 开头表示排除，# 开头是注释"
+            rules={[{ required: true, message: t("deploy.manifestRequired") }]}
+            extra={t("deploy.manifestExtra")}
           >
             <Input.TextArea rows={7} placeholder={MANIFEST_PLACEHOLDER} />
           </Form.Item>
 
-          <Form.Item label="更新日志" name="changelog" extra="这次改了什么，出问题时回查用">
-            <Input.TextArea rows={4} placeholder="1. 修复订单列表分页错乱&#10;2. 支付回调增加重试" />
+          <Form.Item label={t("deploy.changelog")} name="changelog" extra={t("deploy.changelogExtra")}>
+            <Input.TextArea rows={4} placeholder={t("deploy.changelogPlaceholder")} />
           </Form.Item>
 
           <Form.Item
-            label="业务变更说明"
+            label={t("deploy.business")}
             name="business_summary"
-            extra="对外能念的那几句，项目经理确认和上线通报用这个"
+            extra={t("deploy.businessExtra")}
           >
-            <Input.TextArea rows={3} placeholder="用户侧：订单列表分页不再错乱；商户侧无感知" />
+            <Input.TextArea rows={3} placeholder={t("deploy.businessPlaceholder")} />
           </Form.Item>
-          <Form.Item label="影响范围" name="impact_scope">
-            <Input placeholder="如：全部订单用户 / 仅华南商户" />
+          <Form.Item label={t("deploy.impact")} name="impact_scope">
+            <Input placeholder={t("deploy.impactPlaceholder")} />
           </Form.Item>
           <div className="rp-field-row">
-            <Form.Item label="迭代标签" name="iteration_tag" style={{ flex: 1 }}>
-              <Input placeholder="如：8 月迭代" />
+            <Form.Item label={t("deploy.iteration")} name="iteration_tag" style={{ flex: 1 }}>
+              <Input placeholder={t("deploy.iterationPlaceholder")} />
             </Form.Item>
-            <Form.Item label="计划上线窗口" name="planned_window" style={{ flex: 1 }}>
-              <Input placeholder="如：2026-08-29 22:00-23:00" />
+            <Form.Item label={t("deploy.window")} name="planned_window" style={{ flex: 1 }}>
+              <Input placeholder={t("deploy.windowPlaceholder")} />
             </Form.Item>
           </div>
-          <Form.Item label="受众 / 要不要通知用户" style={{ marginBottom: 0 }}>
+          <Form.Item label={t("deploy.audienceNotice")} style={{ marginBottom: 0 }}>
             <div className="rp-field-row">
               <Form.Item name="audience" style={{ flex: 1, marginBottom: 0 }}>
-                <Input placeholder="影响谁，如：C 端用户" />
+                <Input placeholder={t("deploy.audiencePlaceholder")} />
               </Form.Item>
               <Form.Item name="need_user_notice" valuePropName="checked" style={{ marginBottom: 0 }}>
-                <Switch checkedChildren="需通知用户" unCheckedChildren="不通知用户" />
+                <Switch checkedChildren={t("deploy.noticeOn")} unCheckedChildren={t("deploy.noticeOff")} />
               </Form.Item>
             </div>
           </Form.Item>
@@ -470,7 +489,7 @@ export default function DeployRequests() {
       </Modal>
 
       <Drawer
-        title={detail?.title || '发布详情'}
+        title={detail?.title || t('deploy.detail')}
         open={detailId != null}
         onClose={() => setDetailId(null)}
         width={640}
@@ -482,14 +501,14 @@ export default function DeployRequests() {
                   loading={reopenMutation.isPending}
                   onClick={() => reopenMutation.mutateAsync(detail.id)}
                 >
-                  重新提交
+                  {t('deploy.reopen')}
                 </Button>
               )}
               {detail.can_release && RELEASABLE.includes(detail.status) && (
                 <>
                   {detail.status !== 'release_failed' && (
                     <Button danger loading={rejectMutation.isPending} onClick={() => confirmReject(detail)}>
-                      驳回
+                      {t('deploy.rejectOk')}
                     </Button>
                   )}
                   {/* 连点会重复触发发布，同一个发布单能跑出好几条发布记录 */}
@@ -499,7 +518,7 @@ export default function DeployRequests() {
                     loading={releaseMutation.isPending}
                     onClick={() => confirmRelease(detail)}
                   >
-                    {detail.status === 'release_failed' ? '重新发布' : '发布'}
+                    {detail.status === 'release_failed' ? t('deploy.rerelease') : t('deploy.release')}
                   </Button>
                 </>
               )}
@@ -514,24 +533,24 @@ export default function DeployRequests() {
         ) : detail ? (
           <>
             <Descriptions column={1} size="small" bordered style={{ marginBottom: 16 }}>
-              <Descriptions.Item label="状态">
-                <Tag color={STATUS_COLOR[detail.status] || 'default'}>{detail.status_label}</Tag>
+              <Descriptions.Item label={t("common.status")}>
+                <Tag color={STATUS_COLOR[detail.status] || 'default'}>{requestStatusText(detail.status, t)}</Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="项目">{detail.project_name}</Descriptions.Item>
-              <Descriptions.Item label="发布流水线">
-                {detail.pipeline_name || '未选择'}
+              <Descriptions.Item label={t("deploy.colProject")}>{detail.project_name}</Descriptions.Item>
+              <Descriptions.Item label={t("deploy.colPipeline")}>
+                {detail.pipeline_name || t('deploy.notSelected')}
               </Descriptions.Item>
-              <Descriptions.Item label="代码版本">{detail.source_ref || '默认分支'}</Descriptions.Item>
-              <Descriptions.Item label="提交人">{detail.created_by_name}</Descriptions.Item>
-              <Descriptions.Item label="迭代">{detail.iteration_tag || '—'}</Descriptions.Item>
-              <Descriptions.Item label="计划窗口">{detail.planned_window || '—'}</Descriptions.Item>
-              <Descriptions.Item label="影响范围">{detail.impact_scope || '—'}</Descriptions.Item>
-              <Descriptions.Item label="受众">{detail.audience || '—'}</Descriptions.Item>
-              <Descriptions.Item label="通知用户">
-                {detail.need_user_notice ? '需要' : '不需要'}
+              <Descriptions.Item label={t("deploy.sourceVersion")}>{detail.source_ref || t("deploy.defaultBranch")}</Descriptions.Item>
+              <Descriptions.Item label={t("deploy.colSubmitter")}>{detail.created_by_name}</Descriptions.Item>
+              <Descriptions.Item label={t("deploy.iteration")}>{detail.iteration_tag || "—"}</Descriptions.Item>
+              <Descriptions.Item label={t("deploy.window")}>{detail.planned_window || "—"}</Descriptions.Item>
+              <Descriptions.Item label={t("deploy.impact")}>{detail.impact_scope || "—"}</Descriptions.Item>
+              <Descriptions.Item label={t("deploy.audience")}>{detail.audience || "—"}</Descriptions.Item>
+              <Descriptions.Item label={t("deploy.notifyUser")}>
+                {detail.need_user_notice ? t('deploy.needNotice') : t('deploy.noNeedNotice')}
               </Descriptions.Item>
               {detail.reject_reason && (
-                <Descriptions.Item label="驳回原因">
+                <Descriptions.Item label={t("deploy.rejectReason")}>
                   <Text type="danger">{detail.reject_reason}</Text>
                 </Descriptions.Item>
               )}
@@ -542,7 +561,7 @@ export default function DeployRequests() {
                 column={1}
                 size="small"
                 bordered
-                title="本次发布"
+                title={t("deploy.thisRelease")}
                 style={{ marginBottom: 16 }}
                 extra={
                   detail.pipeline_id && (
@@ -552,12 +571,12 @@ export default function DeployRequests() {
                         navigate(`/executions/${detail.pipeline_id}/${detail.release_id}`)
                       }
                     >
-                      看执行步骤
+                      {t('deploy.viewSteps')}
                     </Button>
                   )
                 }
               >
-                <Descriptions.Item label="构建号">
+                <Descriptions.Item label={t("deploy.buildNo")}>
                   #{detail.release_build_number ?? detail.release_id}
                   {detail.release_version && (
                     <Text type="secondary" style={{ marginLeft: 8 }}>
@@ -565,19 +584,19 @@ export default function DeployRequests() {
                     </Text>
                   )}
                 </Descriptions.Item>
-                <Descriptions.Item label="执行状态">
-                  {detail.release_status_label || detail.release_status}
+                <Descriptions.Item label={t("deploy.execStatus")}>
+                  {detail.release_status ? releaseStatusMeta(detail.release_status).text : '—'}
                 </Descriptions.Item>
-                <Descriptions.Item label="开始时间">
-                  {fmtTime(detail.release_started_at) || '尚未开始'}
+                <Descriptions.Item label={t("deploy.startedAt")}>
+                  {formatDateTime(detail.release_started_at) || t('deploy.notStarted')}
                 </Descriptions.Item>
-                <Descriptions.Item label="结束时间">
-                  {fmtTime(detail.release_finished_at) || '进行中'}
+                <Descriptions.Item label={t("deploy.finishedAt")}>
+                  {formatDateTime(detail.release_finished_at) || t('deploy.inProgress')}
                 </Descriptions.Item>
               </Descriptions>
             )}
 
-            <Text strong>发布清单</Text>
+            <Text strong>{t('deploy.manifest')}</Text>
             <pre
               style={{
                 background: '#fafafa',
@@ -591,7 +610,7 @@ export default function DeployRequests() {
               {detail.manifest}
             </pre>
 
-            <Text strong>业务变更说明</Text>
+            <Text strong>{t('deploy.business')}</Text>
             <pre
               style={{
                 background: '#fafafa',
@@ -602,10 +621,10 @@ export default function DeployRequests() {
                 whiteSpace: 'pre-wrap',
               }}
             >
-              {detail.business_summary || '（未填写）'}
+              {detail.business_summary || t('deploy.notFilled')}
             </pre>
 
-            <Text strong>更新日志</Text>
+            <Text strong>{t('deploy.changelog')}</Text>
             <pre
               style={{
                 background: '#fafafa',
@@ -616,7 +635,7 @@ export default function DeployRequests() {
                 whiteSpace: 'pre-wrap',
               }}
             >
-              {detail.changelog || '（未填写）'}
+              {detail.changelog || t('deploy.notFilled')}
             </pre>
           </>
         ) : null}

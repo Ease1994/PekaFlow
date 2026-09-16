@@ -810,7 +810,7 @@ def _loaded_skill_names(
 
 
 def _skip_already_loaded_skill(tool_name: str, arguments: dict, loaded: set[str]) -> str:
-    """说明书已在上下文里就不要再 skill() 空转一轮。对齐 Cursor：读过的 skill 直接干活。"""
+    """说明书已在上下文里就不要再 skill() 空转一轮。读过的 skill 直接干活。"""
     if canonicalize_tool_name(tool_name) not in {"skill", "load_skill"}:
         return ""
     name = str((arguments or {}).get("name") or "").strip()

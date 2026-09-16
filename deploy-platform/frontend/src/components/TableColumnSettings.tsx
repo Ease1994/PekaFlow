@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button, Checkbox, Popover, Radio, Space } from 'antd'
 import { SettingOutlined } from '@ant-design/icons'
+import { useT } from '@/i18n'
 
 export type TableSize = 'small' | 'middle' | 'large'
 
@@ -19,6 +20,7 @@ interface Props {
 
 /** 表头齿轮：勾选显示哪些列、选行高。点确认才生效。 */
 export default function TableColumnSettings({ options, visible, size, onApply }: Props) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const [draftVisible, setDraftVisible] = useState(visible)
   const [draftSize, setDraftSize] = useState(size)
@@ -43,7 +45,7 @@ export default function TableColumnSettings({ options, visible, size, onApply }:
   const content = (
     <div style={{ width: 320 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ fontWeight: 600 }}>字段显示设置</span>
+        <span style={{ fontWeight: 600 }}>{t('common.fieldDisplay')}</span>
         <Checkbox
           checked={allChecked}
           indeterminate={!allChecked && someChecked}
@@ -51,7 +53,7 @@ export default function TableColumnSettings({ options, visible, size, onApply }:
             setDraftVisible(e.target.checked ? [...lockedKeys, ...optionalKeys] : [...lockedKeys])
           }
         >
-          全选
+          {t('common.selectAll')}
         </Checkbox>
       </div>
       <div
@@ -73,16 +75,16 @@ export default function TableColumnSettings({ options, visible, size, onApply }:
           </Checkbox>
         ))}
       </div>
-      <div style={{ marginBottom: 8, fontWeight: 600 }}>表格行高</div>
+      <div style={{ marginBottom: 8, fontWeight: 600 }}>{t('common.tableRowHeight')}</div>
       <Radio.Group
         optionType="button"
         buttonStyle="solid"
         value={draftSize}
         onChange={(e) => setDraftSize(e.target.value)}
         options={[
-          { label: '小', value: 'small' },
-          { label: '中', value: 'middle' },
-          { label: '大', value: 'large' },
+          { label: t('common.sizeSmall'), value: 'small' },
+          { label: t('common.sizeMedium'), value: 'middle' },
+          { label: t('common.sizeLarge'), value: 'large' },
         ]}
       />
       <div style={{ marginTop: 16, textAlign: 'right' }}>
@@ -95,10 +97,10 @@ export default function TableColumnSettings({ options, visible, size, onApply }:
               setOpen(false)
             }}
           >
-            确认
+            {t('common.confirm')}
           </Button>
           <Button size="small" onClick={() => setOpen(false)}>
-            取消
+            {t('common.cancel')}
           </Button>
         </Space>
       </div>
@@ -107,7 +109,7 @@ export default function TableColumnSettings({ options, visible, size, onApply }:
 
   return (
     <Popover
-      title="表格设置"
+      title={t('common.tableSettings')}
       trigger="click"
       open={open}
       onOpenChange={setOpen}
@@ -115,7 +117,7 @@ export default function TableColumnSettings({ options, visible, size, onApply }:
       content={content}
     >
       <SettingOutlined
-        title="表格设置"
+        title={t('common.tableSettings')}
         onClick={(e) => e.stopPropagation()}
         style={{ marginLeft: 8, color: '#8c8c8c', cursor: 'pointer' }}
       />

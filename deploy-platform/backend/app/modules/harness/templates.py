@@ -77,7 +77,7 @@ metadata:
 SKILL.md 不会整份塞进系统提示。系统提示只放 name + description；
 模型用 `skill` 工具按精确 name 加载正文。写不好模型就会乱调工具或编造 ID。
 
-对齐 Cursor Agent Skills 的结构：
+SKILL.md 约定结构：
 
 ```markdown
 ---

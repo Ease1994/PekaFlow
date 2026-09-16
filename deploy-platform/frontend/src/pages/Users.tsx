@@ -23,6 +23,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { del, get, post, put } from '@/api/client'
 import DataTable from '@/components/DataTable'
+import { useT } from '@/i18n'
 
 interface AccountUser {
   id: number
@@ -46,13 +47,8 @@ interface LdapEntry {
   upn: string
 }
 
-const SOURCE: Record<string, { color: string; text: string }> = {
-  local: { color: 'default', text: '本地' },
-  ldap: { color: 'blue', text: 'LDAP' },
-  wecom: { color: 'green', text: '企微' },
-}
-
 export default function Users() {
+  const t = useT()
   const qc = useQueryClient()
   const [kw, setKw] = useState('')
   const [source, setSource] = useState<string>()
@@ -68,6 +64,13 @@ export default function Users() {
   const [createForm] = Form.useForm()
   const [editForm] = Form.useForm()
   const [pwdForm] = Form.useForm()
+
+  /** 登录来源：颜色固定，句子按当前语言现取。 */
+  const SOURCE: Record<string, { color: string; text: string }> = {
+    local: { color: 'default', text: t('users.local') },
+    ldap: { color: 'blue', text: 'LDAP' },
+    wecom: { color: 'green', text: t('users.wecom') },
+  }
 
   const { data: users = [], isFetching } = useQuery({
     queryKey: ['account-users', kw, source, status],
@@ -99,7 +102,7 @@ export default function Users() {
   const createMut = useMutation({
     mutationFn: (body: Record<string, unknown>) => post<AccountUser>('/account/users', body),
     onSuccess: () => {
-      message.success('已创建本地用户')
+      message.success(t('users.createdLocal'))
       setCreateOpen(false)
       createForm.resetFields()
       invalidate()
@@ -108,7 +111,7 @@ export default function Users() {
   const saveMut = useMutation({
     mutationFn: (body: { id: number } & Record<string, unknown>) => put<AccountUser>(`/account/users/${body.id}`, body),
     onSuccess: () => {
-      message.success('已保存')
+      message.success(t('users.saved'))
       setEditUser(null)
       invalidate()
     },
@@ -117,7 +120,7 @@ export default function Users() {
     mutationFn: (body: { id: number; password: string }) =>
       post(`/account/users/${body.id}/reset-password`, { password: body.password }),
     onSuccess: () => {
-      message.success('密码已重置')
+      message.success(t('users.pwdReset'))
       setPwdUser(null)
       pwdForm.resetFields()
     },
@@ -125,7 +128,7 @@ export default function Users() {
   const delMut = useMutation({
     mutationFn: (id: number) => del(`/account/users/${id}`),
     onSuccess: () => {
-      message.success('已删除')
+      message.success(t('project.deleted'))
       invalidate()
     },
   })
@@ -133,13 +136,13 @@ export default function Users() {
     mutationFn: () => post<LdapEntry[]>('/account/ldap/search', { keyword: ldapKw }),
     onSuccess: (rows) => {
       setLdapRows(rows)
-      if (!rows.length) message.info('没有匹配的 LDAP 用户')
+      if (!rows.length) message.info(t('users.noLdapMatch'))
     },
   })
   const importLdap = useMutation({
     mutationFn: () => post<{ imported: number }>('/account/ldap/import', { users: ldapSelected }),
     onSuccess: (r) => {
-      message.success(`已导入 ${r.imported} 人`)
+      message.success(t('users.importedN', { n: r.imported }))
       setLdapOpen(false)
       setLdapSelected([])
       invalidate()
@@ -147,34 +150,34 @@ export default function Users() {
   })
   const testLdap = useMutation({
     mutationFn: () => post<{ ok: boolean }>('/account/ldap/test', {}),
-    onSuccess: () => message.success('LDAP 绑定账号连通正常'),
+    onSuccess: () => message.success(t('users.ldapOk')),
   })
 
   return (
     <div>
       <Space wrap style={{ marginBottom: 12 }}>
-        <Card size="small">{stats.total} 人</Card>
-        <Card size="small">本地 {stats.local}</Card>
-        <Card size="small">LDAP {stats.ldap}</Card>
-        <Card size="small">已禁用 {stats.disabled}</Card>
+        <Card size="small">{t('users.peopleN', { n: stats.total })}</Card>
+        <Card size="small">{t('users.localN', { n: stats.local })}</Card>
+        <Card size="small">{t('users.ldapN', { n: stats.ldap })}</Card>
+        <Card size="small">{t('users.disabledN', { n: stats.disabled })}</Card>
       </Space>
       <Card
         title={
           <Space>
             <UserOutlined />
-            用户管理
+            {t('menu.users')}
           </Space>
         }
         extra={
           <Space>
             <Button onClick={() => testLdap.mutate()} loading={testLdap.isPending}>
-              测试 LDAP
+              {t('users.testLdap')}
             </Button>
             <Button icon={<CloudSyncOutlined />} onClick={() => setLdapOpen(true)}>
-              导入 LDAP 用户
+              {t('users.importLdap')}
             </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
-              新增本地用户
+              {t('users.addLocal')}
             </Button>
           </Space>
         }
@@ -183,32 +186,32 @@ export default function Users() {
           <Input
             allowClear
             prefix={<SearchOutlined />}
-            placeholder="搜索账号 / 姓名 / 邮箱"
+            placeholder={t('users.searchPh')}
             style={{ width: 240 }}
             value={kw}
             onChange={(e) => setKw(e.target.value)}
           />
           <Select
             allowClear
-            placeholder="来源"
+            placeholder={t('users.source')}
             style={{ width: 120 }}
             value={source}
             onChange={setSource}
             options={[
-              { value: 'local', label: '本地' },
+              { value: 'local', label: t('users.local') },
               { value: 'ldap', label: 'LDAP' },
-              { value: 'wecom', label: '企微' },
+              { value: 'wecom', label: t('users.wecom') },
             ]}
           />
           <Select
             allowClear
-            placeholder="状态"
+            placeholder={t('common.status')}
             style={{ width: 120 }}
             value={status}
             onChange={setStatus}
             options={[
-              { value: 'active', label: '启用' },
-              { value: 'disabled', label: '禁用' },
+              { value: 'active', label: t('common.enabled') },
+              { value: 'disabled', label: t('users.disable') },
             ]}
           />
         </Space>
@@ -220,11 +223,11 @@ export default function Users() {
           dataSource={users}
           pagination={{ current: page, onChange: setPage }}
           columns={[
-            { title: '账号', dataIndex: 'username', width: 140 },
-            { title: '姓名', dataIndex: 'display_name', width: 120 },
-            { title: '邮箱', dataIndex: 'email' },
+            { title: t('users.account'), dataIndex: 'username', width: 140 },
+            { title: t('users.displayName'), dataIndex: 'display_name', width: 120 },
+            { title: t('users.email'), dataIndex: 'email' },
             {
-              title: '登录方式',
+              title: t('users.loginMethod'),
               dataIndex: 'identities',
               width: 140,
               render: (_: string[] | undefined, r: AccountUser) => (
@@ -238,20 +241,20 @@ export default function Users() {
               ),
             },
             {
-              title: '角色',
+              title: t('users.role'),
               dataIndex: 'is_admin',
               width: 90,
-              render: (v: boolean) => (v ? <Tag color="gold">管理员</Tag> : <Tag>普通</Tag>),
+              render: (v: boolean) => (v ? <Tag color="gold">{t('layout.admin')}</Tag> : <Tag>{t('users.normal')}</Tag>),
             },
             {
-              title: '状态',
+              title: t('common.status'),
               dataIndex: 'status',
               width: 80,
               render: (s: string, r: AccountUser) => (
                 <Switch
                   checked={s === 'active'}
-                  checkedChildren="启用"
-                  unCheckedChildren="禁用"
+                  checkedChildren={t('common.enabled')}
+                  unCheckedChildren={t('users.disable')}
                   // 连点会发出多个请求，响应乱序时开关显示的状态和库里的对不上
                   loading={saveMut.isPending}
                   disabled={saveMut.isPending}
@@ -259,9 +262,9 @@ export default function Users() {
                 />
               ),
             },
-            { title: '最近登录', dataIndex: 'last_login_at', width: 170, render: (v: string) => v.replace('T', ' ').slice(0, 19) || '—' },
+            { title: t('users.lastLogin'), dataIndex: 'last_login_at', width: 170, render: (v: string) => v.replace('T', ' ').slice(0, 19) || '—' },
             {
-              title: '操作',
+              title: t('common.action'),
               width: 220,
               render: (_: unknown, r: AccountUser) => (
                 <Space>
@@ -269,16 +272,16 @@ export default function Users() {
                     setEditUser(r)
                     editForm.setFieldsValue(r)
                   }}>
-                    编辑
+                    {t('common.edit')}
                   </Button>
                   {!(r.identities || []).includes('ldap') && r.source !== 'ldap' && (
                     <Button type="link" size="small" icon={<KeyOutlined />} onClick={() => setPwdUser(r)}>
-                      重置密码
+                      {t('users.resetPwd')}
                     </Button>
                   )}
-                  <Popconfirm title="确定删除该用户？" onConfirm={() => delMut.mutate(r.id)}>
+                  <Popconfirm title={t('users.deleteConfirm')} onConfirm={() => delMut.mutate(r.id)}>
                     <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-                      删除
+                      {t('common.delete')}
                     </Button>
                   </Popconfirm>
                 </Space>
@@ -289,7 +292,7 @@ export default function Users() {
       </Card>
 
       <Modal
-        title="新增本地用户"
+        title={t('users.addLocal')}
         open={createOpen}
         onCancel={() => {
           setCreateOpen(false)
@@ -297,29 +300,29 @@ export default function Users() {
         }}
         onOk={() => createForm.validateFields().then((v) => createMut.mutate(v))}
         confirmLoading={createMut.isPending}
-        okText="创建"
+        okText={t('common.create')}
       >
         <Form form={createForm} layout="vertical">
-          <Form.Item name="username" label="账号" rules={[{ required: true }]}>
-            <Input placeholder="短账号，不要带 @" />
+          <Form.Item name="username" label={t('users.account')} rules={[{ required: true }]}>
+            <Input placeholder={t('users.usernamePh')} />
           </Form.Item>
-          <Form.Item name="display_name" label="姓名">
+          <Form.Item name="display_name" label={t('users.displayName')}>
             <Input />
           </Form.Item>
-          <Form.Item name="email" label="邮箱">
+          <Form.Item name="email" label={t('users.email')}>
             <Input />
           </Form.Item>
-          <Form.Item name="password" label="初始密码" rules={[{ required: true, min: 6 }]}>
+          <Form.Item name="password" label={t('users.initPwd')} rules={[{ required: true, min: 6 }]}>
             <Input.Password />
           </Form.Item>
-          <Form.Item name="is_admin" label="管理员" valuePropName="checked">
+          <Form.Item name="is_admin" label={t('layout.admin')} valuePropName="checked">
             <Switch />
           </Form.Item>
         </Form>
       </Modal>
 
       <Modal
-        title="编辑用户"
+        title={t('users.editUser')}
         open={!!editUser}
         onCancel={() => setEditUser(null)}
         onOk={() =>
@@ -328,23 +331,23 @@ export default function Users() {
         confirmLoading={saveMut.isPending}
       >
         <Form form={editForm} layout="vertical">
-          <Form.Item label="账号">
+          <Form.Item label={t('users.account')}>
             <Input disabled value={editUser?.username} />
           </Form.Item>
-          <Form.Item name="display_name" label="姓名">
+          <Form.Item name="display_name" label={t('users.displayName')}>
             <Input />
           </Form.Item>
-          <Form.Item name="email" label="邮箱">
+          <Form.Item name="email" label={t('users.email')}>
             <Input />
           </Form.Item>
-          <Form.Item name="is_admin" label="管理员" valuePropName="checked">
+          <Form.Item name="is_admin" label={t('layout.admin')} valuePropName="checked">
             <Switch />
           </Form.Item>
         </Form>
       </Modal>
 
       <Modal
-        title={`重置密码 · ${pwdUser?.username || ''}`}
+        title={t('users.resetPwdTitle', { name: pwdUser?.username || '' })}
         open={!!pwdUser}
         onCancel={() => setPwdUser(null)}
         onOk={() =>
@@ -353,14 +356,14 @@ export default function Users() {
         confirmLoading={pwdMut.isPending}
       >
         <Form form={pwdForm} layout="vertical">
-          <Form.Item name="password" label="新密码" rules={[{ required: true, min: 6 }]}>
+          <Form.Item name="password" label={t('users.newPwd')} rules={[{ required: true, min: 6 }]}>
             <Input.Password />
           </Form.Item>
         </Form>
       </Modal>
 
       <Modal
-        title="从 LDAP 导入"
+        title={t('users.importLdapTitle')}
         width={720}
         open={ldapOpen}
         onCancel={() => {
@@ -373,18 +376,18 @@ export default function Users() {
         onOk={() => importLdap.mutate()}
         okButtonProps={{ disabled: !ldapSelected.length }}
         confirmLoading={importLdap.isPending}
-        okText={`导入选中（${ldapSelected.length}）`}
+        okText={t('users.importSelected', { n: ldapSelected.length })}
       >
         <Space style={{ marginBottom: 12 }}>
           <Input
-            placeholder="姓名 / 邮箱 / 域账号"
+            placeholder={t('users.ldapSearchPh')}
             value={ldapKw}
             onChange={(e) => setLdapKw(e.target.value)}
             onPressEnter={() => searchLdap.mutate()}
             style={{ width: 280 }}
           />
           <Button type="primary" loading={searchLdap.isPending} onClick={() => searchLdap.mutate()}>
-            搜索
+            {t('common.search')}
           </Button>
         </Space>
         <DataTable
@@ -399,9 +402,9 @@ export default function Users() {
             onChange: (_keys, rows) => setLdapSelected(rows),
           }}
           columns={[
-            { title: '域账号', dataIndex: 'username', width: 120 },
-            { title: '姓名', dataIndex: 'display_name' },
-            { title: '邮箱', dataIndex: 'email' },
+            { title: t('users.domainAccount'), dataIndex: 'username', width: 120 },
+            { title: t('users.displayName'), dataIndex: 'display_name' },
+            { title: t('users.email'), dataIndex: 'email' },
             { title: 'UPN', dataIndex: 'upn' },
           ]}
         />

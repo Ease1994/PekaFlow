@@ -5,22 +5,22 @@ import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { get, post, put, del } from '@/api/client'
 import type { Repository, Credential } from '@/api/types'
+import { useT } from '@/i18n'
 
 /** 项目详情页的「代码库」Tab：仅显示/管理本项目代码库。 */
 /** 从 Git URL 派生别名（蓝盾规范：group/project）。前端镜像逻辑，保持 UI 实时响应。 */
 function deriveAlias(url: string): string {
   if (!url) return ''
   const u = url.trim()
-  // https / http
   const m1 = u.match(/^https?:\/\/[^/]+\/(.+?)(?:\.git)?\/?$/)
   if (m1) return m1[1]
-  // ssh:// or git@
   const m2 = u.match(/^(?:ssh:\/\/[^@/]+@[^/:]+(?::\d+)?\/|[\w-]+@[^:]+:)(.+?)(?:\.git)?\/?$/)
   if (m2) return m2[1]
   return ''
 }
 
 export default function RepositoryPanel({ projectId }: { projectId: number }) {
+  const t = useT()
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Repository | null>(null)
@@ -62,7 +62,6 @@ export default function RepositoryPanel({ projectId }: { projectId: number }) {
     const currentAlias = form.getFieldValue('alias')
     const prevUrl = editing?.url || ''
     const expectedAlias = deriveAlias(prevUrl)
-    // 如果当前 alias 还没手动改过（仍是上一份 URL 派生的结果），则跟随更新
     if (!currentAlias || currentAlias === expectedAlias) {
       form.setFieldsValue({ alias: deriveAlias(url) })
     }
@@ -87,7 +86,7 @@ export default function RepositoryPanel({ projectId }: { projectId: number }) {
 
   const columns = [
     {
-      title: '别名',
+      title: t('repo.alias'),
       dataIndex: 'alias',
       render: (v: string) => (
         <Space>
@@ -96,30 +95,30 @@ export default function RepositoryPanel({ projectId }: { projectId: number }) {
         </Space>
       ),
     },
-    { title: '仓库地址', dataIndex: 'url', ellipsis: true },
+    { title: t('repo.url'), dataIndex: 'url', ellipsis: true },
     {
-      title: '类型',
+      title: t('repo.type'),
       dataIndex: 'provider',
       render: (v: string) => <Tag color="blue">{v}</Tag>,
     },
-    { title: '默认分支', dataIndex: 'default_branch' },
+    { title: t('repo.defaultBranch'), dataIndex: 'default_branch' },
     {
-      title: '关联凭证',
+      title: t('repo.credential'),
       dataIndex: 'credential_name',
       render: (v: string | null) =>
-        v ? <Tag color="green">{v}</Tag> : <span style={{ color: '#999' }}>未关联</span>,
+        v ? <Tag color="green">{v}</Tag> : <span style={{ color: '#999' }}>{t('repo.unlinked')}</span>,
     },
     {
-      title: '操作',
+      title: t('common.action'),
       width: 170,
       render: (_: unknown, r: Repository) => (
         <Space>
           <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>
-            编辑
+            {t('common.edit')}
           </Button>
-          <Popconfirm title="确认删除该代码库？" onConfirm={() => handleDelete(r.id)}>
+          <Popconfirm title={t('repo.deleteConfirm')} onConfirm={() => handleDelete(r.id)}>
             <Button size="small" danger icon={<DeleteOutlined />}>
-              删除
+              {t('common.delete')}
             </Button>
           </Popconfirm>
         </Space>
@@ -131,16 +130,16 @@ export default function RepositoryPanel({ projectId }: { projectId: number }) {
     <div>
       <div style={{ marginBottom: 16 }}>
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-          关联代码库
+          {t('repo.link')}
         </Button>
         <span style={{ marginLeft: 12, color: '#999', fontSize: 12 }}>
-          配置真实 GitLab 地址并关联访问凭证，流水线 git-checkout 步骤即可真拉代码
+          {t('repo.hint')}
         </span>
       </div>
       <DataTable chromeKey="project-repos" rowKey="id" columns={columns} dataSource={repos} pagination={false} />
 
       <Modal
-        title={editing ? '编辑代码库' : '关联代码库'}
+        title={editing ? t('repo.edit') : t('repo.link')}
         open={open}
         onOk={handleSave}
         onCancel={() => setOpen(false)}
@@ -149,19 +148,19 @@ export default function RepositoryPanel({ projectId }: { projectId: number }) {
         <Form form={form} layout="vertical">
           <Form.Item
             name="url"
-            label="仓库地址（GitLab HTTPS）"
-            rules={[{ required: true, message: '请输入仓库地址' }]}
+            label={t('repo.urlLabel')}
+            rules={[{ required: true, message: t('repo.urlRequired') }]}
           >
             <Input placeholder="https://gitlab.example.com/group/repo.git" onChange={handleUrlChange} />
           </Form.Item>
           <Form.Item
             name="alias"
-            label="别名（自动从 URL 派生 group/project，可手动覆盖）"
-            tooltip="蓝盾规范：自动从仓库地址提取 group/project 作为别名，流水线下拉直接展示别名"
+            label={t('repo.aliasLabel')}
+            tooltip={t('repo.aliasTip')}
           >
-            <Input placeholder="输入 URL 后自动生成" />
+            <Input placeholder={t('repo.aliasPlaceholder')} />
           </Form.Item>
-          <Form.Item name="provider" label="类型" initialValue="gitlab">
+          <Form.Item name="provider" label={t('repo.type')} initialValue="gitlab">
             <Select
               options={[
                 { label: 'GitLab', value: 'gitlab' },
@@ -169,15 +168,15 @@ export default function RepositoryPanel({ projectId }: { projectId: number }) {
               ]}
             />
           </Form.Item>
-          <Form.Item name="default_branch" label="默认分支" initialValue="master">
+          <Form.Item name="default_branch" label={t('repo.defaultBranch')} initialValue="master">
             <Input placeholder="master / main" />
           </Form.Item>
-          <Form.Item name="credential_id" label="关联凭证（访问密钥）">
+          <Form.Item name="credential_id" label={t('repo.credLabel')}>
             <Select
               allowClear
-              placeholder="选择本项目或全局凭证（Token）"
+              placeholder={t('repo.credPlaceholder')}
               options={creds.map((c) => ({
-                label: `${c.name}（${c.project_id ? '项目' : '全局'}）`,
+                label: `${c.name}（${c.project_id ? t('repo.projectCred') : t('repo.globalCred')}）`,
                 value: c.id,
               }))}
             />

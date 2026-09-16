@@ -4,6 +4,7 @@ import { SearchOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import { get } from '@/api/client'
 import type { Plugin } from '@/api/types'
+import { useT } from '@/i18n'
 
 interface PluginSelectorProps {
   open: boolean
@@ -11,15 +12,19 @@ interface PluginSelectorProps {
   onSelect: (plugin: Plugin) => void
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  source: '源代码',
-  build: '构建',
-  deploy: '部署',
-  notify: '通知',
-  trigger: '触发器',
-  exec: '命令',
-  artifact: '制品',
-  pipeline: '流水线',
+/** 插件分类名随界面语言，未知分类原样显示码。 */
+function categoryLabel(t: (k: string) => string, c: string): string {
+  const keys: Record<string, string> = {
+    source: 'pipe.catSource',
+    build: 'pipe.catBuild',
+    deploy: 'pipe.catDeploy',
+    notify: 'pipe.catNotify',
+    trigger: 'pipe.catTrigger',
+    exec: 'pipe.catCommand',
+    artifact: 'pipe.catArtifact',
+    pipeline: 'pipe.catPipeline',
+  }
+  return keys[c] ? t(keys[c]) : c
 }
 
 /**
@@ -29,6 +34,7 @@ const CATEGORY_LABELS: Record<string, string> = {
  * - 顶部搜索 + 引用变量
  */
 export default function PluginSelector({ open, onClose, onSelect }: PluginSelectorProps) {
+  const t = useT()
   const [keyword, setKeyword] = useState('')
   const [category, setCategory] = useState<string>('source')
 
@@ -61,7 +67,7 @@ export default function PluginSelector({ open, onClose, onSelect }: PluginSelect
 
   return (
     <Modal
-      title="请选择一个插件"
+      title={t("pipe.pickPlugin")}
       open={open}
       onCancel={onClose}
       footer={null}
@@ -77,7 +83,7 @@ export default function PluginSelector({ open, onClose, onSelect }: PluginSelect
             style={{ borderRight: 0 }}
             items={categories.map((c) => ({
               key: c,
-              label: CATEGORY_LABELS[c] || c,
+              label: categoryLabel(t, c),
             }))}
             onClick={({ key }) => setCategory(key)}
           />
@@ -87,7 +93,7 @@ export default function PluginSelector({ open, onClose, onSelect }: PluginSelect
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
             <Input
-              placeholder="搜索插件（跨全部分类）"
+              placeholder={t("pipe.searchPlugin")}
               prefix={<SearchOutlined />}
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
@@ -96,14 +102,14 @@ export default function PluginSelector({ open, onClose, onSelect }: PluginSelect
             />
             {keyword.trim() && (
               <span style={{ color: '#999', fontSize: 12 }}>
-                全部分类中匹配到 {filtered.length} 个
+                {t('pipe.matchCount', { n: filtered.length })}
               </span>
             )}
           </div>
 
           <div style={{ flex: 1, overflow: 'auto' }}>
             {filtered.length === 0 ? (
-              <Empty description="未找到匹配的插件" />
+              <Empty description={t("pipe.noPluginMatch")} />
             ) : (
               filtered.map((p) => (
                 <div
@@ -136,9 +142,9 @@ export default function PluginSelector({ open, onClose, onSelect }: PluginSelect
                     <div style={{ fontWeight: 600, marginBottom: 2 }}>
                       {p.display_name} <span style={{ color: '#999', fontWeight: 400 }}>· {p.name}</span>
                     </div>
-                    <div style={{ color: '#666', fontSize: 12 }}>{p.description || '暂无描述'}</div>
+                    <div style={{ color: '#666', fontSize: 12 }}>{p.description || t('pipe.noDesc')}</div>
                     <div style={{ marginTop: 4 }}>
-                      <Tag>{CATEGORY_LABELS[p.category] || p.category}</Tag>
+                      <Tag>{categoryLabel(t, p.category)}</Tag>
                       {p.version ? <Tag color="blue">v{p.version}</Tag> : null}
                     </div>
                   </div>
@@ -149,7 +155,7 @@ export default function PluginSelector({ open, onClose, onSelect }: PluginSelect
                       onClose()
                     }}
                   >
-                    选择
+                    {t('pipe.choose')}
                   </Button>
                 </div>
               ))

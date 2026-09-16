@@ -15,7 +15,7 @@ description: >-
 
 1. 立刻调用 `propose_agent_skill`（`name` / `display_name` / `description` / `skill_md`）。不必先口头复述方案再等点头。
 2. `description` 写给目录看：做什么 + 何时用 + 不是什么，第三人称，带检索关键词。不要写成「我可以帮你…」。
-3. `skill_md` 按 Cursor 技能结构写：
+3. `skill_md` 按技能约定结构写：
    - YAML frontmatter：`name`、`description`（做什么 + 何时用 + 不是什么）
    - `# 标题` + `## Workflow` 逐步调用哪些已有工具
    - `## Do not use` 和易混技能/工具划界

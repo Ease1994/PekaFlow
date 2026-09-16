@@ -28,45 +28,98 @@ import type {
 import PluginDraftDrawer from '@/components/PluginDraftDrawer'
 import DataTable from '@/components/DataTable'
 import { useAuthStore } from '@/stores/auth'
+import { t, useT } from '@/i18n'
 
-const categoryMap: Record<string, { color: string; text: string }> = {
-  source: { color: 'blue', text: '代码' },
-  build: { color: 'geekblue', text: '构建' },
-  deploy: { color: 'red', text: '部署' },
-  notify: { color: 'purple', text: '通知' },
-  trigger: { color: 'cyan', text: '触发' },
-  exec: { color: 'gold', text: '命令' },
-  artifact: { color: 'magenta', text: '制品' },
-  pipeline: { color: 'orange', text: '流水线' },
+/** 流水线插件分类：颜色固定，文案随当前界面语言取。 */
+function categoryItem(v: string): { color: string; text: string } {
+  const colors: Record<string, string> = {
+    source: 'blue',
+    build: 'geekblue',
+    deploy: 'red',
+    notify: 'purple',
+    trigger: 'cyan',
+    exec: 'gold',
+    artifact: 'magenta',
+    pipeline: 'orange',
+  }
+  const keys: Record<string, string> = {
+    source: 'store.catSource',
+    build: 'store.catBuild',
+    deploy: 'store.catDeploy',
+    notify: 'store.catNotify',
+    trigger: 'store.catTrigger',
+    exec: 'store.catExec',
+    artifact: 'store.catArtifact',
+    pipeline: 'store.catPipeline',
+  }
+  const key = keys[v]
+  return { color: colors[v] || 'default', text: key ? t(key) : v }
 }
 
-const draftStatusMap: Record<string, { color: string; text: string }> = {
-  pending: { color: 'orange', text: '待审' },
-  published: { color: 'green', text: '已发布' },
-  rejected: { color: 'red', text: '已驳回' },
+/** 插件草稿审批状态。 */
+function draftStatusItem(v: string): { color: string; text: string } {
+  const colors: Record<string, string> = {
+    pending: 'orange',
+    published: 'green',
+    rejected: 'red',
+  }
+  const keys: Record<string, string> = {
+    pending: 'store.draftPending',
+    published: 'store.draftPublished',
+    rejected: 'store.draftRejected',
+  }
+  const key = keys[v]
+  return { color: colors[v] || 'default', text: key ? t(key) : v }
 }
 
-const builtinCategoryMap: Record<string, string> = {
-  catalog: '目录',
-  observe: '观测',
-  diagnose: '诊断',
-  delivery: '交付',
-  access: '权限',
-  authoring: '编写',
-  meta: '元能力',
+/** 内置助手工具分类名。 */
+function builtinCategoryLabel(v?: string): string {
+  const keys: Record<string, string> = {
+    catalog: 'store.toolCatCatalog',
+    observe: 'store.toolCatObserve',
+    diagnose: 'store.toolCatDiagnose',
+    delivery: 'store.toolCatDelivery',
+    access: 'store.toolCatAccess',
+    authoring: 'store.toolCatAuthoring',
+    meta: 'store.toolCatMeta',
+  }
+  const key = keys[v || '']
+  return key ? t(key) : v || '-'
 }
 
-const riskMap: Record<string, { color: string; text: string }> = {
-  read: { color: 'blue', text: '只读' },
-  write: { color: 'orange', text: '写入' },
-  destructive: { color: 'red', text: '高风险' },
+/** 工具风险等级。 */
+function riskItem(v?: string): { color: string; text: string } {
+  const code = v || 'read'
+  const colors: Record<string, string> = {
+    read: 'blue',
+    write: 'orange',
+    destructive: 'red',
+  }
+  const keys: Record<string, string> = {
+    read: 'store.riskRead',
+    write: 'store.riskWrite',
+    destructive: 'store.riskDestructive',
+  }
+  const key = keys[code]
+  return { color: colors[code] || 'default', text: key ? t(key) : code }
 }
 
-const healthMap: Record<string, { color: string; text: string }> = {
-  healthy: { color: 'green', text: '正常' },
-  degraded: { color: 'gold', text: '降级' },
-  unhealthy: { color: 'red', text: '异常' },
-  unknown: { color: 'default', text: '未检查' },
+/** 运行时健康状态。 */
+function healthItem(status: string): { color: string; text: string } {
+  const colors: Record<string, string> = {
+    healthy: 'green',
+    degraded: 'gold',
+    unhealthy: 'red',
+    unknown: 'default',
+  }
+  const keys: Record<string, string> = {
+    healthy: 'store.healthOk',
+    degraded: 'store.healthDegraded',
+    unhealthy: 'store.healthBad',
+    unknown: 'store.healthUnknown',
+  }
+  const key = keys[status]
+  return { color: colors[status] || 'default', text: key ? t(key) : status }
 }
 
 /**
@@ -76,17 +129,17 @@ const healthMap: Record<string, { color: string; text: string }> = {
  */
 function healthTag(status?: string, message?: string) {
   if (!status) return null
-  const item = healthMap[status] || { color: 'default', text: status }
+  const item = healthItem(status)
   const tag = <Tag color={item.color}>{item.text}</Tag>
   return message ? <Tooltip title={message}>{tag}</Tooltip> : tag
 }
 
 /** 启用 / 停用 / 卸载，不把英文 status 直接铺到页面上。 */
 function lifecycleStatusTag(row: HarnessComponent) {
-  if (row.enabled) return <Tag color="green">已启用</Tag>
-  if (row.status === 'uninstalled') return <Tag>已卸载</Tag>
-  if (row.status === 'error') return <Tag color="red">异常</Tag>
-  return <Tag>已停用</Tag>
+  if (row.enabled) return <Tag color="green">{t('store.enabledTag')}</Tag>
+  if (row.status === 'uninstalled') return <Tag>{t('store.uninstalled')}</Tag>
+  if (row.status === 'error') return <Tag color="red">{t('store.healthBad')}</Tag>
+  return <Tag>{t('store.disabledTag')}</Tag>
 }
 
 /**
@@ -104,7 +157,7 @@ async function downloadTemplate(path: string, filename: string) {
     a.click()
     a.remove()
     URL.revokeObjectURL(url)
-    message.success(`已开始下载 ${filename}`)
+    message.success(t('store.downloadStarted', { filename }))
   } catch {
     /* 错误已由请求拦截器提示 */
   }
@@ -116,6 +169,7 @@ function storeZipName(name: string, version?: string) {
 }
 
 export default function Store() {
+  const t = useT()
   const queryClient = useQueryClient()
   const user = useAuthStore((s) => s.user)
   const isAdmin = !!user?.is_admin
@@ -190,12 +244,12 @@ export default function Store() {
     },
     onSuccess: (_, variables) => {
       const tips: Record<string, string> = {
-        uninstall: '已卸载组件',
-        reinstall: '已安装并启用，可立即使用',
-        enable: '已启用，可立即使用',
-        purge: '已从技能库删除',
+        uninstall: t('store.uninstalledComponent'),
+        reinstall: t('store.reinstalled'),
+        enable: t('store.enabledNow'),
+        purge: t('store.purgedFromStore'),
       }
-      message.success(tips[variables.action] || '组件状态已更新')
+      message.success(tips[variables.action] || t('store.componentUpdated'))
       refreshHarness()
     },
   })
@@ -203,14 +257,14 @@ export default function Store() {
   const installMut = useMutation({
     mutationFn: (id: number) => post(`/store/plugins/${id}/install`),
     onSuccess: () => {
-      message.success('已安装，可立即在流水线中选用，无需重启')
+      message.success(t('store.pluginInstalled'))
       refreshPlugins()
     },
   })
   const uninstallMut = useMutation({
     mutationFn: (id: number) => post(`/store/plugins/${id}/uninstall`),
     onSuccess: () => {
-      message.success('已卸载')
+      message.success(t('store.uninstalled'))
       queryClient.invalidateQueries({ queryKey: ['plugins'] })
       refreshHarness()
     },
@@ -218,7 +272,7 @@ export default function Store() {
   const deletePluginMut = useMutation({
     mutationFn: (id: number) => del(`/store/plugins/${id}`),
     onSuccess: () => {
-      message.success('已从仓库删除')
+      message.success(t('store.deletedFromRepo'))
       queryClient.invalidateQueries({ queryKey: ['plugins'] })
       refreshHarness()
     },
@@ -226,38 +280,38 @@ export default function Store() {
   const deleteDraftMut = useMutation({
     mutationFn: (id: number) => del(`/store/plugin-drafts/${id}`),
     onSuccess: () => {
-      message.success('已删除草稿')
+      message.success(t('store.draftDeleted'))
       queryClient.invalidateQueries({ queryKey: ['plugin-drafts'] })
     },
   })
 
   const pluginColumns = [
-    { title: '插件', dataIndex: 'display_name' },
+    { title: t('store.plugin'), dataIndex: 'display_name' },
     {
-      title: '分类',
+      title: t('store.category'),
       dataIndex: 'category',
       render: (v: string) => {
-        const c = categoryMap[v] || { color: 'default', text: v }
+        const c = categoryItem(v)
         return <Tag color={c.color}>{c.text}</Tag>
       },
     },
-    { title: '标识', dataIndex: 'name', render: (v: string) => <code>{v}</code> },
-    { title: '版本', dataIndex: 'version', width: 90 },
-    { title: '语言', dataIndex: 'language', width: 80, render: (v: string) => v || '—' },
+    { title: t('store.identifier'), dataIndex: 'name', render: (v: string) => <code>{v}</code> },
+    { title: t('common.version'), dataIndex: 'version', width: 90 },
+    { title: t('store.language'), dataIndex: 'language', width: 80, render: (v: string) => v || '—' },
     {
-      title: '状态',
+      title: t('common.status'),
       dataIndex: 'status',
       width: 150,
       render: (_: string, row: Plugin) => (
         <Space size={4}>
-          {row.installed ? <Tag color="green">已安装</Tag> : <Tag>未安装</Tag>}
-          {row.builtin ? <Tag>内置</Tag> : <Tag color="cyan">第三方</Tag>}
+          {row.installed ? <Tag color="green">{t('store.installed')}</Tag> : <Tag>{t('store.notInstalled')}</Tag>}
+          {row.builtin ? <Tag>{t('store.builtin')}</Tag> : <Tag color="cyan">{t('store.thirdParty')}</Tag>}
         </Space>
       ),
     },
-    { title: '描述', dataIndex: 'description', ellipsis: true },
+    { title: t('common.description'), dataIndex: 'description', ellipsis: true },
     {
-      title: '操作',
+      title: t('common.action'),
       width: 360,
       render: (_: unknown, row: Plugin) => {
         const canDownload = Boolean(row.has_package)
@@ -266,8 +320,8 @@ export default function Store() {
             <Tooltip
               title={
                 canDownload
-                  ? '下载源码包。改 task.json 的 name（不能与内置同名），签名后上传即成第三方插件'
-                  : '该插件实现在 Agent 内，没有可下载源码。请用「下载插件开发模板」'
+                  ? t('store.downloadSrcTip')
+                  : t('store.noPackageTip')
               }
             >
               <span>
@@ -282,17 +336,17 @@ export default function Store() {
                     )
                   }
                 >
-                  下载
+                  {t('store.download')}
                 </Button>
               </span>
             </Tooltip>
             {row.builtin ? (
-              <span style={{ color: '#999' }}>不可卸载</span>
+              <span style={{ color: '#999' }}>{t('store.cannotUninstall')}</span>
             ) : isAdmin ? (
               <>
                 {row.installed ? (
-                  <Popconfirm title="卸载后流水线将无法执行该插件" onConfirm={() => uninstallMut.mutate(row.id)}>
-                    <Button size="small">卸载</Button>
+                  <Popconfirm title={t('store.uninstallPluginConfirm')} onConfirm={() => uninstallMut.mutate(row.id)}>
+                    <Button size="small">{t('store.uninstall')}</Button>
                   </Popconfirm>
                 ) : (
                   <Button
@@ -301,22 +355,22 @@ export default function Store() {
                     disabled={!row.package_path}
                     onClick={() => installMut.mutate(row.id)}
                   >
-                    安装
+                    {t('store.install')}
                   </Button>
                 )}
                 <Popconfirm
-                  title="将从仓库删除该插件及其安装包，无法恢复"
+                  title={t('store.deletePluginConfirm')}
                   onConfirm={() => deletePluginMut.mutate(row.id)}
                 >
                   <Button size="small" danger>
-                    删除
+                    {t('common.delete')}
                   </Button>
                 </Popconfirm>
               </>
             ) : row.installed ? (
-              <span style={{ color: '#999' }}>已安装</span>
+              <span style={{ color: '#999' }}>{t('store.installed')}</span>
             ) : (
-              <span style={{ color: '#999' }}>待管理员安装</span>
+              <span style={{ color: '#999' }}>{t('store.waitAdminInstall')}</span>
             )}
           </Space>
         )
@@ -325,60 +379,60 @@ export default function Store() {
   ]
 
   const draftColumns = [
-    { title: '插件', dataIndex: 'display_name', render: (v: string, row: PluginDraft) => v || row.name },
-    { title: '标识', dataIndex: 'name', render: (v: string) => <code>{v}</code> },
-    { title: '版本', dataIndex: 'version', width: 90 },
+    { title: t('store.plugin'), dataIndex: 'display_name', render: (v: string, row: PluginDraft) => v || row.name },
+    { title: t('store.identifier'), dataIndex: 'name', render: (v: string) => <code>{v}</code> },
+    { title: t('common.version'), dataIndex: 'version', width: 90 },
     {
-      title: '来源',
+      title: t('store.source'),
       dataIndex: 'source',
       width: 100,
-      render: (v: string) => (v === 'ai' ? <Tag color="purple">AI 起草</Tag> : <Tag>人工</Tag>),
+      render: (v: string) => (v === 'ai' ? <Tag color="purple">{t('store.aiDraft')}</Tag> : <Tag>{t('store.manual')}</Tag>),
     },
     {
-      title: '体检',
+      title: t('store.lint'),
       width: 160,
       render: (_: unknown, row: PluginDraft) => {
         const high = row.lint?.high_count || 0
         const warn = row.lint?.warn_count || 0
         return (
           <Space size={4}>
-            {high > 0 ? <Tag color="volcano">高危 {high}</Tag> : <Tag color="green">无高危</Tag>}
-            {warn > 0 ? <Tag color="gold">提醒 {warn}</Tag> : null}
+            {high > 0 ? <Tag color="volcano">{t('store.highRiskN', { n: high })}</Tag> : <Tag color="green">{t('store.noHighRisk')}</Tag>}
+            {warn > 0 ? <Tag color="gold">{t('store.warnN', { n: warn })}</Tag> : null}
           </Space>
         )
       },
     },
     {
-      title: '试跑',
+      title: t('store.trial'),
       dataIndex: 'trial_status',
       width: 100,
       render: (v: string) =>
         v ? (
           <Tag color={v === 'success' ? 'green' : v === 'failed' ? 'red' : 'blue'}>{v}</Tag>
         ) : (
-          <span style={{ color: '#999' }}>未试跑</span>
+          <span style={{ color: '#999' }}>{t('store.notTried')}</span>
         ),
     },
     {
-      title: '状态',
+      title: t('common.status'),
       dataIndex: 'status',
       width: 90,
       render: (v: string) => {
-        const s = draftStatusMap[v] || { color: 'default', text: v }
+        const s = draftStatusItem(v)
         return <Tag color={s.color}>{s.text}</Tag>
       },
     },
     {
-      title: '操作',
+      title: t('common.action'),
       width: 160,
       render: (_: unknown, row: PluginDraft) => (
         <Space size={4}>
           <Button size="small" type="link" onClick={() => setDraftId(row.id)}>
-            审阅代码
+            {t('store.reviewCode')}
           </Button>
-          <Popconfirm title="删除后无法恢复" onConfirm={() => deleteDraftMut.mutate(row.id)}>
+          <Popconfirm title={t('store.deleteIrreversible')} onConfirm={() => deleteDraftMut.mutate(row.id)}>
             <Button size="small" type="link" danger>
-              删除
+              {t('common.delete')}
             </Button>
           </Popconfirm>
         </Space>
@@ -387,13 +441,13 @@ export default function Store() {
   ]
 
   const templateColumns = [
-    { title: '模板名称', dataIndex: 'name' },
-    { title: '描述', dataIndex: 'description', ellipsis: true },
-    { title: '版本', dataIndex: 'version', width: 90 },
+    { title: t('store.templateName'), dataIndex: 'name' },
+    { title: t('common.description'), dataIndex: 'description', ellipsis: true },
+    { title: t('common.version'), dataIndex: 'version', width: 90 },
     {
-      title: '共享范围',
+      title: t('store.shareScope'),
       dataIndex: 'scope',
-      render: (v: string) => (v === 'public' ? <Tag color="green">公开</Tag> : <Tag>私有</Tag>),
+      render: (v: string) => (v === 'public' ? <Tag color="green">{t('store.public')}</Tag> : <Tag>{t('store.private')}</Tag>),
     },
   ]
 
@@ -418,7 +472,7 @@ export default function Store() {
           type="primary"
           onClick={() => lifecycleMut.mutate({ component: row, action: 'reinstall' })}
         >
-          安装
+          {t('store.install')}
         </Button>
       ) : (
         <Button
@@ -427,25 +481,25 @@ export default function Store() {
             lifecycleMut.mutate({ component: row, action: row.enabled ? 'disable' : 'enable' })
           }
         >
-          {row.enabled ? '停用' : '启用'}
+          {row.enabled ? t('common.disabled') : t('common.enabled')}
         </Button>
       )}
       {row.status !== 'uninstalled' ? (
         <Button size="small" onClick={() => lifecycleMut.mutate({ component: row, action: 'health' })}>
-          检查
+          {t('store.check')}
         </Button>
       ) : null}
       {row.status === 'uninstalled' ? null : (
-        <Popconfirm title={`确认卸载 ${componentName(row)}？卸载后可再安装，包仍留在列表里。`} onConfirm={() => lifecycleMut.mutate({ component: row, action: 'uninstall' })}>
-          <Button size="small">卸载</Button>
+        <Popconfirm title={t('store.uninstallConfirm', { name: componentName(row) })} onConfirm={() => lifecycleMut.mutate({ component: row, action: 'uninstall' })}>
+          <Button size="small">{t('store.uninstall')}</Button>
         </Popconfirm>
       )}
       <Popconfirm
-        title={`将彻底删除「${componentName(row)}」，无法恢复`}
+        title={t('store.purgeConfirm', { name: componentName(row) })}
         onConfirm={() => lifecycleMut.mutate({ component: row, action: 'purge' })}
       >
         <Button size="small" danger>
-          删除
+          {t('common.delete')}
         </Button>
       </Popconfirm>
     </Space>
@@ -453,7 +507,7 @@ export default function Store() {
 
   const skillColumns = [
     {
-      title: '技能',
+      title: t('store.skill'),
       render: (_: unknown, row: HarnessComponent) => (
         <Space direction="vertical" size={0}>
           <b>{componentName(row)}</b>
@@ -461,15 +515,15 @@ export default function Store() {
         </Space>
       ),
     },
-    { title: '版本', dataIndex: 'version', width: 90 },
+    { title: t('common.version'), dataIndex: 'version', width: 90 },
     {
-      title: '范围',
+      title: t('store.scope'),
       width: 90,
       render: (_: unknown, row: HarnessComponent) =>
-        row.owner_user_id ? <Tag color="purple">个人</Tag> : <Tag>全员</Tag>,
+        row.owner_user_id ? <Tag color="purple">{t('store.personal')}</Tag> : <Tag>{t('store.everyone')}</Tag>,
     },
     {
-      title: '能力',
+      title: t('store.capabilities'),
       width: 220,
       render: (_: unknown, row: HarnessComponent) => (
         <Space size={[4, 4]} wrap>
@@ -478,7 +532,7 @@ export default function Store() {
       ),
     },
     {
-      title: '状态',
+      title: t('common.status'),
       width: 160,
       render: (_: unknown, row: HarnessComponent) => (
         <Space size={4}>
@@ -488,11 +542,11 @@ export default function Store() {
       ),
     },
     {
-      title: '操作',
+      title: t('common.action'),
       width: 420,
       render: (_: unknown, row: HarnessComponent) => (
         <Space wrap>
-          <Tooltip title="下载技能包，改 name 后可再上传">
+          <Tooltip title={t('store.downloadSkillTip')}>
             <Button
               size="small"
               icon={<DownloadOutlined />}
@@ -503,10 +557,10 @@ export default function Store() {
                 )
               }
             >
-              下载
+              {t('store.download')}
             </Button>
           </Tooltip>
-          <Button size="small" onClick={() => setResourceComponent(row)}>资源</Button>
+          <Button size="small" onClick={() => setResourceComponent(row)}>{t('store.resources')}</Button>
           {lifecycleActions(row)}
         </Space>
       ),
@@ -515,7 +569,7 @@ export default function Store() {
 
   const toolColumns = [
     {
-      title: '工具',
+      title: t('store.tool'),
       render: (_: unknown, row: HarnessComponent) => (
         <Space direction="vertical" size={0}>
           <b>{componentName(row)}</b>
@@ -524,20 +578,20 @@ export default function Store() {
       ),
     },
     {
-      title: '签名',
+      title: t('store.signature'),
       width: 120,
       render: (_: unknown, row: HarnessComponent) => {
         const metadata = row.manifest.metadata || {}
         const signed = Boolean(metadata.signed ?? metadata.signature)
-        return <Tag color={signed ? 'green' : 'red'}>{signed ? '已验证' : '未验证'}</Tag>
+        return <Tag color={signed ? 'green' : 'red'}>{signed ? t('store.verified') : t('store.unverified')}</Tag>
       },
     },
     {
-      title: '隔离',
+      title: t('store.isolation'),
       width: 130,
       render: (_: unknown, row: HarnessComponent) => {
         const metadata = row.manifest.metadata || {}
-        return <Tag color="blue">{String(metadata.isolation || metadata.sandbox || '进程隔离')}</Tag>
+        return <Tag color="blue">{String(metadata.isolation || metadata.sandbox || t('store.processIsolation'))}</Tag>
       },
     },
     {
@@ -545,22 +599,22 @@ export default function Store() {
       width: 100,
       render: (_: unknown, row: HarnessComponent) => (
         <Tag color={Object.keys(row.manifest.config_schema || {}).length ? 'cyan' : 'default'}>
-          {Object.keys(row.manifest.config_schema || {}).length ? '已声明' : '无'}
+          {Object.keys(row.manifest.config_schema || {}).length ? t('store.schemaDeclared') : t('store.none')}
         </Tag>
       ),
     },
     {
-      title: '指标',
+      title: t('store.metrics'),
       width: 180,
       render: (_: unknown, row: HarnessComponent) => {
         const metrics = (row.manifest.metadata?.metrics || {}) as Record<string, unknown>
         return Object.keys(metrics).length ? (
           <span>{Object.entries(metrics).slice(0, 2).map(([k, v]) => `${k}: ${String(v)}`).join(' · ')}</span>
-        ) : <span style={{ color: '#999' }}>暂无采样</span>
+        ) : <span style={{ color: '#999' }}>{t('store.noMetrics')}</span>
       },
     },
     {
-      title: '状态',
+      title: t('common.status'),
       width: 160,
       render: (_: unknown, row: HarnessComponent) => (
         <Space size={4}>
@@ -569,9 +623,9 @@ export default function Store() {
         </Space>
       ),
     },
-    { title: '操作', width: 360, render: (_: unknown, row: HarnessComponent) => (
+    { title: t('common.action'), width: 360, render: (_: unknown, row: HarnessComponent) => (
       <Space wrap>
-        <Tooltip title="下载原 zip，改 name 并重新签名后上传">
+        <Tooltip title={t('store.downloadToolTip')}>
           <Button
             size="small"
             icon={<DownloadOutlined />}
@@ -582,7 +636,7 @@ export default function Store() {
               )
             }
           >
-            下载
+            {t('store.download')}
           </Button>
         </Tooltip>
         {lifecycleActions(row)}
@@ -592,45 +646,45 @@ export default function Store() {
 
   const builtinColumns = [
     {
-      title: '工具',
+      title: t('store.tool'),
       render: (_: unknown, row: HarnessTool) => (
         <Space direction="vertical" size={0}>
           <Space size={8}>
             <b>{row.display_name || row.name}</b>
-            <Tag>内置</Tag>
+            <Tag>{t('store.builtin')}</Tag>
           </Space>
           <code style={{ fontSize: 12 }}>{row.name}</code>
         </Space>
       ),
     },
     {
-      title: '分类',
+      title: t('store.category'),
       width: 90,
-      render: (_: unknown, row: HarnessTool) => builtinCategoryMap[row.category || ''] || row.category || '-',
+      render: (_: unknown, row: HarnessTool) => builtinCategoryLabel(row.category),
     },
     {
-      title: '风险',
+      title: t('store.risk'),
       width: 90,
       render: (_: unknown, row: HarnessTool) => {
-        const risk = riskMap[row.risk || 'read'] || { color: 'default', text: row.risk || '只读' }
+        const risk = riskItem(row.risk)
         return <Tag color={risk.color}>{risk.text}</Tag>
       },
     },
     {
-      title: '隔离',
+      title: t('store.isolation'),
       width: 100,
-      render: () => <Tag color="geekblue">进程内</Tag>,
+      render: () => <Tag color="geekblue">{t('store.inProcess')}</Tag>,
     },
     {
-      title: '说明',
+      title: t('common.description'),
       ellipsis: true,
       dataIndex: 'description',
     },
     {
-      title: '操作',
+      title: t('common.action'),
       width: 140,
       render: (_: unknown, row: HarnessTool) => (
-        <Tooltip title="下载成技能包。改 manifest.yaml 的 name 后上传，不会替换内置工具本身">
+        <Tooltip title={t('store.downloadBuiltinTip')}>
           <Button
             size="small"
             icon={<DownloadOutlined />}
@@ -641,7 +695,7 @@ export default function Store() {
               )
             }
           >
-            下载
+            {t('store.download')}
           </Button>
         </Tooltip>
       ),
@@ -652,10 +706,10 @@ export default function Store() {
 
   return (
     <Card
-      title="技能库"
+      title={t('menu.skills')}
       extra={
         <Button icon={<ReloadOutlined />} onClick={refreshHarness}>
-          刷新运行状态
+          {t('store.refreshRuntime')}
         </Button>
       }
     >
@@ -664,21 +718,19 @@ export default function Store() {
           type="warning"
           showIcon
           style={{ marginBottom: 12 }}
-          message="Harness 目录暂不可用"
-          description="Agent 技能、工具及运行时将以只读空状态降级；流水线插件、草稿和模板仍可正常使用。"
+          message={t('store.harnessUnavailable')}
+          description={t('store.harnessUnavailableDesc')}
         />
       )}
       <Tabs
         items={[
           {
             key: 'pipeline',
-            label: `流水线插件（${plugins.length}） / 草稿（${drafts.filter((d) => d.status === 'pending').length}）`,
+            label: t('store.pipelineTab', { plugins: plugins.length, drafts: drafts.filter((d) => d.status === 'pending').length }),
             children: (
               <>
                 <p style={{ color: '#666' }}>
-                  平台自带的流水线插件不可卸载、不可删除，但可以下载源码。
-                  第三方插件会在构建机上执行，必须签名；上架和安装只有管理员能做。
-                  安装后编排器立刻能选，不必重启。真正跑流水线仍要有该流水线的执行权。
+                  {t('store.pipelineIntro')}
                 </p>
                 <Tabs
                   type="card"
@@ -686,7 +738,7 @@ export default function Store() {
                   items={[
                     {
                       key: 'plugins',
-                      label: `插件（${plugins.length}）`,
+                      label: t('store.pluginsTab', { n: plugins.length }),
                       children: (
                         <>
                           <div style={{ marginBottom: 12, textAlign: 'right' }}>
@@ -697,7 +749,7 @@ export default function Store() {
                                   downloadTemplate('/store/plugins/template', 'rp-pipeline-plugin-template.zip')
                                 }
                               >
-                                下载插件开发模板
+                                {t('store.downloadPluginTemplate')}
                               </Button>
                               {isAdmin ? (
                               <Upload
@@ -708,7 +760,7 @@ export default function Store() {
                                     const form = new FormData()
                                     form.append('file', opt.file as File)
                                     await postForm('/store/plugins/upload', form)
-                                    message.success('已上传，请点击安装')
+                                    message.success(t('store.uploadedInstall'))
                                     refreshPlugins()
                                     opt.onSuccess?.(undefined)
                                   } catch (e) {
@@ -716,7 +768,7 @@ export default function Store() {
                                   }
                                 }}
                               >
-                                <Button icon={<UploadOutlined />} type="primary">上传插件 zip</Button>
+                                <Button icon={<UploadOutlined />} type="primary">{t('store.uploadPluginZip')}</Button>
                               </Upload>
                               ) : null}
                             </Space>
@@ -727,11 +779,11 @@ export default function Store() {
                     },
                     {
                       key: 'drafts',
-                      label: `插件草稿（${drafts.filter((d) => d.status === 'pending').length}）`,
+                      label: t('store.draftsTab', { n: drafts.filter((d) => d.status === 'pending').length }),
                       children: (
                         <>
                           <p style={{ color: '#666' }}>
-                            AI 草稿不会进入插件仓库；请审阅源码并试跑后再发布。不要的草稿可以直接删除。
+                            {t('store.draftsIntro')}
                           </p>
                           <DataTable chromeKey="store-drafts" rowKey="id" columns={draftColumns} dataSource={drafts} pagination={false} />
                         </>
@@ -739,7 +791,7 @@ export default function Store() {
                     },
                     {
                       key: 'templates',
-                      label: `流水线模板（${templates.length}）`,
+                      label: t('store.templatesTab', { n: templates.length }),
                       children: <DataTable chromeKey="store-templates" rowKey="id" columns={templateColumns} dataSource={templates} pagination={false} />,
                     },
                   ]}
@@ -749,14 +801,12 @@ export default function Store() {
           },
           {
             key: 'skills',
-            label: `Agent 技能（${skills.length}）`,
+            label: t('store.skillsTab', { n: skills.length }),
             children: (
               <>
                 <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 12 }}>
                   <span style={{ color: '#666' }}>
-                    技能包只有说明书，不含可执行代码。对话里真正调用的工具在「Agent 工具」。
-                    技能库上传会共享给全部人员，立刻可用；删除只有发布者或管理员。
-                    只给自己用的技能走 AI 助手确认卡，不会出现在别人的目录里。
+                    {t('store.skillsIntro')}
                   </span>
                   <Space>
                     <Button
@@ -765,7 +815,7 @@ export default function Store() {
                         downloadTemplate('/harness/templates/agent-skill', 'release-agent-skill-template.zip')
                       }
                     >
-                      下载技能包模板
+                      {t('store.downloadSkillTemplate')}
                     </Button>
                     <Upload
                       accept=".zip,.json"
@@ -775,42 +825,41 @@ export default function Store() {
                           const form = new FormData()
                           form.append('file', opt.file as File)
                           await postForm('/harness/components/upload', form)
-                          message.success('技能已共享给全部人员，可立即使用')
+                          message.success(t('store.skillShared'))
                           refreshHarness()
                           opt.onSuccess?.(undefined)
                         } catch (error) {
-                          message.warning('当前服务不支持技能包上传，请升级 Harness API')
+                          message.warning(t('store.skillUploadUnsupported'))
                           opt.onError?.(error as Error)
                         }
                       }}
                     >
-                      <Button type="primary" icon={<UploadOutlined />}>上传技能包</Button>
+                      <Button type="primary" icon={<UploadOutlined />}>{t('store.uploadSkill')}</Button>
                     </Upload>
                   </Space>
                 </Space>
                 {skills.length ? (
                   <DataTable chromeKey="store-skills" rowKey="key" columns={skillColumns} dataSource={skills} pagination={false} />
                 ) : (
-                  <Empty description={harnessFallback ? '兼容模式下暂不提供技能目录' : '暂无已安装技能包'} />
+                  <Empty description={harnessFallback ? t('store.noSkillCatalogCompat') : t('store.noSkills')} />
                 )}
               </>
             ),
           },
           {
             key: 'tools',
-            label: `Agent 工具（${builtinTools.length + tools.length}）`,
+            label: t('store.toolsTab', { n: builtinTools.length + tools.length }),
             children: (
               <Tabs
                 type="card"
                 items={[
                   {
                     key: 'builtin-tools',
-                    label: `内置工具（${builtinTools.length}）`,
+                    label: t('store.builtinToolsTab', { n: builtinTools.length }),
                     children: (
                       <>
                         <p style={{ color: '#666' }}>
-                          平台自带的助手工具，对话里可直接调用。跑在 API 进程内，不能卸载、不能删除。
-                          可以下载成技能包，改掉 manifest.yaml 的 name 后上传，用来教模型怎么用这些能力。
+                          {t('store.builtinToolsIntro')}
                         </p>
                         {builtinTools.length ? (
                           <DataTable
@@ -821,19 +870,19 @@ export default function Store() {
                             pagination={false}
                           />
                         ) : (
-                          <Empty description={builtinToolsQuery.isError ? '工具目录暂不可用' : '暂无内置工具'} />
+                          <Empty description={builtinToolsQuery.isError ? t('store.toolsUnavailable') : t('store.noBuiltinTools')} />
                         )}
                       </>
                     ),
                   },
                   {
                     key: 'package-tools',
-                    label: `第三方工具（${tools.length}）`,
+                    label: t('store.packageToolsTab', { n: tools.length }),
                     children: (
                       <>
                         <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 12 }}>
                           <span style={{ color: '#666' }}>
-                            第三方工具在隔离容器里执行，必须签名。上传、启用、删除只有管理员能做。
+                            {t('store.packageToolsIntro')}
                           </span>
                           <Space>
                             <Button
@@ -842,7 +891,7 @@ export default function Store() {
                                 downloadTemplate('/harness/templates/agent-tool', 'release-agent-tool-template.zip')
                               }
                             >
-                              下载工具包模板
+                              {t('store.downloadToolTemplate')}
                             </Button>
                             {isAdmin ? (
                             <Upload
@@ -853,16 +902,16 @@ export default function Store() {
                                   const form = new FormData()
                                   form.append('file', opt.file as File)
                                   await postForm('/harness/components/upload', form)
-                                  message.success('工具包已上传并进入安装流程')
+                                  message.success(t('store.toolUploaded'))
                                   refreshHarness()
                                   opt.onSuccess?.(undefined)
                                 } catch (error) {
-                                  message.warning('当前服务不支持工具包上传，请升级 Harness API')
+                                  message.warning(t('store.toolUploadUnsupported'))
                                   opt.onError?.(error as Error)
                                 }
                               }}
                             >
-                              <Button type="primary" icon={<UploadOutlined />}>上传工具包</Button>
+                              <Button type="primary" icon={<UploadOutlined />}>{t('store.uploadTool')}</Button>
                             </Upload>
                             ) : null}
                           </Space>
@@ -870,7 +919,7 @@ export default function Store() {
                         {tools.length ? (
                           <DataTable chromeKey="store-tools" rowKey="key" columns={toolColumns} dataSource={tools} pagination={false} scroll={{ x: 1100 }} />
                         ) : (
-                          <Empty description={harnessFallback ? '兼容模式下暂不提供工具目录' : '暂无第三方 Agent 工具'} />
+                          <Empty description={harnessFallback ? t('store.noToolCatalogCompat') : t('store.noPackageTools')} />
                         )}
                       </>
                     ),
@@ -881,15 +930,15 @@ export default function Store() {
           },
           {
             key: 'runtime',
-            label: '运行时',
+            label: t('store.runtime'),
             children: (
               <>
                 {runtimeQuery.isError ? (
                   <Alert
                     type="warning"
                     showIcon
-                    message="运行时 API 不可用"
-                    description="组件生命周期仍可通过兼容接口管理；会话执行继续使用现有 AI 服务。"
+                    message={t('store.runtimeUnavailable')}
+                    description={t('store.runtimeUnavailableDesc')}
                   />
                 ) : runtimeQuery.data ? (
                   <>
@@ -898,24 +947,24 @@ export default function Store() {
                         type="warning"
                         showIcon
                         style={{ marginBottom: 16 }}
-                        message="隔离 Runner 不可用，第三方 Agent 工具将拒绝执行"
-                        description={runtimeQuery.data.isolation_error || '请在平台设置里配置 harness_runner_url 和 harness_runner_token。'}
+                        message={t('store.runnerUnavailable')}
+                        description={runtimeQuery.data.isolation_error || t('store.runnerConfigHint')}
                       />
                     )}
                     <Descriptions bordered column={{ xs: 1, sm: 2, md: 3 }} style={{ marginBottom: 16 }}>
-                      <Descriptions.Item label="状态">
+                      <Descriptions.Item label={t('common.status')}>
                         <Tag color={runtimeQuery.data.status === 'healthy' ? 'green' : 'orange'}>
-                          {runtimeQuery.data.status === 'healthy' ? '正常' : '降级'}
+                          {runtimeQuery.data.status === 'healthy' ? t('store.healthOk') : t('store.healthDegraded')}
                         </Tag>
                       </Descriptions.Item>
-                      <Descriptions.Item label="隔离">
+                      <Descriptions.Item label={t('store.isolation')}>
                         <Tag color={runtimeQuery.data.isolation === 'ready' ? 'green' : 'red'}>
-                          {runtimeQuery.data.isolation === 'ready' ? '就绪' : '不可用'}
+                          {runtimeQuery.data.isolation === 'ready' ? t('store.ready') : t('store.unavailable')}
                         </Tag>
                       </Descriptions.Item>
-                      <Descriptions.Item label="活动运行实例">{runtimeQuery.data.active_runtimes ?? 0}</Descriptions.Item>
-                      <Descriptions.Item label="已安装组件">{runtimeQuery.data.loaded_components ?? components.length}</Descriptions.Item>
-                      <Descriptions.Item label="按类型" span={2}>
+                      <Descriptions.Item label={t('store.activeRuntimes')}>{runtimeQuery.data.active_runtimes ?? 0}</Descriptions.Item>
+                      <Descriptions.Item label={t('store.loadedComponents')}>{runtimeQuery.data.loaded_components ?? components.length}</Descriptions.Item>
+                      <Descriptions.Item label={t('store.byKind')} span={2}>
                         {Object.entries(runtimeQuery.data.by_kind || {}).map(([kind, count]) => (
                           <Tag key={kind}>{kind} · {count}</Tag>
                         ))}
@@ -923,7 +972,7 @@ export default function Store() {
                     </Descriptions>
                   </>
                 ) : null}
-                <Card size="small" title={<Space><CloudServerOutlined />生命周期事件</Space>}>
+                <Card size="small" title={<Space><CloudServerOutlined />{t('store.lifecycleEvents')}</Space>}>
                   <DataTable
                     chromeKey="store-lifecycle"
                     size="small"
@@ -931,14 +980,14 @@ export default function Store() {
                     loading={eventsQuery.isLoading}
                     dataSource={eventsQuery.data || []}
                     columns={[
-                      { title: '组件', dataIndex: 'extension_key' },
-                      { title: '动作', dataIndex: 'action', width: 100 },
-                      { title: '状态', width: 100, render: (_: unknown, row: HarnessLifecycleEvent) => <Tag color={row.success ? 'green' : 'red'}>{row.success ? '成功' : '失败'}</Tag> },
-                      { title: '说明', dataIndex: 'message', ellipsis: true },
-                      { title: '操作人', dataIndex: 'actor_name', width: 100 },
-                      { title: '时间', dataIndex: 'created_at', width: 180 },
+                      { title: t('store.component'), dataIndex: 'extension_key' },
+                      { title: t('store.eventAction'), dataIndex: 'action', width: 100 },
+                      { title: t('common.status'), width: 100, render: (_: unknown, row: HarnessLifecycleEvent) => <Tag color={row.success ? 'green' : 'red'}>{row.success ? t('status.success') : t('status.failed')}</Tag> },
+                      { title: t('common.description'), dataIndex: 'message', ellipsis: true },
+                      { title: t('store.actor'), dataIndex: 'actor_name', width: 100 },
+                      { title: t('store.time'), dataIndex: 'created_at', width: 180 },
                     ]}
-                    locale={{ emptyText: eventsQuery.isError ? '生命周期事件接口不可用' : '暂无事件' }}
+                    locale={{ emptyText: eventsQuery.isError ? t('store.eventsUnavailable') : t('store.noEvents') }}
                   />
                 </Card>
               </>
@@ -948,7 +997,7 @@ export default function Store() {
       />
       <PluginDraftDrawer draftId={draftId} onClose={() => setDraftId(null)} />
       <Drawer
-        title={resourceComponent ? `${componentName(resourceComponent)} · 资源` : '技能资源'}
+        title={resourceComponent ? t('store.resourceTitle', { name: componentName(resourceComponent) }) : t('store.skillResources')}
         open={!!resourceComponent}
         width={560}
         onClose={() => setResourceComponent(null)}
@@ -956,11 +1005,11 @@ export default function Store() {
         {resourceComponent && (
           <>
             <Descriptions column={1} bordered size="small">
-              <Descriptions.Item label="入口">{resourceComponent.manifest.entrypoint || '声明式技能'}</Descriptions.Item>
-              <Descriptions.Item label="来源">{resourceComponent.source_ref || resourceComponent.source || '—'}</Descriptions.Item>
-              <Descriptions.Item label="能力">{(resourceComponent.manifest.capabilities || []).join('、') || '—'}</Descriptions.Item>
+              <Descriptions.Item label={t('store.entrypoint')}>{resourceComponent.manifest.entrypoint || t('store.declarativeSkill')}</Descriptions.Item>
+              <Descriptions.Item label={t('store.source')}>{resourceComponent.source_ref || resourceComponent.source || '—'}</Descriptions.Item>
+              <Descriptions.Item label={t('store.capabilities')}>{(resourceComponent.manifest.capabilities || []).join(t('store.listSep')) || '—'}</Descriptions.Item>
             </Descriptions>
-            <Card size="small" title={<Space><ApiOutlined />资源声明</Space>} style={{ marginTop: 16 }}>
+            <Card size="small" title={<Space><ApiOutlined />{t('store.resourceDecl')}</Space>} style={{ marginTop: 16 }}>
               <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>
                 {JSON.stringify(resourceComponent.manifest.metadata?.resources || resourceComponent.manifest.config_schema || {}, null, 2)}
               </pre>

@@ -14,6 +14,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { del, get, post, postForm, put } from '@/api/client'
 import { HEADER_NOTICE_COLORS } from '@/hooks/usePlatformBranding'
+import { useT } from '@/i18n'
 
 interface Settings {
   log_storage: string
@@ -79,7 +80,11 @@ interface Settings {
   bootstrap_version?: string
 }
 
+/** 出厂显示名，与 resolveDisplayName 比较串一致，不能随界面语言改。 */
+const FACTORY_PRODUCT_NAME = '发布部署平台'
+
 export default function Settings() {
+  const t = useT()
   const queryClient = useQueryClient()
   const [form] = Form.useForm()
 
@@ -106,7 +111,7 @@ export default function Settings() {
         totp_2fa_enabled: settings.totp_2fa_enabled || 'false',
         public_app_base: settings.public_app_base || '',
         audit_retention_days: settings.audit_retention_days || '180',
-        platform_display_name: settings.platform_display_name || '发布部署平台',
+        platform_display_name: settings.platform_display_name || FACTORY_PRODUCT_NAME,
         header_notice_text: settings.header_notice_text || '',
         header_notice_color: settings.header_notice_color || 'red',
       })
@@ -116,7 +121,7 @@ export default function Settings() {
   const saveMutation = useMutation({
     mutationFn: (values: Record<string, string>) => put('/settings', values),
     onSuccess: () => {
-      message.success('配置已保存，立即生效（无需重启）')
+      message.success(t('settings.saved'))
       queryClient.invalidateQueries({ queryKey: ['settings'] })
       queryClient.invalidateQueries({ queryKey: ['platform-branding'] })
     },
@@ -134,7 +139,7 @@ export default function Settings() {
       return postForm('/settings/header-image', formData)
     },
     onSuccess: () => {
-      message.success('顶栏图片已更新')
+      message.success(t('settings.headerImageUpdated'))
       refreshHeader()
     },
   })
@@ -142,7 +147,7 @@ export default function Settings() {
   const clearHeaderImage = useMutation({
     mutationFn: () => del('/settings/header-image'),
     onSuccess: () => {
-      message.success('顶栏图片已清除')
+      message.success(t('settings.headerImageCleared'))
       refreshHeader()
     },
   })
@@ -150,7 +155,7 @@ export default function Settings() {
   const ldapTest = useMutation({
     mutationFn: () => post<{ ok: boolean; user_found?: boolean; user?: { username: string; email: string } }>('/account/ldap/test', {}),
     onSuccess: (r) => {
-      message.success(r.user_found ? `LDAP 连通，并搜到 ${r.user?.username || ''}` : 'LDAP 绑定账号连通正常')
+      message.success(r.user_found ? t('settings.ldapFound', { name: r.user?.username || '' }) : t('settings.ldapOk'))
     },
   })
 
@@ -162,18 +167,29 @@ export default function Settings() {
     saveMutation.mutate(values)
   }
 
+  const displayName =
+    !settings?.platform_display_name || settings.platform_display_name === FACTORY_PRODUCT_NAME
+      ? t('layout.productName')
+      : settings.platform_display_name
+  const noticeTheme = HEADER_NOTICE_COLORS[settings?.header_notice_color as keyof typeof HEADER_NOTICE_COLORS]
+  const noticeState = settings?.header_notice_text
+    ? (noticeTheme ? t(noticeTheme.label) : settings.header_notice_color)
+    : t('settings.off')
+  const headerImageState = settings?.header_has_image ? t('settings.tagHeaderOn') : t('settings.tagHeaderOff')
+  const onOff = (on: boolean) => (on ? t('settings.on') : t('settings.off'))
+
   return (
     <div>
       <Alert
         type="info"
         showIcon
-        message="运营配置（立即生效）"
-        description="本页改品牌、登录过期、审计保留、Redis / LDAP / 企微 / 邮件 / 日志存储，保存即可，不必重启。业务库连接和 JWT 密钥是启动项，只能改环境变量 DATABASE_URL / JWT_SECRET 后重启后端。"
+        message={t('settings.alertTitle')}
+        description={t('settings.alertDesc')}
         style={{ marginBottom: 16 }}
       />
 
       <Card
-        title="运营配置"
+        title={t('settings.title')}
       >
         <Form
           form={form}
@@ -182,29 +198,29 @@ export default function Settings() {
           onFinish={handleSave}
         >
           <Divider orientation="left">
-            <PictureOutlined /> 品牌与会话
+            <PictureOutlined /> {t('settings.brandSession')}
           </Divider>
           <Form.Item
-            label="平台显示名"
+            label={t('settings.displayName')}
             name="platform_display_name"
-            extra="侧栏、登录页、浏览器标题用这个名字。最多 32 个字。"
-            rules={[{ required: true, message: '请填写平台显示名' }]}
+            extra={t('settings.displayNameExtra')}
+            rules={[{ required: true, message: t('settings.displayNameRequired') }]}
           >
-            <Input placeholder="发布部署平台" maxLength={32} style={{ maxWidth: 360 }} />
+            <Input placeholder={t('layout.productName')} maxLength={32} style={{ maxWidth: 360 }} />
           </Form.Item>
           <Form.Item
-            label="顶栏图片"
-            extra="登录后顶栏左侧。不上传就是空白，不会回退成文字。PNG / JPEG / GIF / WEBP，最大 1MB。"
+            label={t('settings.headerImage')}
+            extra={t('settings.headerImageExtra')}
           >
             <Space align="start" wrap>
               {settings?.header_has_image && settings.header_image_url ? (
                 <img
                   src={settings.header_image_url}
-                  alt="顶栏图片预览"
+                  alt={t('settings.headerImageAlt')}
                   style={{ height: 36, maxWidth: 240, objectFit: 'contain', display: 'block' }}
                 />
               ) : (
-                <span style={{ color: '#8c8c8c', lineHeight: '32px' }}>当前空白</span>
+                <span style={{ color: '#8c8c8c', lineHeight: '32px' }}>{t('settings.headerBlank')}</span>
               )}
               <Upload
                 accept="image/png,image/jpeg,image/gif,image/webp,.png,.jpg,.jpeg,.gif,.webp"
@@ -215,7 +231,7 @@ export default function Settings() {
                 }}
               >
                 <Button icon={<UploadOutlined />} loading={uploadHeaderImage.isPending}>
-                  上传图片
+                  {t('settings.uploadImage')}
                 </Button>
               </Upload>
               {settings?.header_has_image ? (
@@ -224,18 +240,18 @@ export default function Settings() {
                   loading={clearHeaderImage.isPending}
                   onClick={() => clearHeaderImage.mutate()}
                 >
-                  清除
+                  {t('settings.clear')}
                 </Button>
               ) : null}
             </Space>
           </Form.Item>
           <Form.Item
-            label="顶栏通知"
+            label={t('settings.headerNotice')}
             name="header_notice_text"
-            extra="显示在顶栏图片右侧。留空则不显示横幅。最多 200 个字，保存后立即生效。"
+            extra={t('settings.headerNoticeExtra')}
           >
             <Input.TextArea
-              placeholder="例如：今晚 22:00 系统维护，请提前提交发布"
+              placeholder={t('settings.headerNoticePh')}
               maxLength={200}
               showCount
               autoSize={{ minRows: 2, maxRows: 3 }}
@@ -243,9 +259,9 @@ export default function Settings() {
             />
           </Form.Item>
           <Form.Item
-            label="通知醒目颜色"
+            label={t('settings.noticeColor')}
             name="header_notice_color"
-            extra="横幅用实心底色，保证一眼能看见。"
+            extra={t('settings.noticeColorExtra')}
           >
             <Select
               style={{ maxWidth: 240 }}
@@ -262,329 +278,335 @@ export default function Settings() {
                         background: theme.bg,
                       }}
                     />
-                    {theme.label}
+                    {t(theme.label)}
                   </Space>
                 ),
               }))}
             />
           </Form.Item>
           <Form.Item
-            label="通知发件人显示名"
+            label={t('settings.smtpFromName')}
             name="smtp_from_name"
-            extra="邮件收件箱里看到的名字。地址仍在下面「邮件通知」里配。"
+            extra={t('settings.smtpFromNameExtra')}
           >
-            <Input placeholder="发布部署平台" maxLength={64} style={{ maxWidth: 360 }} />
+            <Input placeholder={t('layout.productName')} maxLength={64} style={{ maxWidth: 360 }} />
           </Form.Item>
           <Form.Item
-            label="登录 Session 过期时间"
+            label={t('settings.sessionExpire')}
             name="session_expire_days"
-            extra="新登录按此时长签发。已登录的人仍按当时那张 token 过期，不会被立刻踢下线。可填 1～30 天，默认 1 天。Session 有效期内不必再输双因子验证码。"
-            rules={[{ required: true, message: '请填写过期时间' }]}
+            extra={t('settings.sessionExpireExtra')}
+            rules={[{ required: true, message: t('settings.sessionExpireRequired') }]}
           >
-            <Input type="number" min={1} max={30} addonAfter="天" placeholder="1" style={{ width: 200 }} />
+            <Input type="number" min={1} max={30} addonAfter={t('common.days')} placeholder="1" style={{ width: 200 }} />
           </Form.Item>
           <Form.Item
             label={
               <span>
-                <SafetyCertificateOutlined /> 双因子登录（Authenticator）
+                <SafetyCertificateOutlined /> {t('settings.totpLabel')}
               </span>
             }
             name="totp_2fa_enabled"
-            extra="开启后，本地账号和 LDAP 密码登录都要扫 Authenticator。会话未过期期间不用再输码。企业微信扫码登录不受影响。关掉后登录恢复为只验密码；再打开时已绑定的人只需输码，不必重新扫。"
+            extra={t('settings.totpExtra')}
           >
             <Select
               style={{ maxWidth: 360 }}
               options={[
-                { label: '关闭（只验账号密码）', value: 'false' },
-                { label: '开启（登录需 6 位验证码）', value: 'true' },
+                { label: t('settings.totpOff'), value: 'false' },
+                { label: t('settings.totpOn'), value: 'true' },
               ]}
             />
           </Form.Item>
           <Form.Item
-            label="对外站点根地址"
+            label={t('settings.publicBase')}
             name="public_app_base"
-            extra="忘记密码邮件里的链接根地址，例如 https://deploy.example.com。留空则用申请时浏览器地址。生产环境建议填死，避免邮件链到内网 Origin。"
+            extra={t('settings.publicBaseExtra', { env: t('env.prod') })}
           >
             <Input placeholder="https://deploy.example.com" style={{ maxWidth: 360 }} />
           </Form.Item>
           <Form.Item
-            label="审计日志保留天数"
+            label={t('settings.auditDays')}
             name="audit_retention_days"
-            extra="超过这个天数的操作审计会被定时清理。可填 30～3650 天，默认 180 天。"
-            rules={[{ required: true, message: '请填写保留天数' }]}
+            extra={t('settings.auditDaysExtra')}
+            rules={[{ required: true, message: t('settings.retentionRequired') }]}
           >
-            <Input type="number" min={30} max={3650} addonAfter="天" placeholder="180" style={{ width: 200 }} />
+            <Input type="number" min={30} max={3650} addonAfter={t('common.days')} placeholder="180" style={{ width: 200 }} />
           </Form.Item>
 
           <Divider orientation="left">
-            <DatabaseOutlined /> 日志存储后端
+            <DatabaseOutlined /> {t('settings.logBackend')}
           </Divider>
           <Form.Item
-            label="构建日志存储"
-            extra="实时日志进 Redis（最多留 1 小时）；写入 ES 成功后立刻从 Redis 删掉。中间件挂了就丢这一批，不写业务库、不攒内存；发布照常跑。"
+            label={t('settings.buildLogs')}
+            extra={t('settings.buildLogsExtra')}
           >
             <Alert
               type="info"
               showIcon
-              message="固定：Redis 实时 + Elasticsearch 归档"
-              description="历史日志只在 Elasticsearch。Redis 只缓冲正在看的实时流，ES 写入成功即删除，并带 1 小时过期。不写业务库、不落进程内存。"
+              message={t('settings.logFixed')}
+              description={t('settings.logFixedDesc')}
             />
           </Form.Item>
 
           <Divider orientation="left">
-            <ClusterOutlined /> Elasticsearch 配置
+            <ClusterOutlined /> {t('settings.esConfig')}
           </Divider>
           <Form.Item
-            label="ES 地址（多个用逗号分隔）"
+            label={t('settings.esHosts')}
             name="es_hosts"
-            extra="Compose 默认 http://elasticsearch:9200（本栈单节点）。本机 uvicorn 默认 localhost:9200。改成自备集群后保存即生效，不必重启。"
+            extra={t('settings.esHostsExtra')}
           >
             <Input placeholder="http://elasticsearch:9200" />
           </Form.Item>
           <Form.Item
-            label="ES 日志索引前缀"
+            label={t('settings.esIndex')}
             name="es_index"
-            extra="构建日志写入 rp-exec-logs-当天日期（yyyy-mm-dd）。AI 助手审计日志固定走独立前缀 rp-assist-logs，不占用这项配置、也不进业务库。Compose 默认连本栈 ES，要换集群在上面改地址即可。"
+            extra={t('settings.esIndexExtra')}
           >
             <Input placeholder="rp-exec-logs" />
           </Form.Item>
           <div className="rp-field-row">
-            <Form.Item label="ES 用户名（可空）" name="es_username" style={{ flex: 1 }}>
+            <Form.Item label={t('settings.esUser')} name="es_username" style={{ flex: 1 }}>
               <Input placeholder="elastic" />
             </Form.Item>
-            <Form.Item label="ES 密码（可空）" name="es_password" style={{ flex: 1 }}>
-              <Input.Password placeholder="密码" />
+            <Form.Item label={t('settings.esPassword')} name="es_password" style={{ flex: 1 }}>
+              <Input.Password placeholder={t('login.passwordPlaceholder')} />
             </Form.Item>
           </div>
 
-          <Divider orientation="left">Agent 调度</Divider>
-          <Form.Item label="任务拉取间隔（秒）" name="task_poll_interval">
+          <Divider orientation="left">{t('settings.agentSchedule')}</Divider>
+          <Form.Item label={t('settings.pollInterval')} name="task_poll_interval">
             <Input type="number" placeholder="2" />
           </Form.Item>
 
-          <Divider orientation="left">发布审批</Divider>
+          <Divider orientation="left">{t('settings.releaseApproval')}</Divider>
           <Alert
             type="info"
             showIcon
             style={{ marginBottom: 12 }}
-            message="应急跳审总开关"
-            description="缺省关闭。打开后，分组自己还能决定开不开跳审。项目经理要接管生产放行时保持关闭——任何环境都不能再跳审，只能走审批（含已打开的项目经理确认）。"
+            message={t('settings.bypassTitle')}
+            description={t('settings.bypassDesc', { env: t('env.prod') })}
           />
           <Form.Item
-            label="允许应急跳审"
+            label={t('settings.bypassLabel')}
             name="emergency_bypass_enabled"
-            extra="关掉后，页面上的跳审按钮会消失，接口也会拒绝。分组上的「允许应急跳审」此时无效。"
+            extra={t('settings.bypassExtra')}
           >
             <Select
               options={[
-                { label: '开启（分组还可单独关）', value: 'true' },
-                { label: '关闭（全平台禁止跳审，缺省）', value: 'false' },
+                { label: t('settings.bypassOn'), value: 'true' },
+                { label: t('settings.bypassOff'), value: 'false' },
               ]}
             />
           </Form.Item>
 
           <Divider orientation="left">
-            <InboxOutlined /> 制品库
+            <InboxOutlined /> {t('settings.artifacts')}
           </Divider>
           <Form.Item
-            label="生产环境制品保留天数"
+            label={t('settings.artifactDays', { env: t('env.prod') })}
             name="artifact_prod_retention_days"
-            extra="按流水线算：每条生产 / UAT / 预发流水线保留最近这些天的包，窗口外仍至少留下该线最新 2 个，避免服务很久没发、回滚时包没了。测试、开发仍只留当天。可填 1～365，默认 10 天。"
-            rules={[{ required: true, message: '请填写保留天数' }]}
+            extra={t('settings.artifactExtra', {
+              prod: t('env.prod'),
+              uat: t('env.uat'),
+              staging: t('env.staging'),
+              test: t('env.test'),
+              dev: t('env.dev'),
+            })}
+            rules={[{ required: true, message: t('settings.retentionRequired') }]}
           >
-            <Input type="number" min={1} max={365} addonAfter="天" placeholder="10" style={{ width: 200 }} />
+            <Input type="number" min={1} max={365} addonAfter={t('common.days')} placeholder="10" style={{ width: 200 }} />
           </Form.Item>
 
           <Divider orientation="left">
-            <RedoOutlined /> Redis 配置（定时触发延迟队列）
+            <RedoOutlined /> {t('settings.redisConfig')}
           </Divider>
           <Alert
             type="info"
             showIcon
             style={{ marginBottom: 12 }}
-            message="定时触发器（cron）依赖 Redis 延迟队列。配置好 Redis 后保存，定时触发才会真正生效。"
+            message={t('settings.redisAlert')}
           />
           <div className="rp-field-row">
-            <Form.Item label="Redis 主机" name="redis_host" style={{ flex: 2 }}>
+            <Form.Item label={t('settings.redisHost')} name="redis_host" style={{ flex: 2 }}>
               <Input placeholder="localhost" />
             </Form.Item>
-            <Form.Item label="端口" name="redis_port" style={{ flex: 1 }}>
+            <Form.Item label={t('settings.port')} name="redis_port" style={{ flex: 1 }}>
               <Input placeholder="6379" />
             </Form.Item>
           </div>
           <div className="rp-field-row">
-            <Form.Item label="密码（可空）" name="redis_password" style={{ flex: 1 }}>
-              <Input.Password placeholder="无密码留空" />
+            <Form.Item label={t('settings.passwordOptional')} name="redis_password" style={{ flex: 1 }}>
+              <Input.Password placeholder={t('settings.passwordEmptyPh')} />
             </Form.Item>
-            <Form.Item label="数据库编号" name="redis_db" style={{ flex: 1 }}>
+            <Form.Item label={t('settings.redisDb')} name="redis_db" style={{ flex: 1 }}>
               <Input placeholder="0" />
             </Form.Item>
           </div>
 
-          <Divider orientation="left">LDAP 登录配置</Divider>
+          <Divider orientation="left">{t('settings.ldapConfig')}</Divider>
           <Alert
             type="info"
             showIcon
             style={{ marginBottom: 12 }}
-            message="LDAP 登录"
-            description="开启后可用邮箱、UPN 或域短账号登录。过滤器支持 {username} 和 {sam}（@ 前面一段）。绑定账号密码必须填写。用户可在「用户管理」导入或禁用 LDAP 账号。"
+            message={t('settings.ldapTitle')}
+            description={t('settings.ldapDesc')}
           />
-          <Form.Item label="启用 LDAP 登录" name="ldap_enabled">
+          <Form.Item label={t('settings.ldapEnable')} name="ldap_enabled">
             <Select
               options={[
-                { label: '关闭（仅本地账号密码）', value: 'false' },
-                { label: '开启', value: 'true' },
+                { label: t('settings.ldapOff'), value: 'false' },
+                { label: t('settings.on'), value: 'true' },
               ]}
             />
           </Form.Item>
-          <Form.Item label="首次 LDAP 登录自动建档" name="ldap_auto_provision">
+          <Form.Item label={t('settings.ldapAuto')} name="ldap_auto_provision">
             <Select
               options={[
-                { label: '开启（认证成功自动出现在用户列表）', value: 'true' },
-                { label: '关闭（必须先在用户管理中导入）', value: 'false' },
+                { label: t('settings.ldapAutoOn'), value: 'true' },
+                { label: t('settings.ldapAutoOff'), value: 'false' },
               ]}
             />
           </Form.Item>
-          <Form.Item label="LDAP 服务器地址" name="ldap_server_uri">
+          <Form.Item label={t('settings.ldapUri')} name="ldap_server_uri">
             <Input placeholder="ldap://ldap.example.com:389" />
           </Form.Item>
           <div className="rp-field-row">
-            <Form.Item label="绑定账号 DN" name="ldap_bind_dn" style={{ flex: 1 }}>
+            <Form.Item label={t('settings.ldapBindDn')} name="ldap_bind_dn" style={{ flex: 1 }}>
               <Input placeholder="cn=ldap-bind,dc=example,dc=com" />
             </Form.Item>
-            <Form.Item label="绑定账号密码" name="ldap_bind_password" style={{ flex: 1 }}>
-              <Input.Password placeholder="绑定账号密码" />
+            <Form.Item label={t('settings.ldapBindPassword')} name="ldap_bind_password" style={{ flex: 1 }}>
+              <Input.Password placeholder={t('settings.ldapBindPassword')} />
             </Form.Item>
           </div>
-          <Form.Item label="用户搜索基准 DN" name="ldap_user_search_base">
+          <Form.Item label={t('settings.ldapSearchBase')} name="ldap_user_search_base">
             <Input placeholder="ou=Users,dc=example,dc=com" />
           </Form.Item>
-          <Form.Item label="用户搜索过滤器（{username}=登录名，{sam}=@ 前一段）" name="ldap_user_search_filter">
+          <Form.Item label={t('settings.ldapFilter')} name="ldap_user_search_filter">
             <Input placeholder="(|(mail={username})(userPrincipalName={username})(sAMAccountName={sam}))" />
           </Form.Item>
           <div className="rp-field-row">
-            <Form.Item label="属性：用户名" name="ldap_attr_username" style={{ flex: 1 }}>
+            <Form.Item label={t('settings.ldapAttrUser')} name="ldap_attr_username" style={{ flex: 1 }}>
               <Input placeholder="sAMAccountName" />
             </Form.Item>
-            <Form.Item label="属性：邮箱" name="ldap_attr_email" style={{ flex: 1 }}>
+            <Form.Item label={t('settings.ldapAttrEmail')} name="ldap_attr_email" style={{ flex: 1 }}>
               <Input placeholder="mail" />
             </Form.Item>
-            <Form.Item label="属性：显示名" name="ldap_attr_display_name" style={{ flex: 1 }}>
+            <Form.Item label={t('settings.ldapAttrName')} name="ldap_attr_display_name" style={{ flex: 1 }}>
               <Input placeholder="displayName" />
             </Form.Item>
           </div>
           <Button style={{ marginBottom: 16 }} onClick={() => ldapTest.mutate()} loading={ldapTest.isPending}>
-            测试 LDAP 连通（请先保存配置）
+            {t('settings.ldapTest')}
           </Button>
 
-          <Divider orientation="left">企业微信登录配置</Divider>
+          <Divider orientation="left">{t('settings.wecomConfig')}</Divider>
           <Alert
             type="info"
             showIcon
             style={{ marginBottom: 12 }}
-            message="企微 OAuth2 网页授权登录。redirect_uri 域名须配置在企微「网页授权及JS-SDK」可信域名内。"
+            message={t('settings.wecomAlert')}
           />
-          <Form.Item label="启用企业微信登录" name="wecom_enabled">
+          <Form.Item label={t('settings.wecomEnable')} name="wecom_enabled">
             <Select
               options={[
-                { label: '关闭', value: 'false' },
-                { label: '开启', value: 'true' },
+                { label: t('settings.off'), value: 'false' },
+                { label: t('settings.on'), value: 'true' },
               ]}
             />
           </Form.Item>
           <div className="rp-field-row">
-            <Form.Item label="企业 ID（CorpId）" name="wecom_corp_id" style={{ flex: 2 }}>
+            <Form.Item label={t('settings.wecomCorpId')} name="wecom_corp_id" style={{ flex: 2 }}>
               <Input placeholder="ww1234567890abcdef" />
             </Form.Item>
-            <Form.Item label="应用 AgentId" name="wecom_agent_id" style={{ flex: 1 }}>
+            <Form.Item label={t('settings.wecomAgentId')} name="wecom_agent_id" style={{ flex: 1 }}>
               <Input placeholder="1000002" />
             </Form.Item>
           </div>
-          <Form.Item label="应用 Secret（gettoken 用）" name="wecom_secret">
-            <Input.Password placeholder="自建应用 Secret" />
+          <Form.Item label={t('settings.wecomSecret')} name="wecom_secret">
+            <Input.Password placeholder={t('settings.wecomSecretPh')} />
           </Form.Item>
-          <Form.Item label="OAuth 回调地址（redirect_uri，须在可信域名内）" name="wecom_redirect_uri">
+          <Form.Item label={t('settings.wecomRedirect')} name="wecom_redirect_uri">
             <Input placeholder="https://your-domain.com/api/v1/auth/wecom/callback" />
           </Form.Item>
-          <Form.Item label="首次登录自动建档" name="wecom_auto_provision">
+          <Form.Item label={t('settings.wecomAuto')} name="wecom_auto_provision">
             <Select
               options={[
-                { label: '开启（无匹配用户自动建档）', value: 'true' },
-                { label: '关闭（无匹配则拒绝）', value: 'false' },
+                { label: t('settings.wecomAutoOn'), value: 'true' },
+                { label: t('settings.wecomAutoOff'), value: 'false' },
               ]}
             />
           </Form.Item>
           <Form.Item
-            label="企微应用消息推送"
+            label={t('settings.wecomNotify')}
             name="wecom_notify_enabled"
-            extra="默认关。打开后，待审/业务确认/上线通报会推到已绑定企微的账号。点卡片用 H5 打开本系统，在手机上审批。"
+            extra={t('settings.wecomNotifyExtra')}
           >
             <Select
               options={[
-                { label: '关闭', value: 'false' },
-                { label: '开启', value: 'true' },
+                { label: t('settings.off'), value: 'false' },
+                { label: t('settings.on'), value: 'true' },
               ]}
             />
           </Form.Item>
-          <Form.Item label="平台访问根地址（卡片跳转）" name="wecom_app_base">
-            <Input placeholder="https://your-domain.com ，空则从 OAuth 回调地址推断" />
+          <Form.Item label={t('settings.wecomAppBase')} name="wecom_app_base">
+            <Input placeholder={t('settings.wecomAppBasePh')} />
           </Form.Item>
           <div className="rp-field-row">
-            <Form.Item label="回调 Token" name="wecom_callback_token" style={{ flex: 1 }}>
-              <Input placeholder="配置企微回调 URL 时用" />
+            <Form.Item label={t('settings.wecomToken')} name="wecom_callback_token" style={{ flex: 1 }}>
+              <Input placeholder={t('settings.wecomTokenPh')} />
             </Form.Item>
             <Form.Item label="EncodingAESKey" name="wecom_encoding_aes_key" style={{ flex: 1 }}>
-              <Input placeholder="43 位，配置回调校验用" />
+              <Input placeholder={t('settings.wecomAesPh')} />
             </Form.Item>
           </div>
           <Alert
             type="info"
             showIcon
             style={{ marginBottom: 16 }}
-            message="回调 URL 填：https://你的域名/api/v1/pm/wecom/callback 。卡片在企微里用 H5 打开发布系统，不在聊天里审批。"
+            message={t('settings.wecomCallback')}
           />
 
-          <Divider orientation="left">邮件通知（SMTP）</Divider>
+          <Divider orientation="left">{t('settings.smtpTitle')}</Divider>
           <Alert
             type="info"
             showIcon
             style={{ marginBottom: 12 }}
-            message="发布结束会站内通知当前发布人，并按此 SMTP 发到其邮箱。失败时正文含错误摘要与 AI 建议。"
+            message={t('settings.smtpAlert')}
           />
-          <Form.Item label="启用邮件通知" name="smtp_enabled">
+          <Form.Item label={t('settings.smtpEnable')} name="smtp_enabled">
             <Select
               options={[
-                { label: '开启', value: 'true' },
-                { label: '关闭', value: 'false' },
+                { label: t('settings.on'), value: 'true' },
+                { label: t('settings.off'), value: 'false' },
               ]}
             />
           </Form.Item>
           <div className="rp-field-row">
-            <Form.Item label="SMTP 服务器" name="smtp_host" style={{ flex: 2 }}>
+            <Form.Item label={t('settings.smtpHost')} name="smtp_host" style={{ flex: 2 }}>
               <Input placeholder="smtp.exmail.qq.com" />
             </Form.Item>
-            <Form.Item label="端口" name="smtp_port" style={{ flex: 1 }}>
+            <Form.Item label={t('settings.port')} name="smtp_port" style={{ flex: 1 }}>
               <Input placeholder="465" />
             </Form.Item>
             <Form.Item label="SSL" name="smtp_ssl" style={{ flex: 1 }}>
               <Select
                 options={[
-                  { label: '开启（465）', value: 'true' },
-                  { label: '关闭（587 STARTTLS）', value: 'false' },
+                  { label: t('settings.sslOn'), value: 'true' },
+                  { label: t('settings.sslOff'), value: 'false' },
                 ]}
               />
             </Form.Item>
           </div>
           <div className="rp-field-row">
-            <Form.Item label="发信账号" name="smtp_user" style={{ flex: 1 }}>
+            <Form.Item label={t('settings.smtpUser')} name="smtp_user" style={{ flex: 1 }}>
               <Input placeholder="mailer@example.com" />
             </Form.Item>
-            <Form.Item label="发信地址" name="smtp_from" style={{ flex: 1 }}>
+            <Form.Item label={t('settings.smtpFrom')} name="smtp_from" style={{ flex: 1 }}>
               <Input placeholder="mailer@example.com" />
             </Form.Item>
           </div>
-          <Form.Item label="发信密码" name="smtp_password">
-            <Input.Password placeholder="SMTP 密码" />
+          <Form.Item label={t('settings.smtpPassword')} name="smtp_password">
+            <Input.Password placeholder={t('settings.smtpPasswordPh')} />
           </Form.Item>
 
           <Button
@@ -593,42 +615,37 @@ export default function Settings() {
             htmlType="submit"
             loading={saveMutation.isPending}
           >
-            保存配置
+            {t('settings.saveConfig')}
           </Button>
         </Form>
       </Card>
 
-      <Card title="当前生效配置" style={{ marginTop: 16 }}>
+      <Card title={t('settings.current')} style={{ marginTop: 16 }}>
         {settings ? (
           <div>
-            <Tag color="green">日志：Redis 实时 + ES 归档</Tag>
-            <Tag>ES：{settings.es_hosts}</Tag>
-            <Tag>索引：{(settings.es_index || 'rp-exec-logs').replace(/-\d{4}-\d{2}-\d{2}$/, '')}-YYYY-MM-DD</Tag>
-            <Tag>AI 日志：rp-assist-logs-YYYY-MM-DD</Tag>
-            <Tag>业务库（启动项）：{settings.bootstrap_database || '—'}</Tag>
-            <Tag>版本：{settings.bootstrap_version || '—'}</Tag>
-            <Tag>平台名：{settings.platform_display_name || '发布部署平台'}</Tag>
-            <Tag>顶栏图：{settings.header_has_image ? '已上传' : '空白'}</Tag>
-            <Tag>
-              顶栏通知：
-              {settings.header_notice_text
-                ? `${HEADER_NOTICE_COLORS[settings.header_notice_color as keyof typeof HEADER_NOTICE_COLORS]?.label || settings.header_notice_color}`
-                : '关闭'}
-            </Tag>
-            <Tag>Session：{settings.session_expire_days || 1} 天</Tag>
+            <Tag color="green">{t('settings.tagLogs')}</Tag>
+            <Tag>{t('settings.tagEs', { hosts: settings.es_hosts })}</Tag>
+            <Tag>{t('settings.tagIndex', { index: (settings.es_index || 'rp-exec-logs').replace(/-\d{4}-\d{2}-\d{2}$/, '') })}</Tag>
+            <Tag>{t('settings.tagAiLogs')}</Tag>
+            <Tag>{t('settings.tagDb', { db: settings.bootstrap_database || '—' })}</Tag>
+            <Tag>{t('settings.tagVersion', { ver: settings.bootstrap_version || '—' })}</Tag>
+            <Tag>{t('settings.tagName', { name: displayName })}</Tag>
+            <Tag>{t('settings.tagHeaderImage', { state: headerImageState })}</Tag>
+            <Tag>{t('settings.tagNotice', { state: noticeState })}</Tag>
+            <Tag>{t('settings.tagSession', { n: settings.session_expire_days || 1, unit: t('common.days') })}</Tag>
             <Tag color={settings.totp_2fa_enabled === 'true' ? 'green' : 'default'}>
-              双因子：{settings.totp_2fa_enabled === 'true' ? '开启' : '关闭'}
+              {t('settings.tagTotp', { state: onOff(settings.totp_2fa_enabled === 'true') })}
             </Tag>
-            <Tag>审计保留：{settings.audit_retention_days || 180} 天</Tag>
-            <Tag>轮询：{settings.task_poll_interval}s</Tag>
-            <Tag>生产制品：{settings.artifact_prod_retention_days || 10} 天</Tag>
-            <Tag>Redis：{settings.redis_host}:{settings.redis_port}/{settings.redis_db}</Tag>
+            <Tag>{t('settings.tagAudit', { n: settings.audit_retention_days || 180, unit: t('common.days') })}</Tag>
+            <Tag>{t('settings.tagPoll', { n: settings.task_poll_interval })}</Tag>
+            <Tag>{t('settings.tagArtifact', { env: t('env.prod'), n: settings.artifact_prod_retention_days || 10, unit: t('common.days') })}</Tag>
+            <Tag>{t('settings.tagRedis', { value: `${settings.redis_host}:${settings.redis_port}/${settings.redis_db}` })}</Tag>
             <Tag color={settings.smtp_enabled === 'true' ? 'green' : 'default'}>
-              邮件：{settings.smtp_enabled === 'true' ? settings.smtp_host : '关闭'}
+              {t('settings.tagMail', { state: settings.smtp_enabled === 'true' ? settings.smtp_host : t('settings.off') })}
             </Tag>
           </div>
         ) : (
-          '加载中...'
+          t('settings.loading')
         )}
       </Card>
     </div>

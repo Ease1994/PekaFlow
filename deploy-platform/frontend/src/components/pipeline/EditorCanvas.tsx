@@ -43,6 +43,7 @@ import {
   type CanvasLayout,
 } from '@/utils/canvasLayout'
 import { allNodesMeasured } from '@/utils/canvasViewport'
+import { useT } from '@/i18n'
 
 export type { CanvasLayout }
 
@@ -267,6 +268,7 @@ function CanvasBoard({
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
   const { fitView, getNodes, getNode } = useReactFlow()
   const ignorePane = useRef(false)
+  const t = useT()
   /**
    * 等全部节点量到宽高后再 fitView，打开编辑器时图在画布里居中，
    * 不会贴在左上角盖住说明。加步骤 / 删线不再拉镜头。
@@ -416,15 +418,14 @@ function CanvasBoard({
             className="nodrag nopan"
             onClick={applyAutoLayout}
           >
-            自动排版
+            {t('pipe.autoLayout')}
           </Button>
           <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.45, pointerEvents: 'none' }}>
-            加号：点击添加，拖出拉线。选中步骤之间的线条后 Delete 只断开连线，不新建构建环境。
-            断开后需拉回箭头才能保存；要并行请右键拆成并行 Job。右键节点可复制、调序、删除。
+            {t('pipe.canvasHint')}
           </div>
           {!!pruneOpenCuts(graph.stages, graph.open_cuts).length && (
             <div style={{ fontSize: 12, color: '#d46b08', lineHeight: 1.45, pointerEvents: 'none' }}>
-              有断开的连线，保存会失败。请拉回箭头，或右键步骤拆成并行 Job。
+              {t('pipe.openCutsWarn')}
             </div>
           )}
         </div>
@@ -448,6 +449,7 @@ export default function EditorCanvas({
   configTarget: ConfigTarget | null
   actions: EditorCanvasActions
 }) {
+  const t = useT()
   const { nodes, edges } = useMemo(
     () => buildEditorGraph(graph, configTarget, actions),
     [graph, configTarget, actions],
@@ -466,7 +468,7 @@ export default function EditorCanvas({
         }}
       >
         <Button type="primary" size="large" icon={<PlusOutlined />} onClick={() => actions.onAddStage(null)}>
-          添加第一个阶段
+          {t('pipe.addFirstStage')}
         </Button>
       </div>
     )
@@ -601,16 +603,17 @@ function menuAction(fn?: () => void): NonNullable<MenuProps['onClick']> {
 
 /** 阶段卡片：左侧起点，右键可加 Job / 加阶段 / 删除。 */
 function EditorStageNode({ data }: { data: EditorNodeData }) {
+  const t = useT()
   return (
     <Dropdown
       trigger={['contextMenu']}
       dropdownRender={renderCanvasMenu}
       menu={{
         items: [
-          { key: 'job', label: '添加 Job', onClick: menuAction(() => data.onAddJob?.()) },
-          { key: 'stage', label: '在此后添加阶段', onClick: menuAction(() => data.onAddStage?.()) },
+          { key: 'job', label: t('pipe.addJob'), onClick: menuAction(() => data.onAddJob?.()) },
+          { key: 'stage', label: t('pipe.addStageAfterMenu'), onClick: menuAction(() => data.onAddStage?.()) },
           { type: 'divider' },
-          { key: 'del', danger: true, icon: <DeleteOutlined />, label: '删除阶段', onClick: menuAction(() => data.onDelete?.()) },
+          { key: 'del', danger: true, icon: <DeleteOutlined />, label: t('pipe.deleteStageShort'), onClick: menuAction(() => data.onDelete?.()) },
         ],
       }}
     >
@@ -625,10 +628,10 @@ function EditorStageNode({ data }: { data: EditorNodeData }) {
           boxShadow: '0 4px 12px rgba(15,23,42,0.04)',
         }}
       >
-        <div style={{ fontSize: 11, color: '#9ca3af', letterSpacing: 1 }}>阶段 {data.order}</div>
+        <div style={{ fontSize: 11, color: '#9ca3af', letterSpacing: 1 }}>{t('pipe.stageN', { n: data.order ?? '' })}</div>
         <div style={{ fontSize: 13, fontWeight: 700, color: '#111827', marginTop: 2 }}>{data.name}</div>
-        <PlusSourceHandle title="点击在此后添加阶段，拖出加号拉线" onAdd={() => data.onAddStage?.()} />
-        <HoverPlus title="添加 Job" onClick={() => data.onAddJob?.()} style={{ left: '50%', bottom: -12, marginLeft: -11 }} />
+        <PlusSourceHandle title={t("pipe.clickAddStage")} onAdd={() => data.onAddStage?.()} />
+        <HoverPlus title={t("pipe.addJob")} onClick={() => data.onAddJob?.()} style={{ left: '50%', bottom: -12, marginLeft: -11 }} />
       </div>
     </Dropdown>
   )
@@ -636,6 +639,7 @@ function EditorStageNode({ data }: { data: EditorNodeData }) {
 
 /** 深色小 Job 标签：独立节点，在步骤链左侧。 */
 function EditorJobNode({ data }: { data: EditorNodeData }) {
+  const t = useT()
   const job = data.job
   if (!job) return null
   return (
@@ -644,10 +648,10 @@ function EditorJobNode({ data }: { data: EditorNodeData }) {
       dropdownRender={renderCanvasMenu}
       menu={{
         items: [
-          { key: 'step', label: '添加步骤', onClick: menuAction(() => data.onAddStep?.()) },
-          { key: 'job', label: '添加并行 Job', onClick: menuAction(() => data.onAddJob?.()) },
+          { key: 'step', label: t('pipe.addStep'), onClick: menuAction(() => data.onAddStep?.()) },
+          { key: 'job', label: t('pipe.addParallelJobMenu'), onClick: menuAction(() => data.onAddJob?.()) },
           { type: 'divider' },
-          { key: 'del', danger: true, icon: <DeleteOutlined />, label: '删除 Job', onClick: menuAction(() => data.onDelete?.()) },
+          { key: 'del', danger: true, icon: <DeleteOutlined />, label: t('pipe.deleteJob'), onClick: menuAction(() => data.onDelete?.()) },
         ],
       }}
     >
@@ -676,8 +680,8 @@ function EditorJobNode({ data }: { data: EditorNodeData }) {
         >
           {job.agent_icon} {job.name}
         </div>
-        <PlusSourceHandle title="点击添加步骤，拖出加号拉线" onAdd={() => data.onAddStep?.()} />
-        <HoverPlus title="添加并行 Job" onClick={() => data.onAddJob?.()} style={{ left: '50%', bottom: -12, marginLeft: -11 }} />
+        <PlusSourceHandle title={t("pipe.clickAddStep")} onAdd={() => data.onAddStep?.()} />
+        <HoverPlus title={t("pipe.addParallelJobMenu")} onClick={() => data.onAddJob?.()} style={{ left: '50%', bottom: -12, marginLeft: -11 }} />
       </div>
     </Dropdown>
   )
@@ -685,6 +689,7 @@ function EditorJobNode({ data }: { data: EditorNodeData }) {
 
 /** 步骤卡片：独立节点，右键复制 / 调序 / 拆并行 / 删除。 */
 function EditorStepNode({ data }: { data: EditorNodeData }) {
+  const t = useT()
   const step = data.step
   if (!step) return null
   return (
@@ -693,25 +698,25 @@ function EditorStepNode({ data }: { data: EditorNodeData }) {
       dropdownRender={renderCanvasMenu}
       menu={{
         items: [
-          { key: 'add', label: '在后面添加步骤', onClick: menuAction(() => data.onAddStep?.()) },
+          { key: 'add', label: t('pipe.addStepAfter'), onClick: menuAction(() => data.onAddStep?.()) },
           {
             key: 'prev',
-            label: '前移',
+            label: t('pipe.movePrev'),
             icon: <LeftOutlined />,
             disabled: !data.onMovePrev,
             onClick: menuAction(() => data.onMovePrev?.()),
           },
           {
             key: 'next',
-            label: '后移',
+            label: t('pipe.moveNext'),
             icon: <RightOutlined />,
             disabled: !data.onMoveNext,
             onClick: menuAction(() => data.onMoveNext?.()),
           },
-          { key: 'dup', label: '复制步骤', icon: <CopyOutlined />, onClick: menuAction(() => data.onDuplicate?.()) },
-          { key: 'split', label: '拆成并行 Job', onClick: menuAction(() => data.onSplitParallel?.()) },
+          { key: 'dup', label: t('pipe.copyStep'), icon: <CopyOutlined />, onClick: menuAction(() => data.onDuplicate?.()) },
+          { key: 'split', label: t('pipe.splitParallel'), onClick: menuAction(() => data.onSplitParallel?.()) },
           { type: 'divider' },
-          { key: 'del', danger: true, icon: <DeleteOutlined />, label: '删除步骤', onClick: menuAction(() => data.onDelete?.()) },
+          { key: 'del', danger: true, icon: <DeleteOutlined />, label: t('pipe.deleteStep'), onClick: menuAction(() => data.onDelete?.()) },
         ],
       }}
     >
@@ -748,7 +753,7 @@ function EditorStepNode({ data }: { data: EditorNodeData }) {
             <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>{step.plugin}</div>
           </div>
         </div>
-        <PlusSourceHandle title="点击添加步骤，拖出加号拉线" onAdd={() => data.onAddStep?.()} />
+        <PlusSourceHandle title={t("pipe.clickAddStep")} onAdd={() => data.onAddStep?.()} />
       </div>
     </Dropdown>
   )

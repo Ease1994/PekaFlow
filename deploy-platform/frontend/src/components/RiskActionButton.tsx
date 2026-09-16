@@ -6,6 +6,7 @@ import type { Pipeline, Release } from '@/api/types'
 import ReleaseGateFields from '@/components/ReleaseGateFields'
 import { pipelineNeedsManifest, manifestInputRequired } from '@/utils/releaseGate'
 import { envColor, envLabel } from '@/env'
+import { useT } from '@/i18n'
 
 type RiskAction = 'rollback' | 'rebuild'
 
@@ -58,9 +59,9 @@ interface Props {
   onDone?: (release: Release) => void
 }
 
-const META: Record<RiskAction, { label: string; path: string; icon: React.ReactNode }> = {
-  rollback: { label: '回滚', path: 'rollback', icon: <RollbackOutlined /> },
-  rebuild: { label: 'Rebuild', path: 'rebuild', icon: <ReloadOutlined /> },
+const META: Record<RiskAction, { path: string; icon: React.ReactNode }> = {
+  rollback: { path: 'rollback', icon: <RollbackOutlined /> },
+  rebuild: { path: 'rebuild', icon: <ReloadOutlined /> },
 }
 
 const LABEL: React.CSSProperties = {
@@ -95,6 +96,7 @@ export default function RiskActionButton({
   text,
   onDone,
 }: Props) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const [bypass, setBypass] = useState(false)
   const [reason, setReason] = useState('')
@@ -107,6 +109,7 @@ export default function RiskActionButton({
   const [needManifest, setNeedManifest] = useState(false)
   const [manifest, setManifest] = useState('')
 
+  const label = action === 'rollback' ? t('risk.rollback') : t('risk.rebuild')
   const meta = META[action]
   const dockerItems = useMemo(
     () => (preview?.items || []).filter((it) => it.kind === 'docker-image' && it.image_repo),
@@ -152,8 +155,8 @@ export default function RiskActionButton({
         return
       }
       const rel = await get<Release & { run_params_json?: string }>(`/releases/${releaseId}`)
-      const meta = pipeline || (await get<Pipeline>(`/pipelines/${rel.pipeline_id}`))
-      const show = pipelineNeedsManifest(meta)
+      const metaPipe = pipeline || (await get<Pipeline>(`/pipelines/${rel.pipeline_id}`))
+      const show = pipelineNeedsManifest(metaPipe)
       setNeedManifest(show)
       if (!show) return
       let previous = ''
@@ -163,7 +166,7 @@ export default function RiskActionButton({
       } catch {
         previous = ''
       }
-      const preset = previous && previous !== '**' ? previous : meta.deploy_manifest_default || ''
+      const preset = previous && previous !== '**' ? previous : metaPipe.deploy_manifest_default || ''
       setManifest(preset)
     } catch {
       setNeedManifest(false)
@@ -199,11 +202,11 @@ export default function RiskActionButton({
       const release = await post<Release>(`/releases/${releaseId}/${meta.path}`, body)
       const newNo = release?.build_number || release?.id
       if (release?.status === 'pending') {
-        message.success(`${meta.label}单 #${newNo} 已提交审批，通过后执行`)
+        message.success(t('risk.submitted', { label, n: newNo }))
       } else if (payload?.emergency_bypass) {
-        message.warning(`已应急跳审，${meta.label} #${newNo} 直接执行`)
+        message.warning(t('risk.bypassed', { label, n: newNo }))
       } else {
-        message.success(`已发起${meta.label} → #${newNo}`)
+        message.success(t('risk.started', { label, n: newNo }))
       }
       closeDialog()
       onDone?.(release)
@@ -222,21 +225,29 @@ export default function RiskActionButton({
         loading={loading && !open}
         onClick={openDialog}
       >
-        {text ?? meta.label}
+        {text ?? label}
       </Button>
 
       <Modal
         title={
           <Space>
-            {action === 'rollback' ? `撤销构建 #${shownNo}` : `确认${meta.label} #${shownNo}`}
-            {groupType ? <Tag color={envColor(groupType)}>{envLabel(groupType)}环境</Tag> : null}
+            {action === 'rollback'
+              ? t('risk.undoTitle', { n: shownNo })
+              : t('risk.confirmTitle', { label, n: shownNo })}
+            {groupType ? <Tag color={envColor(groupType)}>{t('execBtn.envTag', { env: envLabel(groupType) })}</Tag> : null}
           </Space>
         }
         open={open}
         onCancel={closeDialog}
         confirmLoading={loading}
         width={action === 'rollback' ? 560 : needManifest ? 560 : 520}
-        okText={bypass ? `应急跳审并${meta.label}` : approvalRequired ? '提交审批' : `确认${meta.label}`}
+        okText={
+          bypass
+            ? t('risk.emergencyOk', { label })
+            : approvalRequired
+              ? t('execBtn.submitApproval')
+              : t('risk.confirmOk', { label })
+        }
         okButtonProps={{
           danger: bypass || action === 'rollback',
           disabled: (bypass && !reason.trim()) || blocked || missingTag || blockManifest,
@@ -252,15 +263,15 @@ export default function RiskActionButton({
         {action === 'rollback' && (
           <div style={{ marginBottom: 16 }}>
             {previewing ? (
-              <Spin size="small" tip="正在确认要撤销的内容 ...">
+              <Spin size="small" tip={t('risk.previewing')}>
                 <div style={{ height: 40 }} />
               </Spin>
             ) : blocked ? (
-              <Alert type="error" showIcon message="这次发布不能回滚" description={preview?.reason} />
+              <Alert type="error" showIcon message={t('risk.cannot')} description={preview?.reason} />
             ) : preview ? (
               <>
                 <div style={{ fontSize: 15, fontWeight: 600, color: '#111827', marginBottom: 14 }}>
-                  将把目标环境还原到这次发布之前
+                  {t('risk.restore')}
                 </div>
                 {dockerItems.map((it) => (
                   <DockerRollbackCard
@@ -300,8 +311,8 @@ export default function RiskActionButton({
               type="warning"
               showIcon
               style={{ marginBottom: needManifest ? 16 : 0 }}
-              message={`${meta.label}会把该次发布的内容重新推到目标环境`}
-              description="该分组免审批，确认后立即进入执行队列。"
+              message={t('risk.repush', { label })}
+              description={t('risk.noApproval')}
             />
           )
         ) : null}
@@ -336,6 +347,7 @@ function DockerRollbackCard({
   showTarget: boolean
   onTagChange: (value: string) => void
 }) {
+  const t = useT()
   const repo = item.image_repo || ''
   const current = item.current_image || (item.current_tag ? `${repo}:${item.current_tag}` : '')
   const sameAsCurrent = !!item.current_tag && tag.trim() === item.current_tag
@@ -352,18 +364,18 @@ function DockerRollbackCard({
       {showTarget && item.target ? (
         <div style={{ ...LABEL, marginBottom: 10 }}>{item.target}</div>
       ) : null}
-      <div style={LABEL}>目前版本</div>
+      <div style={LABEL}>{t('risk.currentVer')}</div>
       <div style={{ ...REPO, marginBottom: 16 }}>{current || '—'}</div>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
-        <div style={LABEL}>回滚后的版本</div>
-        <div style={{ fontSize: 12, color: '#1677ff' }}>可改 tag，回到任意已推送版本</div>
+        <div style={LABEL}>{t('risk.afterVer')}</div>
+        <div style={{ fontSize: 12, color: '#1677ff' }}>{t('risk.changeTag')}</div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
         <span style={{ ...REPO, color: '#64748b' }}>{repo}:</span>
         <Input
           value={tag}
           onChange={(e) => onTagChange(e.target.value.replace(/\s/g, ''))}
-          placeholder={item.previous_tag || '例如 9'}
+          placeholder={item.previous_tag || t('risk.tagExample')}
           size="large"
           style={{
             width: 148,
@@ -374,10 +386,10 @@ function DockerRollbackCard({
         />
       </div>
       {sameAsCurrent ? (
-        <div style={{ marginTop: 8, fontSize: 12, color: '#d97706' }}>这就是现在跑的版本</div>
+        <div style={{ marginTop: 8, fontSize: 12, color: '#d97706' }}>{t('risk.sameVer')}</div>
       ) : (
         <div style={{ marginTop: 8, fontSize: 12, color: '#94a3b8' }}>
-          仓库里已有的 tag 都可以填，例如 8、7。没有推过的版本拉不下来。
+          {t('risk.anyTag')}
         </div>
       )}
     </div>

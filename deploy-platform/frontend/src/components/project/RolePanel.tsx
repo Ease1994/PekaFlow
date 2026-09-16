@@ -5,23 +5,7 @@ import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { get, post, put, del } from '@/api/client'
 import type { Role, RoleUser } from '@/api/types'
-
-const RESOURCE_LABELS: Record<string, string> = {
-  project: '项目',
-  group: '环境分组',
-  pipeline: '流水线',
-  repository: '代码库',
-  credential: '凭证',
-}
-const ACTION_LABELS: Record<string, string> = {
-  read: '查看',
-  create: '创建',
-  update: '更新',
-  delete: '删除',
-  execute: '执行',
-  approve: '审批',
-  approval_exempt: '豁免审批',
-}
+import { useT } from '@/i18n'
 
 interface UserItem {
   id: number
@@ -30,13 +14,50 @@ interface UserItem {
   is_admin: boolean
 }
 
-function userLabel(u: { username: string; display_name?: string }) {
+/**
+ * 资源类型界面名。分组用环境分组，避免 acl.group「分组」过短。
+ */
+function resourceLabel(res: string, t: (key: string) => string) {
+  if (res === 'group') return t('role.groupEnv')
+  if (res === 'repository') return t('acl.repo')
+  const keys: Record<string, string> = {
+    project: 'acl.project',
+    pipeline: 'acl.pipeline',
+    credential: 'acl.credential',
+  }
+  return keys[res] ? t(keys[res]) : res
+}
+
+/**
+ * 操作界面名。权限表里的 read 对应查看。
+ */
+function actionLabel(action: string, t: (key: string) => string) {
+  const keys: Record<string, string> = {
+    read: 'acl.view',
+    create: 'acl.create',
+    update: 'acl.update',
+    delete: 'acl.delete',
+    execute: 'acl.execute',
+    approve: 'acl.approve',
+    approval_exempt: 'acl.exempt',
+  }
+  return keys[action] ? t(keys[action]) : action
+}
+
+/**
+ * 成员展示：有姓名且不同于账号时带上账号，避免重名对不上人。
+ */
+function userLabel(
+  u: { username: string; display_name?: string },
+  t: (key: string, vars?: Record<string, string | number>) => string,
+) {
   const name = u.display_name || u.username
-  return name === u.username ? name : `${name}（${u.username}）`
+  return name === u.username ? name : t('role.userWithAccount', { name, username: u.username })
 }
 
 /** 权限管理页的「项目角色」Tab：角色跟项目绑定，成员在编辑框里搜、加、点 × 去掉。 */
 export default function RolePanel({ projectId }: { projectId: number }) {
+  const t = useT()
   const queryClient = useQueryClient()
   const [roleModalOpen, setRoleModalOpen] = useState(false)
   const [editing, setEditing] = useState<Role | null>(null)
@@ -125,12 +146,12 @@ export default function RolePanel({ projectId }: { projectId: number }) {
       for (const a of actions) {
         chips.push(
           <Tag key={`${res}-${a}`} color="blue" style={{ marginBottom: 4 }}>
-            {RESOURCE_LABELS[res] ?? res}·{ACTION_LABELS[a] ?? a}
+            {resourceLabel(res, t)}·{actionLabel(a, t)}
           </Tag>,
         )
       }
     }
-    return chips.length ? chips : <span style={{ color: '#999' }}>无权限</span>
+    return chips.length ? chips : <span style={{ color: '#999' }}>{t('role.none')}</span>
   }
 
   const assignable = users.filter(
@@ -138,15 +159,15 @@ export default function RolePanel({ projectId }: { projectId: number }) {
   )
 
   const columns = [
-    { title: '角色名', dataIndex: 'name', render: (v: string) => <b>{v}</b> },
-    { title: '描述', dataIndex: 'description', ellipsis: true },
+    { title: t('role.roleName'), dataIndex: 'name', render: (v: string) => <b>{v}</b> },
+    { title: t('common.description'), dataIndex: 'description', ellipsis: true },
     {
-      title: '权限',
+      title: t('role.perms'),
       dataIndex: 'permissions',
       render: (v: Record<string, string[]>) => renderPerms(v),
     },
     {
-      title: '成员',
+      title: t('role.members'),
       dataIndex: 'users',
       render: (v: Role['users']) =>
         v.length ? (
@@ -157,17 +178,17 @@ export default function RolePanel({ projectId }: { projectId: number }) {
             {v.length > 5 && <span style={{ color: '#999' }}>+{v.length - 5}</span>}
           </Space>
         ) : (
-          <span style={{ color: '#999' }}>暂无成员</span>
+          <span style={{ color: '#999' }}>{t('role.noMembers')}</span>
         ),
     },
     {
-      title: '操作',
+      title: t('common.action'),
       width: 160,
       render: (_: unknown, r: Role) => (
         <Space>
-          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>编辑</Button>
-          <Popconfirm title="确认删除该角色？" onConfirm={() => handleDeleteRole(r.id)}>
-            <Button size="small" danger icon={<DeleteOutlined />}>删除</Button>
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>{t('common.edit')}</Button>
+          <Popconfirm title={t('role.deleteConfirm')} onConfirm={() => handleDeleteRole(r.id)}>
+            <Button size="small" danger icon={<DeleteOutlined />}>{t('common.delete')}</Button>
           </Popconfirm>
         </Space>
       ),
@@ -177,46 +198,46 @@ export default function RolePanel({ projectId }: { projectId: number }) {
   return (
     <div>
       <div style={{ marginBottom: 16 }}>
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建角色</Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>{t('role.newRole')}</Button>
         <span style={{ marginLeft: 12, color: '#999', fontSize: 12 }}>
-          角色跟项目绑定。点编辑即可搜人加入、点名字上的 × 去掉。
+          {t('role.hint')}
         </span>
       </div>
       <DataTable chromeKey="project-roles" rowKey="id" columns={columns} dataSource={roles} pagination={false} />
 
       <Modal
-        title={editing ? '编辑角色' : '新建角色'}
+        title={editing ? t('role.editRole') : t('role.newRole')}
         open={roleModalOpen}
         onOk={handleSaveRole}
         onCancel={() => setRoleModalOpen(false)}
         width={680}
         destroyOnClose
-        okText="确定"
-        cancelText="取消"
+        okText={t('common.ok')}
+        cancelText={t('common.cancel')}
       >
         <Form form={roleForm} layout="vertical">
-          <Form.Item name="name" label="角色名" rules={[{ required: true, message: '请输入角色名' }]}>
-            <Input placeholder="如：开发 / 测试 / 运维 / 审批人" />
+          <Form.Item name="name" label={t('role.roleName')} rules={[{ required: true, message: t('role.nameRequired') }]}>
+            <Input placeholder={t('role.namePh')} />
           </Form.Item>
-          <Form.Item name="description" label="描述">
-            <Input placeholder="角色职责说明" />
+          <Form.Item name="description" label={t('common.description')}>
+            <Input placeholder={t('role.descPh')} />
           </Form.Item>
-          <Divider style={{ margin: '12px 0' }}>权限配置（按资源类型勾选操作）</Divider>
+          <Divider style={{ margin: '12px 0' }}>{t('role.permDivider')}</Divider>
           <Form.Item name="permissions" label={null}>
             <PermissionMatrix resourceActions={resourceActions} form={roleForm} />
           </Form.Item>
-          <Divider style={{ margin: '12px 0' }}>成员</Divider>
+          <Divider style={{ margin: '12px 0' }}>{t('role.members')}</Divider>
           <div style={{ marginBottom: 8, color: '#999', fontSize: 12 }}>
-            搜姓名或账号加入。点名字上的 × 会从该角色去掉，点确定后生效。管理员不必加入，已有全部权限。
+            {t('role.memberHint')}
           </div>
           <Select
             showSearch
             allowClear
-            placeholder="搜索并选择人员"
+            placeholder={t('role.searchUser')}
             optionFilterProp="label"
             style={{ width: '100%', marginBottom: 12 }}
             options={assignable.map((u) => ({
-              label: userLabel(u),
+              label: userLabel(u, t),
               value: u.id,
             }))}
             value={pickUser}
@@ -242,7 +263,7 @@ export default function RolePanel({ projectId }: { projectId: number }) {
               ))}
             </Space>
           ) : (
-            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="还没有成员" />
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('role.emptyMembers')} />
           )}
         </Form>
       </Modal>
@@ -257,6 +278,7 @@ function PermissionMatrix({
   resourceActions: Record<string, string[]>
   form: any
 }) {
+  const t = useT()
   const value: Record<string, string[]> = form.getFieldValue('permissions') || {}
   return (
     <div style={{ border: '1px solid #f0f0f0', borderRadius: 6, padding: '4px 12px' }}>
@@ -270,7 +292,7 @@ function PermissionMatrix({
             borderBottom: '1px solid #f5f5f5',
           }}
         >
-          <span style={{ width: 80, fontWeight: 600 }}>{RESOURCE_LABELS[res] ?? res}</span>
+          <span style={{ width: 80, fontWeight: 600 }}>{resourceLabel(res, t)}</span>
           <Checkbox.Group
             value={value[res] || []}
             onChange={(vals) => {
@@ -278,7 +300,7 @@ function PermissionMatrix({
               next[res] = vals as string[]
               form.setFieldsValue({ permissions: next })
             }}
-            options={actions.map((a) => ({ label: ACTION_LABELS[a] ?? a, value: a }))}
+            options={actions.map((a) => ({ label: actionLabel(a, t), value: a }))}
           />
         </div>
       ))}
