@@ -24,7 +24,7 @@ npm run dev -- --host 0.0.0.0
 
 Demo account: `admin` / `admin123`. In production change the password or set `BOOTSTRAP_ADMIN_PASSWORD`.
 
-Full stack: copy `deploy-platform/.env.example` to `.env`, fill secrets, then `docker compose up -d --build`. Step-by-step: [README.en.md](README.en.md).
+Full stack: copy `deploy-platform/.env.example` to `.env`, then `docker compose up -d --build`. Trial passwords are already in the example. Step-by-step: [README.en.md](README.en.md).
 
 ## Tests
 

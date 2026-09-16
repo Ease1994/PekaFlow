@@ -24,7 +24,7 @@ npm run dev -- --host 0.0.0.0
 
 演示账号：`admin` / `admin123`。生产环境请改密或设置 `BOOTSTRAP_ADMIN_PASSWORD`。
 
-完整栈：复制 `deploy-platform/.env.example` 为 `.env`，填口令后 `docker compose up -d --build`。
+完整栈：复制 `deploy-platform/.env.example` 为 `.env` 后 `docker compose up -d --build`，试用口令已写在 example 里。
 
 ## 测试
 

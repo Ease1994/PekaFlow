@@ -55,45 +55,25 @@ Configure an OpenAI-compatible model under Models, then in AI Agent ask to relea
 
 Install [Docker](https://docs.docker.com/get-docker/) with Compose v2. Compose files live under **`deploy-platform/`**. Do not run them from the repo root.
 
-**1. Copy the env file**
+**1. Copy the env file and start**
 
 ```bash
 cd release-platform/deploy-platform
 cp .env.example .env
-```
-
-On Windows, copy `.env.example` to `.env` by hand. Never commit a filled `.env`.
-
-**2. Fill required secrets**
-
-Compose exits if these three are empty. Generate a random string:
-
-```bash
-python -c "import secrets; print(secrets.token_urlsafe(24))"
-```
-
-Edit `.env`. The two MySQL passwords must match character for character. Inside Compose the hostname is `mysql`:
-
-```bash
-MYSQL_ROOT_PASSWORD=a-long-random-string
-DATABASE_URL=mysql+pymysql://root:a-long-random-string@mysql:3306/deploy_platform?charset=utf8mb4
-REDIS_PASSWORD=another-random-string
-BOOTSTRAP_ADMIN_PASSWORD=admin-password
-```
-
-Set `BOOTSTRAP_ADMIN_PASSWORD`. If you leave it empty, the admin password stays `admin` / `admin123` (local only). `JWT_SECRET`, `AES_KEY`, and `HARNESS_RUNNER_TOKEN` may stay empty; first boot writes them to the data volume. **Do not rotate JWT/AES on a running install**, or Git credentials already encrypted in the database will not decrypt.
-
-**3. Start and wait**
-
-```bash
 docker compose up -d --build
 docker compose ps
 docker compose logs -f backend
 ```
 
+On Windows, copy `.env.example` to `.env` by hand. The example already has trial passwords; you can start without editing. Never commit a filled `.env`.
+
+Sign in as `admin` / `admin123`. For production, change the passwords in `.env` and run `docker compose up -d` again. Changing MySQL / Redis passwords on an existing volume has no effect; use `docker compose down -v` and start over (this wipes the database).
+
+`JWT_SECRET`, `AES_KEY`, and `HARNESS_RUNNER_TOKEN` may stay empty; first boot writes them to the data volume. **Do not rotate JWT/AES on a running install**, or Git credentials already encrypted in the database will not decrypt.
+
 The first build pulls images and compiles frontend and backend; it can take several minutes. Open the browser after backend/frontend are `healthy` or `running` and the backend log shows tables and the admin user.
 
-**4. Open the UI**
+**2. Open the UI**
 
 | Entry | URL |
 |------|------|
@@ -101,7 +81,7 @@ The first build pulls images and compiles frontend and backend; it can take seve
 | API | http://localhost:8080 (`/docs` is off by default) |
 | Health | http://localhost:8080/api/v1/health |
 
-Sign in as `admin` with `BOOTSTRAP_ADMIN_PASSWORD` (or `admin123` if you left it empty). Then set the public site URL in Settings (`http://localhost:8000`, or the host IP on a LAN) and add a model. Do not publish MySQL 3306 / Redis 6379 / ES 9200 on the host in production. Compose already runs ES; build logs go to `rp-exec-logs-YYYY-MM-DD`. Change the cluster in Settings if you have your own.
+Sign in as `admin` / `admin123` (or the `BOOTSTRAP_ADMIN_PASSWORD` you set). Then set the public site URL in Settings (`http://localhost:8000`, or the host IP on a LAN) and add a model. Do not publish MySQL 3306 / Redis 6379 / ES 9200 on the host in production. Compose already runs ES; build logs go to `rp-exec-logs-YYYY-MM-DD`. Change the cluster in Settings if you have your own.
 
 Stop with `docker compose down` (**do not** add `-v`, or you wipe the database, secrets, and artifact volume). Installing agents, HTTPS, backup and upgrades: [deployment guide](deploy-platform/docs/部署文档.en.md).
 

@@ -6,7 +6,7 @@
 #
 # 服务与端口（默认不把 MySQL / Redis / ES 打到宿主机）：
 #   - mysql         : 仅容器网（库 deploy_platform）
-#   - redis         : 仅容器网（定时触发延迟队列，必须设 REDIS_PASSWORD）
+#   - redis         : 仅容器网（定时触发延迟队列）
 #   - elasticsearch : 仅容器网（构建日志 / AI 审计按日索引）。换集群到平台设置改地址
 #   - backend       : 8080
 #   - frontend      : 8000（容器内 Nginx 监听 80，反代 /api 到 backend）
@@ -14,9 +14,8 @@
 # 调试要在宿主机连库时用：docker compose -f docker-compose.yml -f docker-compose.debug.yml up -d
 #
 # 首次启动：secrets-init 写密钥 → 后端等 MySQL 就绪后建表、补管理员、写默认配置。
-# JWT_SECRET / AES_KEY / HARNESS_RUNNER_TOKEN / MYSQL_ROOT_PASSWORD / REDIS_PASSWORD / DATABASE_URL
-# 从同级 .env 读入。连接串整段写在 .env，compose 不再拼接。密钥空则首次自动生成；
-# 换机必须带上原来的 JWT/AES，否则库里的凭证解不开。
+# 口令默认与 .env.example 相同，复制为 .env 就能起。生产请改 .env 后重新部署。
+# JWT / AES / Runner 令牌空则首次自动生成并写入数据卷；换机必须带上原来的那份。
 # ============================================================
 
 services:
@@ -25,7 +24,7 @@ services:
     container_name: deploy-mysql
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rp-mysql}
       MYSQL_DATABASE: deploy_platform
       TZ: Asia/Shanghai
     volumes:
@@ -44,12 +43,12 @@ services:
     container_name: deploy-redis
     restart: always
     environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-rp-redis}
     volumes:
       - redis-data:/data
-    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-rp-redis}"]
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-rp-redis}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -85,7 +84,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-}
       AES_KEY: ${AES_KEY:-}
       HARNESS_RUNNER_TOKEN: ${HARNESS_RUNNER_TOKEN:-}
-      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-admin123}
     volumes:
       - backend-data:/app/data
     restart: "no"
@@ -97,16 +96,16 @@ services:
     container_name: deploy-backend
     restart: always
     environment:
-      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
+      DATABASE_URL: ${DATABASE_URL:-mysql+pymysql://root:rp-mysql@mysql:3306/deploy_platform?charset=utf8mb4}
       REDIS_HOST: redis
       REDIS_PORT: "6379"
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-rp-redis}
       TZ: Asia/Shanghai
       HARNESS_RUNNER_URL: http://harness-runner:8090
       HARNESS_RUNNER_TOKEN: ${HARNESS_RUNNER_TOKEN:-}
       JWT_SECRET: ${JWT_SECRET:-}
       AES_KEY: ${AES_KEY:-}
-      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-admin123}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       # 首次写入平台设置。保存过后以库为准，设置页可以改成自备集群。
       ES_HOSTS: ${ES_HOSTS:-http://elasticsearch:9200}

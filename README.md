@@ -55,45 +55,25 @@ npm run dev -- --host 0.0.0.0
 
 需要本机已装 [Docker](https://docs.docker.com/get-docker/)（含 Compose v2）。编排文件在 **`deploy-platform/`**，不要在仓库根目录执行。
 
-**1. 复制环境文件**
+**1. 复制环境文件并启动**
 
 ```bash
 cd release-platform/deploy-platform
 cp .env.example .env
-```
-
-Windows 没有 `cp` 就手动复制 `.env.example` 为 `.env`。填了值的 `.env` 不要提交进 Git。
-
-**2. 填写必填口令**
-
-下面三项空着，`docker compose` 会直接退出。生成随机串：
-
-```bash
-python -c "import secrets; print(secrets.token_urlsafe(24))"
-```
-
-打开 `.env`，至少写成这样（**两处 MySQL 口令必须逐字相同**，主机名在容器网里是 `mysql`）：
-
-```bash
-MYSQL_ROOT_PASSWORD=换成足够长的随机串
-DATABASE_URL=mysql+pymysql://root:换成足够长的随机串@mysql:3306/deploy_platform?charset=utf8mb4
-REDIS_PASSWORD=换成另一串随机口令
-BOOTSTRAP_ADMIN_PASSWORD=换成管理员口令
-```
-
-`BOOTSTRAP_ADMIN_PASSWORD` 建议填上；空着则管理员仍是演示口令 `admin` / `admin123`，只适合本机。`JWT_SECRET`、`AES_KEY`、`HARNESS_RUNNER_TOKEN` 可以留空，首次启动会写入数据卷，重启仍用同一把。**已经在跑的环境不要重新随机 JWT/AES**，否则库里加密的 Git 凭证解不开。
-
-**3. 启动并等就绪**
-
-```bash
 docker compose up -d --build
 docker compose ps
 docker compose logs -f backend
 ```
 
+Windows 没有 `cp` 就手动复制 `.env.example` 为 `.env`。`.env.example` 已带试用口令，复制后就能起，不必先改。填了值的 `.env` 不要提交进 Git。
+
+登录 `admin` / `admin123`。生产或对外服务请改 `.env` 里的口令后重新 `docker compose up -d`。已经在跑的数据卷改 MySQL / Redis 口令不会生效，要换就 `docker compose down -v` 后重来（库会清空）。
+
+`JWT_SECRET`、`AES_KEY`、`HARNESS_RUNNER_TOKEN` 可以留空，首次启动会写入数据卷。**已经在跑的环境不要重新随机 JWT/AES**，否则库里加密的 Git 凭证解不开。
+
 第一次会拉镜像、编前端和后端，可能要几分钟。看到 backend / frontend 为 `healthy` 或 `running`，且后端日志里建表、管理员就绪后再打开浏览器。
 
-**4. 打开页面**
+**2. 打开页面**
 
 | 入口 | 地址 |
 |------|------|
@@ -101,7 +81,7 @@ docker compose logs -f backend
 | API | http://localhost:8080（默认不开 `/docs`） |
 | 健康检查 | http://localhost:8080/api/v1/health |
 
-登录账号 `admin`，口令是你在 `.env` 里写的 `BOOTSTRAP_ADMIN_PASSWORD`（没写就是 `admin123`）。然后：在「平台设置」填站点根地址 `http://localhost:8000`（局域网改成平台机 IP）；在「模型管理」配一个 OpenAI 兼容模型。生产不要把 MySQL 3306 / Redis 6379 / ES 9200 映射到宿主机。Compose 已带本栈 ES，构建日志写入 `rp-exec-logs-YYYY-MM-DD`。要换集群在平台设置改地址。
+登录账号 `admin` / `admin123`（`.env` 里改过 `BOOTSTRAP_ADMIN_PASSWORD` 则用新口令）。然后：在「平台设置」填站点根地址 `http://localhost:8000`（局域网改成平台机 IP）；在「模型管理」配一个 OpenAI 兼容模型。生产不要把 MySQL 3306 / Redis 6379 / ES 9200 映射到宿主机。Compose 已带本栈 ES，构建日志写入 `rp-exec-logs-YYYY-MM-DD`。要换集群在平台设置改地址。
 
 停服务用 `docker compose down`（**不要**加 `-v`，否则会删掉库、密钥和制品卷）。装构建机 / 节点、HTTPS、备份升级见 [部署文档](deploy-platform/docs/部署文档.md)。
 
