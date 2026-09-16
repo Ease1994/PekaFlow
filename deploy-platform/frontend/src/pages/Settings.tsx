@@ -100,7 +100,7 @@ export default function Settings() {
       } = settings
       form.setFieldsValue({
         ...formValues,
-        es_index: settings.es_index || 'release-build-logs',
+        es_index: settings.es_index || 'rp-exec-logs',
         artifact_prod_retention_days: settings.artifact_prod_retention_days || '10',
         session_expire_days: settings.session_expire_days || '1',
         totp_2fa_enabled: settings.totp_2fa_enabled || 'false',
@@ -157,7 +157,7 @@ export default function Settings() {
   const handleSave = async () => {
     const values = await form.validateFields()
     if (!values.es_index?.trim()) {
-      values.es_index = 'release-build-logs'
+      values.es_index = 'rp-exec-logs'
     }
     saveMutation.mutate(values)
   }
@@ -334,15 +334,19 @@ export default function Settings() {
           <Divider orientation="left">
             <ClusterOutlined /> Elasticsearch 配置
           </Divider>
-          <Form.Item label="ES 地址（多个用逗号分隔）" name="es_hosts">
-            <Input placeholder="http://localhost:9200" />
+          <Form.Item
+            label="ES 地址（多个用逗号分隔）"
+            name="es_hosts"
+            extra="Compose 默认 http://elasticsearch:9200（本栈单节点）。本机 uvicorn 默认 localhost:9200。改成自备集群后保存即生效，不必重启。"
+          >
+            <Input placeholder="http://elasticsearch:9200" />
           </Form.Item>
           <Form.Item
             label="ES 日志索引前缀"
             name="es_index"
-            extra="构建日志写入 release-build-logs-当天日期。AI 助手审计日志固定走独立前缀 release-ai-logs，不占用这项配置、也不进业务库。"
+            extra="构建日志写入 rp-exec-logs-当天日期（yyyy-mm-dd）。AI 助手审计日志固定走独立前缀 rp-assist-logs，不占用这项配置、也不进业务库。Compose 默认连本栈 ES，要换集群在上面改地址即可。"
           >
-            <Input placeholder="release-build-logs" />
+            <Input placeholder="rp-exec-logs" />
           </Form.Item>
           <div className="rp-field-row">
             <Form.Item label="ES 用户名（可空）" name="es_username" style={{ flex: 1 }}>
@@ -599,8 +603,8 @@ export default function Settings() {
           <div>
             <Tag color="green">日志：Redis 实时 + ES 归档</Tag>
             <Tag>ES：{settings.es_hosts}</Tag>
-            <Tag>索引：{(settings.es_index || 'release-build-logs').replace(/-\d{4}-\d{2}-\d{2}$/, '')}-YYYY-MM-DD</Tag>
-            <Tag>AI 日志：release-ai-logs-YYYY-MM-DD</Tag>
+            <Tag>索引：{(settings.es_index || 'rp-exec-logs').replace(/-\d{4}-\d{2}-\d{2}$/, '')}-YYYY-MM-DD</Tag>
+            <Tag>AI 日志：rp-assist-logs-YYYY-MM-DD</Tag>
             <Tag>业务库（启动项）：{settings.bootstrap_database || '—'}</Tag>
             <Tag>版本：{settings.bootstrap_version || '—'}</Tag>
             <Tag>平台名：{settings.platform_display_name || '发布部署平台'}</Tag>

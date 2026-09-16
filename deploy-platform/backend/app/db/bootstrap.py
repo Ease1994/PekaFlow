@@ -15,6 +15,14 @@ from sqlalchemy.orm import Session
 
 from app.modules.settings.defaults import DEFAULT_SETTINGS
 
+# 本机回环地址视为「还没用自备集群」。Compose 注入 ES_HOSTS 时改成容器内地址。
+_LOOPBACK_ES_HOSTS = frozenset({
+    "http://localhost:9200",
+    "http://127.0.0.1:9200",
+    "https://localhost:9200",
+    "https://127.0.0.1:9200",
+})
+
 
 def wait_for_database(engine: Engine, *, attempts: int = 40, delay: float = 1.5) -> None:
     """库还没起来就建表会把整个进程打死。空环境里 MySQL 经常比应用晚几秒。"""
@@ -153,6 +161,8 @@ def ensure_platform_settings(db: Session) -> None:
         if row is None:
             db.add(PlatformSetting(key=key, value=str(value)))
             created += 1
+        elif key == "es_hosts" and env_val and (row.value or "").strip() in _LOOPBACK_ES_HOSTS:
+            row.value = env_val
         elif key in {"harness_runner_token", "harness_runner_url"} and not (row.value or "").strip() and value:
             row.value = str(value)
     if created:

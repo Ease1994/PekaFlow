@@ -8,10 +8,11 @@ from sqlalchemy.orm import Session, sessionmaker
 import app.db.models  # noqa: F401
 from app.core.security import verify_password
 from app.db.base import Base
-from app.db.bootstrap import ensure_admin, ensure_runtime_ready, wait_for_database
+from app.db.bootstrap import ensure_admin, ensure_platform_settings, ensure_runtime_ready, wait_for_database
 from app.db.models import Group, Project, User
 from app.main import _backfill_prod_self_approval, _seed_if_empty
-from app.modules.settings import get_setting
+from app.modules.settings import get_all_settings, get_setting, update_settings
+from app.modules.settings.defaults import DEFAULT_ES_INDEX_PREFIX
 
 
 def _bind(tmp_path, monkeypatch):
@@ -59,3 +60,34 @@ def test_ensure_admin_when_only_ordinary_users(tmp_path, monkeypatch):
         assert admin is not None and admin.is_admin
         assert verify_password("admin123", admin.password_hash)
         assert db.scalar(select(User).where(User.username == "dev")) is not None
+
+
+def test_compose_es_hosts_seeded_then_settings_page_wins(tmp_path, monkeypatch):
+    """Compose 把本栈 ES 写入库；之后设置页改地址，不被 ES_HOSTS 环境变量锁死。"""
+    monkeypatch.setenv("ES_HOSTS", "http://elasticsearch:9200")
+    engine = _bind(tmp_path, monkeypatch)
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        ensure_platform_settings(db)
+        assert get_setting(db, "es_hosts") == "http://elasticsearch:9200"
+        assert get_setting(db, "es_index") == DEFAULT_ES_INDEX_PREFIX
+        update_settings(db, {"es_hosts": "http://es.example.com:9200"})
+        assert get_setting(db, "es_hosts") == "http://es.example.com:9200"
+        assert get_all_settings(db)["es_hosts"] == "http://es.example.com:9200"
+
+
+def test_compose_replaces_loopback_es_hosts(tmp_path, monkeypatch):
+    """已有库若还是 localhost:9200，进 Compose 后改成本栈 ES；用户已填其它地址则不动。"""
+    engine = _bind(tmp_path, monkeypatch)
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        ensure_platform_settings(db)
+        assert get_setting(db, "es_hosts") == "http://localhost:9200"
+    monkeypatch.setenv("ES_HOSTS", "http://elasticsearch:9200")
+    with Session(engine) as db:
+        ensure_platform_settings(db)
+        assert get_setting(db, "es_hosts") == "http://elasticsearch:9200"
+        update_settings(db, {"es_hosts": "http://es.example.com:9200"})
+    with Session(engine) as db:
+        ensure_platform_settings(db)
+        assert get_setting(db, "es_hosts") == "http://es.example.com:9200"

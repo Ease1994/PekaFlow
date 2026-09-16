@@ -27,7 +27,7 @@ def test_create_log_store_never_uses_mysql_or_memory() -> None:
         lambda: {
             "log_storage": "mysql",
             "es_hosts": "http://127.0.0.1:1",
-            "es_index": "release-build-logs",
+            "es_index": "rp-exec-logs",
         },
     )
     name = store.name().lower()
@@ -41,7 +41,7 @@ def test_create_log_store_never_uses_mysql_or_memory() -> None:
 def test_es_build_never_raises_or_writes_mysql() -> None:
     from app.modules.agent.log_store import _build_es_store
 
-    store = _build_es_store({"es_hosts": "http://127.0.0.1:1", "es_index": "release-build-logs"})
+    store = _build_es_store({"es_hosts": "http://127.0.0.1:1", "es_index": "rp-exec-logs"})
     store.append_batch(9, ["es-down-must-not-raise"])
     assert store.get(9) == [] or store.name() == "none"
     assert store.name() != "memory"
@@ -275,3 +275,14 @@ def test_set_release_error_does_not_write_logs() -> None:
     set_release_error(rel, "[系统] 发布未能启动：节点不存在")
     assert rel.error_message == "发布未能启动：节点不存在"
     assert rel.logs == "must-stay"
+
+
+def test_daily_index_uses_yyyy_mm_dd(monkeypatch) -> None:
+    from app.modules.agent.log_store import ESLogStore, _build_es_store, normalize_es_index_prefix
+    from app.modules.agent import log_store as store_mod
+
+    monkeypatch.setattr(store_mod, "_today_cn", lambda: "2026-09-16")
+    assert normalize_es_index_prefix("rp-exec-logs-2026-09-16") == "rp-exec-logs"
+    store = _build_es_store({"es_hosts": "http://127.0.0.1:1", "es_index": "rp-exec-logs"})
+    assert isinstance(store, ESLogStore)
+    assert store._daily_index() == "rp-exec-logs-2026-09-16"

@@ -454,7 +454,7 @@ def test_es_down_does_not_raise_or_write_mysql() -> None:
     from app.modules.ai.audit_store import create_ai_audit_store
 
     store = create_ai_audit_store(
-        lambda: {"es_hosts": "http://127.0.0.1:1", "es_index": "release-build-logs"}
+        lambda: {"es_hosts": "http://127.0.0.1:1", "es_index": "rp-exec-logs"}
     )
     assert "memory" not in store.name().lower()
     assert "mysql" not in store.name().lower()
@@ -466,7 +466,7 @@ def test_create_ai_audit_store_ignores_build_log_index() -> None:
     from app.modules.ai.audit_store import AI_LOG_INDEX, create_ai_audit_store
 
     store = create_ai_audit_store(
-        lambda: {"es_hosts": "http://127.0.0.1:1", "es_index": "release-build-logs"}
+        lambda: {"es_hosts": "http://127.0.0.1:1", "es_index": "rp-exec-logs"}
     )
     prefix = getattr(store, "_prefix", "")
     if prefix:

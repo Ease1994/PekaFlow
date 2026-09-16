@@ -51,7 +51,7 @@ npm run dev -- --host 0.0.0.0
 
 先在「模型管理」配一个 OpenAI 兼容模型，再到 AI Agent 里对一条测试流水线说「发布一下」，核对确认卡片上的流水线 id。
 
-### Docker Compose（MySQL + Redis + 后端 + 前端 + harness-runner）
+### Docker Compose（MySQL + Redis + Elasticsearch + 后端 + 前端 + harness-runner）
 
 需要本机已装 [Docker](https://docs.docker.com/get-docker/)（含 Compose v2）。编排文件在 **`deploy-platform/`**，不要在仓库根目录执行。
 
@@ -101,7 +101,7 @@ docker compose logs -f backend
 | API | http://localhost:8080（默认不开 `/docs`） |
 | 健康检查 | http://localhost:8080/api/v1/health |
 
-登录账号 `admin`，口令是你在 `.env` 里写的 `BOOTSTRAP_ADMIN_PASSWORD`（没写就是 `admin123`）。然后：在「平台设置」填站点根地址 `http://localhost:8000`（局域网改成平台机 IP）；在「模型管理」配一个 OpenAI 兼容模型。生产不要把 MySQL 3306 / Redis 6379 映射到宿主机。
+登录账号 `admin`，口令是你在 `.env` 里写的 `BOOTSTRAP_ADMIN_PASSWORD`（没写就是 `admin123`）。然后：在「平台设置」填站点根地址 `http://localhost:8000`（局域网改成平台机 IP）；在「模型管理」配一个 OpenAI 兼容模型。生产不要把 MySQL 3306 / Redis 6379 / ES 9200 映射到宿主机。Compose 已带本栈 ES，构建日志写入 `rp-exec-logs-YYYY-MM-DD`。要换集群在平台设置改地址。
 
 停服务用 `docker compose down`（**不要**加 `-v`，否则会删掉库、密钥和制品卷）。装构建机 / 节点、HTTPS、备份升级见 [部署文档](deploy-platform/docs/部署文档.md)。
 
@@ -117,7 +117,7 @@ docker compose logs -f backend
 
 ## 技术栈
 
-前端 React 18 + TypeScript + Vite + Ant Design 5；后端 FastAPI + SQLAlchemy 2；数据 MySQL 8 / SQLite + Redis 7；执行层 Java Agent（JDK 8 单 jar）。
+前端 React 18 + TypeScript + Vite + Ant Design 5；后端 FastAPI + SQLAlchemy 2；数据 MySQL 8 / SQLite + Redis 7 + Elasticsearch 8；执行层 Java Agent（JDK 8 单 jar）。
 
 ## 许可证
 

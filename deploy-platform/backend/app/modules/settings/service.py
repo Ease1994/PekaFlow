@@ -1,4 +1,4 @@
-"""平台配置读写。优先级：环境变量 > 数据库 > 默认值。"""
+"""平台配置读写。一般是环境变量 > 数据库 > 默认值；ES 地址和索引以设置页为准。"""
 from __future__ import annotations
 
 import os
@@ -6,20 +6,27 @@ import os
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.modules.settings.defaults import DEFAULT_SETTINGS
+from app.modules.settings.defaults import DEFAULT_ES_INDEX_PREFIX, DEFAULT_SETTINGS
 from app.modules.settings.models import PlatformSetting
 
 # 文件落盘的项只能走专用上传/删除接口，整表 PUT 带上会把 MIME 冲掉、图还在盘上对不上
 FILE_BACKED_KEYS = frozenset({"header_image_mime"})
 
+# 这几项以设置页保存的库值为准。Compose 只在首次写入时用环境变量，避免把自备集群锁死。
+UI_OWNED_KEYS = frozenset({"es_hosts", "es_index", "es_username", "es_password"})
+
 
 def get_all_settings(db: Session) -> dict:
     """返回所有配置（默认值 + DB 覆盖 + 环境变量覆盖）。"""
     result = dict(DEFAULT_SETTINGS)
+    db_keys: set[str] = set()
     for s in db.scalars(select(PlatformSetting)).all():
         if s.key in DEFAULT_SETTINGS:
             result[s.key] = s.value
+            db_keys.add(s.key)
     for key in list(result.keys()):
+        if key in UI_OWNED_KEYS and key in db_keys:
+            continue
         env_val = os.environ.get(key.upper())
         if env_val is not None and env_val != "":
             result[key] = env_val
@@ -39,7 +46,7 @@ def update_settings(db: Session, updates: dict) -> dict:
         if key not in DEFAULT_SETTINGS or key in FILE_BACKED_KEYS:
             continue
         if key == "es_index" and (value is None or str(value).strip() == ""):
-            value = "release-build-logs"
+            value = DEFAULT_ES_INDEX_PREFIX
         if key.startswith("redis_") and str(value) != get_setting(db, key):
             redis_changed = True
         if key.startswith("es_") and str(value) != get_setting(db, key):
@@ -105,10 +112,12 @@ def update_settings(db: Session, updates: dict) -> dict:
 
 def get_setting(db: Session, key: str, default: str = "") -> str:
     """读取单个配置项。环境变量名为 key 大写，如 redis_host → REDIS_HOST。"""
+    stored = db.scalar(select(PlatformSetting).where(PlatformSetting.key == key))
+    if key in UI_OWNED_KEYS and stored is not None:
+        return stored.value
     env_val = os.environ.get(key.upper())
     if env_val is not None and env_val != "":
         return env_val
-    s = db.scalar(select(PlatformSetting).where(PlatformSetting.key == key))
-    if s is not None:
-        return s.value
+    if stored is not None:
+        return stored.value
     return DEFAULT_SETTINGS.get(key, default)

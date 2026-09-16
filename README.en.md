@@ -51,7 +51,7 @@ Open http://localhost:5173 . Demo login `admin` / `admin123` (local only; produc
 
 Configure an OpenAI-compatible model under Models, then in AI Agent ask to release a test pipeline and check the pipeline id on the confirm card.
 
-### Docker Compose (MySQL + Redis + backend + frontend + harness-runner)
+### Docker Compose (MySQL + Redis + Elasticsearch + backend + frontend + harness-runner)
 
 Install [Docker](https://docs.docker.com/get-docker/) with Compose v2. Compose files live under **`deploy-platform/`**. Do not run them from the repo root.
 
@@ -101,7 +101,7 @@ The first build pulls images and compiles frontend and backend; it can take seve
 | API | http://localhost:8080 (`/docs` is off by default) |
 | Health | http://localhost:8080/api/v1/health |
 
-Sign in as `admin` with `BOOTSTRAP_ADMIN_PASSWORD` (or `admin123` if you left it empty). Then set the public site URL in Settings (`http://localhost:8000`, or the host IP on a LAN) and add a model. Do not publish MySQL 3306 or Redis 6379 on the host in production.
+Sign in as `admin` with `BOOTSTRAP_ADMIN_PASSWORD` (or `admin123` if you left it empty). Then set the public site URL in Settings (`http://localhost:8000`, or the host IP on a LAN) and add a model. Do not publish MySQL 3306 / Redis 6379 / ES 9200 on the host in production. Compose already runs ES; build logs go to `rp-exec-logs-YYYY-MM-DD`. Change the cluster in Settings if you have your own.
 
 Stop with `docker compose down` (**do not** add `-v`, or you wipe the database, secrets, and artifact volume). Installing agents, HTTPS, backup and upgrades: [deployment guide](deploy-platform/docs/部署文档.en.md).
 
@@ -117,7 +117,7 @@ Stop with `docker compose down` (**do not** add `-v`, or you wipe the database, 
 
 ## Stack
 
-React 18 + TypeScript + Vite + Ant Design 5; FastAPI + SQLAlchemy 2; MySQL 8 / SQLite + Redis 7; Java agent (JDK 8 single jar).
+React 18 + TypeScript + Vite + Ant Design 5; FastAPI + SQLAlchemy 2; MySQL 8 / SQLite + Redis 7 + Elasticsearch 8; Java agent (JDK 8 single jar).
 
 ## License
 

@@ -2,7 +2,7 @@
 
 对话正文、工具续聊、会话生命周期是数据，走 MySQL。
 步骤/请求上下文/工具流水是日志：ES 挂了丢这一条，聊天照常跑。
-索引前缀固定 release-ai-logs，不和构建日志 release-build-logs 混在一起。
+索引前缀固定 rp-assist-logs，不和构建日志混在一起。
 """
 from __future__ import annotations
 
@@ -13,10 +13,11 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.modules.agent.log_store import LogStore, NullLogStore, _build_es_store
+from app.modules.settings.defaults import DEFAULT_AI_LOG_INDEX_PREFIX
 
 logger = logging.getLogger(__name__)
 
-AI_LOG_INDEX = "release-ai-logs"
+AI_LOG_INDEX = DEFAULT_AI_LOG_INDEX_PREFIX
 
 _store_lock = threading.Lock()
 _cached_store: LogStore | None = None

@@ -1,10 +1,15 @@
 """平台设置默认值。新增配置项只改这里，保存接口会自动认。"""
 from __future__ import annotations
 
+# 构建日志索引前缀。实际索引 rp-exec-logs-YYYY-MM-DD，按上海时区自然日新建。
+DEFAULT_ES_INDEX_PREFIX = "rp-exec-logs"
+# AI 审计日志独立前缀，同样按日建索引，不和构建日志混写。
+DEFAULT_AI_LOG_INDEX_PREFIX = "rp-assist-logs"
+
 DEFAULT_SETTINGS: dict[str, str] = {
     "log_storage": "es",                     # 固定 Redis 实时 + ES 归档；禁止 mysql 回退
-    "es_hosts": "http://localhost:9200",     # ES 地址；生产/测试用环境变量 ES_HOSTS 覆盖
-    "es_index": "release-build-logs",           # 日志索引前缀，实际写入 release-build-logs-YYYY-MM-DD
+    "es_hosts": "http://localhost:9200",     # 本机开发默认；Compose 首次写入 http://elasticsearch:9200
+    "es_index": DEFAULT_ES_INDEX_PREFIX,     # 日志索引前缀，实际写入 {prefix}-YYYY-MM-DD
     "es_username": "",                       # ES 用户名（环境变量 ES_USERNAME）
     "es_password": "",                       # ES 密码（环境变量 ES_PASSWORD，勿写进仓库）
     "task_poll_interval": "2",               # Agent 拉取任务间隔（秒）

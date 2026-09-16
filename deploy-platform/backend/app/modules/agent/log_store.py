@@ -16,8 +16,9 @@ import threading
 import time
 from datetime import datetime, timezone
 
+from app.modules.settings.defaults import DEFAULT_ES_INDEX_PREFIX
+
 _DATE_SUFFIX = re.compile(r"-\d{4}-\d{2}-\d{2}$")
-_DEFAULT_INDEX_PREFIX = "release-build-logs"
 _ES_TIMEOUT = 3.0
 
 logger = logging.getLogger(__name__)
@@ -38,12 +39,13 @@ _cached_sig = ""
 
 def normalize_es_index_prefix(index: str | None) -> str:
     """配置项是前缀；若误填带日期的完整名则剥掉日期。"""
-    name = (index or _DEFAULT_INDEX_PREFIX).strip()
+    name = (index or DEFAULT_ES_INDEX_PREFIX).strip()
     name = _DATE_SUFFIX.sub("", name).rstrip("-")
-    return name or _DEFAULT_INDEX_PREFIX
+    return name or DEFAULT_ES_INDEX_PREFIX
 
 
 def _today_cn() -> str:
+    """索引日期用上海时区的 yyyy-mm-dd，跨日即建新索引。"""
     try:
         from zoneinfo import ZoneInfo
 
@@ -186,6 +188,7 @@ class ESLogStore(LogStore):
         logger.warning("ES 不可用，%s 秒内不再请求（不回写数据库）：%s", int(self._COOLDOWN), e)
 
     def _daily_index(self) -> str:
+        """当天写入的索引名，例如 rp-exec-logs-2026-09-16。"""
         return f"{self._prefix}-{_today_cn()}"
 
     def _search_index(self) -> str:

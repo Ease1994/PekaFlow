@@ -1,14 +1,15 @@
 # ============================================================
-# 发布部署平台 · 完整部署编排（MySQL + Redis + 后端 + 前端）
+# 发布部署平台 · 完整部署编排（MySQL + Redis + Elasticsearch + 后端 + 前端）
 #
 # 一次性启动全部服务：
 #   docker compose up -d --build
 #
-# 服务与端口（默认不把 MySQL / Redis 打到宿主机）：
-#   - mysql     : 仅容器网（库 deploy_platform）
-#   - redis     : 仅容器网（定时触发延迟队列，必须设 REDIS_PASSWORD）
-#   - backend   : 8080
-#   - frontend  : 8000（容器内 Nginx 监听 80，反代 /api 到 backend）
+# 服务与端口（默认不把 MySQL / Redis / ES 打到宿主机）：
+#   - mysql         : 仅容器网（库 deploy_platform）
+#   - redis         : 仅容器网（定时触发延迟队列，必须设 REDIS_PASSWORD）
+#   - elasticsearch : 仅容器网（构建日志 / AI 审计按日索引）。换集群到平台设置改地址
+#   - backend       : 8080
+#   - frontend      : 8000（容器内 Nginx 监听 80，反代 /api 到 backend）
 #
 # 调试要在宿主机连库时用：docker compose -f docker-compose.yml -f docker-compose.debug.yml up -d
 #
@@ -53,6 +54,27 @@ services:
       timeout: 5s
       retries: 10
 
+  elasticsearch:
+    image: elasticsearch:8.17.3
+    container_name: deploy-elasticsearch
+    restart: always
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      xpack.security.http.ssl.enabled: "false"
+      cluster.name: rp-logs
+      ingest.geoip.downloader.enabled: "false"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+      TZ: Asia/Shanghai
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9200 >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+
   secrets-init:
     build:
       context: ./backend
@@ -86,6 +108,8 @@ services:
       AES_KEY: ${AES_KEY:-}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
+      # 首次写入平台设置。保存过后以库为准，设置页可以改成自备集群。
+      ES_HOSTS: ${ES_HOSTS:-http://elasticsearch:9200}
     volumes:
       # 制品、上传的插件包、公共安装包（shared-packs/jdk-linux 等）落在这里。不挂卷的话，
       # 重建一次容器文件就没了；JDK 包没了则装 Linux 节点会 404。
@@ -95,6 +119,9 @@ services:
         condition: service_healthy
       redis:
         # 只等容器起来，不等 ping。Redis 挂了后端仍要能启动，定时触发/实时日志自行降级。
+        condition: service_started
+      elasticsearch:
+        # 只等进程起来。ES 冷启动可能要一分钟，健康页会显示 down，日志稍后自动写上。
         condition: service_started
       secrets-init:
         condition: service_completed_successfully
@@ -166,6 +193,7 @@ services:
 volumes:
   mysql-data:
   redis-data:
+  es-data:
   backend-data:
 
 networks:
