@@ -377,12 +377,15 @@ export default function Nodes() {
       ? '\n' + t('nodes.noteSkipApproval', { env: envLabel(envArgs.value) })
       : '\n' + t('nodes.noteNeedApproval', { env: envLabel(envArgs.value) })
     const rerunNote = editingNode ? '\n' + t('nodes.rerunNote') : ''
+    // 只在用户写明时带进安装命令；空着让脚本推导 release-backup，不能当成整盘可写
+    const backupRoot = String(v.backupRoot || '').trim()
 
     if (os === 'linux') {
       // Linux 节点必须 root 装：要写 systemd unit 和 sudoers 白名单。
       // Agent 本身跑在普通用户下，root 只是安装期需要
       const svcEnv = services.length ? ` ALLOW_SERVICES=${shSingleQuote(services.join(','))}` : ''
       const tokenEnv = enrollToken ? ` ENROLL_TOKEN=${shSingleQuote(enrollToken)}` : ''
+      const backupEnv = backupRoot ? ` BACKUP_ROOT=${shSingleQuote(backupRoot)}` : ''
       if (mode === 'script') {
         return {
           cmd:
@@ -392,16 +395,17 @@ export default function Nodes() {
             // 但丢了 ALLOW_SERVICES 是静默的——装完看着成功，到发布时才发现服务停不动
             `sudo env SERVER=${shSingleQuote(serverUrl)} NAME=${shSingleQuote(v.name)} ALLOW_PATHS=${shSingleQuote(paths.join(','))}` +
             ` INSTALL_DIR=$(pwd)` +
-            ` ENV=${shSingleQuote(envArgs.value)}${svcEnv}${tokenEnv} bash install-node.sh`,
+            ` ENV=${shSingleQuote(envArgs.value)}${svcEnv}${backupEnv}${tokenEnv} bash install-node.sh`,
           note: t('nodes.linuxScriptNote') + envNote + rerunNote,
         }
       }
       const enrollArg = enrollToken ? ` --enroll-token ${shSingleQuote(enrollToken)}` : ''
       const svcArg = services.length ? ` --allow-services ${shSingleQuote(services.join(';'))}` : ''
+      const backupArg = backupRoot ? ` --backup-root ${shSingleQuote(backupRoot)}` : ''
       return {
         cmd:
           `java -jar deploy-agent.jar --server ${shSingleQuote(serverUrl)} --name ${shSingleQuote(v.name)}` +
-          ` --role node${envArgs.cli} --allow-paths ${shSingleQuote(paths.join(';'))}${svcArg}${enrollArg}`,
+          ` --role node${envArgs.cli} --allow-paths ${shSingleQuote(paths.join(';'))}${svcArg}${backupArg}${enrollArg}`,
         note: t('nodes.linuxManualNote') + envNote + rerunNote,
       }
     }
@@ -410,12 +414,13 @@ export default function Nodes() {
       // 脚本自己从平台下载 jar，平台地址已烤进脚本，不用人肉传文件
       const tokenArg = enrollToken ? ` -EnrollToken ${psSingleQuote(enrollToken)}` : ''
       const iisArg = iis.length ? ` -AllowIis ${psSingleQuote(iis.join(','))}` : ''
+      const backupArg = backupRoot ? ` -BackupRoot ${psSingleQuote(backupRoot)}` : ''
       return {
         cmd:
           // 显式带 -Server：万一机器上留着旧脚本没被覆盖，也不会拿错平台地址
           `iwr "${serverUrl}/api/v1/agents/install-script?role=node" -OutFile install-node.ps1\n` +
           `.\\install-node.ps1 -Server ${psSingleQuote(serverUrl)} -Name ${psSingleQuote(v.name)} -AllowPaths ${psSingleQuote(paths.join(','))}` +
-          `${iisArg}${envArgs.ps}${tokenArg}`,
+          `${iisArg}${backupArg}${envArgs.ps}${tokenArg}`,
         note: t('nodes.windowsScriptNote') + envNote + rerunNote,
       }
     }
@@ -423,9 +428,10 @@ export default function Nodes() {
     // 多个目录用分号分隔，和 Windows 的 PATH 习惯一致。手动方式走 cmd，不能用 PowerShell 单引号。
     const enrollArg = enrollToken ? ` --enroll-token "${String(enrollToken).replace(/"/g, '')}"` : ''
     const iisArg = iis.length ? ` --allow-iis "${iis.join(';')}"` : ''
+    const backupArg = backupRoot ? ` --backup-root "${backupRoot.replace(/"/g, '')}"` : ''
     const base =
       `java -jar deploy-agent.jar --server ${serverUrl} --name ${v.name}` +
-      ` --role node${envArgs.cli} --allow-paths "${paths.join(';')}"${iisArg}${enrollArg}`
+      ` --role node${envArgs.cli} --allow-paths "${paths.join(';')}"${iisArg}${backupArg}${enrollArg}`
     return {
       cmd: base,
       note: t('nodes.windowsManualNote') + envNote + rerunNote,
@@ -1117,6 +1123,17 @@ export default function Nodes() {
                   ? '/var/www/o2o\n/opt/app/api'
                   : 'D:\\wwwroot\\o2o\nD:\\wwwroot\\api'
               }
+            />
+          </Form.Item>
+
+          {/* 整机备份位置只在安装命令里生效；空着由脚本按安装目录推导，不能理解成「整盘可写」。 */}
+          <Form.Item
+            label={t('nodes.backupRoot')}
+            name="backupRoot"
+            extra={t('nodes.backupRootExtra')}
+          >
+            <Input
+              placeholder={os === 'linux' ? t('nodes.backupRootPhLinux') : t('nodes.backupRootPhWindows')}
             />
           </Form.Item>
 

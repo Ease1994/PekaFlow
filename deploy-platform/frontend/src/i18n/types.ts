@@ -1778,6 +1778,11 @@ export type Messages = {
     envExtraAfter: string
     allowPathsOnePerLine: string
     allowPathsExtra: string
+    /** 安装命令里的备份根，对应 Linux BACKUP_ROOT / Windows -BackupRoot。 */
+    backupRoot: string
+    backupRootExtra: string
+    backupRootPhLinux: string
+    backupRootPhWindows: string
     allowIis: string
     allowIisExtra1: string
     siteName: string

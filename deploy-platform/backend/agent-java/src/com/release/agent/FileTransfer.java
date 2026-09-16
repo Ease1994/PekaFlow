@@ -232,23 +232,26 @@ public class FileTransfer {
     /**
      * 备份目录：{根}/{项目}/{流水线}/{日期时间}/。
      *
+     * 根默认是安装节点时的 --backup-root。步骤里只有打开「自定义备份目录」才填 backupDir：
+     * 相对路径接到这个根下面，绝对路径也必须仍在根内。换盘属于节点安装，不在流水线里改。
+     *
      * 按项目和流水线分层，是为了让人在生产机上直接翻目录就能找到某条线的历史版本，
-     * 不用回平台查任务号；带上时分秒是因为同一天往往要发好几次，只按日期会互相覆盖，
-     * 那次想回滚的版本就找不回来了。
+     * 不用回平台查任务号；带上时分秒是因为同一天往往要发好几次，只按日期会互相覆盖。
      */
     private File prepareBackupDir(Map<String, Object> with, Map<String, Object> vars, int taskId)
             throws Exception {
         String raw = Json.str(with.get("backupDir"));
         File root;
         if (raw != null && !raw.trim().isEmpty()) {
-            root = NodeExecutor.resolveBackupRoot(allowPaths, raw);
+            root = NodeExecutor.resolvePipelineBackupRoot(allowPaths, raw.trim(), configuredBackupRoot);
         } else if (!configuredBackupRoot.isEmpty()) {
             root = NodeExecutor.resolveBackupRoot(allowPaths, configuredBackupRoot);
+            NodeExecutor.assertInsideConfiguredBackupRoot(root, configuredBackupRoot);
         } else {
             // 默认根也走同一套校验：不能是盘符根、不能写进站点里面
             root = NodeExecutor.resolveBackupRoot(allowPaths, defaultBackupRoot().getPath());
+            NodeExecutor.assertInsideConfiguredBackupRoot(root, configuredBackupRoot);
         }
-        NodeExecutor.assertInsideConfiguredBackupRoot(root, configuredBackupRoot);
         this.backupRoot = root;
 
         String project = folderName(Json.str(vars.get("BK_CI_PROJECT_NAME")), "unknown-project");
@@ -260,7 +263,7 @@ public class FileTransfer {
 
         File dir = new File(new File(new File(root, project), pipeline), stamp);
         mkdirs(dir, "这不是允许目录拦住的，是运行账号写不进去。"
-                + "流水线备份目录请留空，用安装时建好的备份根；自定义路径要先由 root 建好并交给运行账号");
+                + "默认用安装时建好的备份根；自定义相对路径要先由运行账号写得进去");
         dir = dir.getCanonicalFile();
         assertStampDirUnderRoot(dir, root, project, pipeline, stamp);
         return dir;
@@ -288,11 +291,11 @@ public class FileTransfer {
     }
 
     /**
-     * 默认备份根：只认独立数据盘。
+     * 安装时没配 --backup-root 的老 Agent 才走到这里。
      *
      * 生产机系统盘通常只留系统自己的量。备份默默堆上去会把盘写满，
      * IIS 连日志都写不出，比这次发布失败严重得多。
-     * 没有 D:/E: 时必须在步骤里显式填写 backupDir。
+     * 没有 D:/E: 时拒绝默认到系统盘，必须在安装节点时设置 BACKUP_ROOT。
      */
     private File defaultBackupRoot() {
         if (File.separatorChar == '\\') {
@@ -304,7 +307,7 @@ public class FileTransfer {
             }
             throw new IllegalArgumentException(
                     "本机没有独立数据盘，不能把备份默认落到系统盘。"
-                            + "请在步骤里填写 backupDir，指向站点盘或数据盘上的目录（不要放进站点里面）");
+                            + "请在安装节点时设置 BACKUP_ROOT，指向站点盘或数据盘上的目录（不要放进站点里面）");
         }
         return new File("/var/release/backup");
     }

@@ -45,6 +45,7 @@ public final class NodeSafetyTest {
         testNodeNameCharset();
         testBackupRootRejectsWrappingSite();
         testBackupMustStayInConfiguredRoot();
+        testPipelineBackupRelativeJoinsConfiguredRoot();
         testShallowUnixAllowPath();
         testJoinUrlRejectsHostOverride();
         testPluginIdentityAndDownloadPath();
@@ -647,6 +648,52 @@ public final class NodeSafetyTest {
         check("流水线备份必须落在安装时的备份根下", rejected);
         NodeExecutor.assertInsideConfiguredBackupRoot(outside, "");
         check("老 Agent 没配备份根时不拦这一层", true);
+    }
+
+    /**
+     * 流水线自定义备份：相对路径接到节点备份根下；根外的绝对路径和跳出根的 .. 都拒绝。
+     */
+    private static void testPipelineBackupRelativeJoinsConfiguredRoot() throws Exception {
+        File root = tempDir("pipe-bak");
+        File site = tempDir("pipe-site");
+        List<String> allow = Arrays.asList(site.getCanonicalPath());
+        File joined = NodeExecutor.resolvePipelineBackupRoot(allow, "archive", root.getCanonicalPath());
+        File expect = new File(root, "archive").getCanonicalFile();
+        check("相对路径接到节点备份根下", joined.getCanonicalPath().equals(expect.getPath()));
+
+        File insideAbs = new File(root, "special");
+        if (!insideAbs.mkdirs() && !insideAbs.isDirectory()) {
+            throw new IllegalStateException("建绝对子目录失败");
+        }
+        File absOk = NodeExecutor.resolvePipelineBackupRoot(
+                allow, insideAbs.getCanonicalPath(), root.getCanonicalPath());
+        check("备份根下的绝对路径放行", absOk.getCanonicalPath().equals(insideAbs.getCanonicalPath()));
+
+        File outside = tempDir("pipe-out");
+        boolean rejected = false;
+        try {
+            NodeExecutor.resolvePipelineBackupRoot(allow, outside.getCanonicalPath(), root.getCanonicalPath());
+        } catch (IllegalArgumentException e) {
+            rejected = true;
+        }
+        check("备份根外的绝对路径拒绝", rejected);
+
+        boolean escaped = false;
+        try {
+            NodeExecutor.resolvePipelineBackupRoot(
+                    allow, ".." + File.separator + "escape", root.getCanonicalPath());
+        } catch (IllegalArgumentException e) {
+            escaped = true;
+        }
+        check("相对路径不能跳出备份根", escaped);
+
+        boolean relativeNeedsRoot = false;
+        try {
+            NodeExecutor.resolvePipelineBackupRoot(allow, "archive", "");
+        } catch (IllegalArgumentException e) {
+            relativeNeedsRoot = e.getMessage() != null && e.getMessage().contains("备份根");
+        }
+        check("没配备份根时相对路径拒绝", relativeNeedsRoot);
     }
 
     private static void testShallowUnixAllowPath() {

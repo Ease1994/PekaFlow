@@ -34,6 +34,7 @@ interface PluginFormRendererProps {
  *   - checkbox：复选框（label 在 field.label 上）
  *   - switch：开关
  *   - code：深色主题代码编辑器（Input.TextArea 模拟）
+ *   - visibleWhen / inferTrueIf / clearOnOff：把少用字段藏在开关后面，关掉时清掉隐藏值
  *
  * Schema 格式：
  * {
@@ -72,15 +73,30 @@ export default function PluginFormRenderer({ plugin, value, onChange, repositori
     )
   }
 
-  const setField = (key: string, v: unknown) => onChange({ ...value, [key]: v })
   const getField = (field: PluginField): unknown => {
+    // 关联文本还在时，开关必须视为打开；否则隐藏字段会留下 YAML 里的旧路径，执行时仍会用。
+    if (field.inferTrueIf) {
+      const other = value[field.inferTrueIf]
+      if (other !== undefined && other !== null && String(other).trim() !== '') return true
+    }
     if (value[field.key] !== undefined) return value[field.key]
     return field.default
+  }
+
+  /** 开关关掉时清掉只在打开后才有意义的字段，避免隐藏值继续进 YAML。 */
+  const setField = (key: string, v: unknown) => {
+    const field = fields.find((f) => f.key === key)
+    const next: Record<string, unknown> = { ...value, [key]: v }
+    if (field?.clearOnOff && v === false) {
+      for (const k of field.clearOnOff) next[k] = ''
+    }
+    onChange(next)
   }
 
   return (
     <Form layout="vertical" colon={false}>
       {fields.map((field) => {
+        if (!isFieldVisible(field, fields, getField)) return null
         const v = getField(field)
         return (
           <FieldRow
@@ -113,6 +129,36 @@ interface PluginField {
   source?: string
   /** group 类型专属：子字段 */
   children?: PluginField[]
+  /**
+   * 仅当其它字段当前值等于这里的期望时才渲染。
+   * 用来把「多数情况不用填」的项藏在开关后面，避免占着必填位。
+   */
+  visibleWhen?: Record<string, string | number | boolean>
+  /**
+   * 开关从开到关时一并清空的字段。隐藏后如果还把旧路径留在 YAML 里，执行时仍会生效。
+   */
+  clearOnOff?: string[]
+  /**
+   * 本字段尚未写入时：若该 key 已有非空值，则本开关视为 true。
+   * 用来打开老流水线里已经填过的自定义项，而不必改 YAML。
+   */
+  inferTrueIf?: string
+}
+
+/**
+ * 按 visibleWhen 决定字段是否出现。引用的字段走 getField，以便带上 default / inferTrueIf。
+ */
+function isFieldVisible(
+  field: PluginField,
+  fields: PluginField[],
+  read: (field: PluginField) => unknown,
+): boolean {
+  if (!field.visibleWhen) return true
+  return Object.entries(field.visibleWhen).every(([key, expect]) => {
+    const ref = fields.find((f) => f.key === key)
+    const actual = ref ? read(ref) : undefined
+    return actual === expect
+  })
 }
 
 function FieldRow({

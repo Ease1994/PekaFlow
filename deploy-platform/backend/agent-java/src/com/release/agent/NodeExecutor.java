@@ -653,9 +653,40 @@ public class NodeExecutor implements StepRunner {
         String r = normalize(root.getPath());
         if (!d.equals(r) && !d.startsWith(r + File.separator)) {
             throw new IllegalArgumentException(
-                    "备份目录必须落在本节点备份根 " + root.getPath() + " 下，流水线请留空，不要指到 "
+                    "备份目录必须落在本节点备份根 " + root.getPath()
+                            + " 下。流水线请关掉自定义备份，或只填该根下的相对路径；换磁盘请在安装节点时设 BACKUP_ROOT，不要指到 "
                             + dir.getPath());
         }
+    }
+
+    /**
+     * 解析流水线步骤里的自定义备份位置。
+     *
+     * 相对路径接到节点安装时的备份根下，这样表单不用再诱导人填 /var/release/backup
+     * 这种十有八九会撞备份根校验的绝对路径。绝对路径仍然允许，但必须落在备份根里面。
+     *
+     * @param allowPaths 站点允许目录，用来拦住「备份写进站点」
+     * @param raw 步骤 backupDir，调用方保证非空
+     * @param configuredRoot 节点 --backup-root；相对路径依赖它
+     * @return 校验过的备份根（其下还会再拼 项目/流水线/时间）
+     */
+    static File resolvePipelineBackupRoot(List<String> allowPaths, String raw, String configuredRoot)
+            throws Exception {
+        if (raw == null || raw.trim().isEmpty()) {
+            throw new IllegalArgumentException("没有填写备份目录");
+        }
+        String trimmed = raw.trim();
+        File specified = new File(trimmed);
+        if (!specified.isAbsolute()) {
+            if (configuredRoot == null || configuredRoot.trim().isEmpty()) {
+                throw new IllegalArgumentException(
+                        "相对备份路径需要节点已配置备份根。请关掉自定义备份，或在安装节点时设置 BACKUP_ROOT");
+            }
+            specified = new File(configuredRoot.trim(), trimmed);
+        }
+        File dir = resolveBackupRoot(allowPaths, specified.getPath());
+        assertInsideConfiguredBackupRoot(dir, configuredRoot);
+        return dir;
     }
 
     /**
