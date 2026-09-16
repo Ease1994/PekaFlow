@@ -39,6 +39,7 @@ from app.modules.account.router import router as account_router
 from app.modules.harness.router import router as harness_router
 from app.modules.pm.router import router as pm_router
 from app.modules.health.router import router as health_router
+from app.modules.meta.router import router as meta_router
 
 # 业务模块路由（都带 /v1 前缀）
 module_routers = [
@@ -66,6 +67,7 @@ module_routers = [
     harness_router,
     pm_router,
     health_router,
+    meta_router,
 ]
 
 

@@ -47,6 +47,7 @@ MENU_ITEMS: tuple[MenuItem, ...] = (
     MenuItem("credentials", "凭证管理", "tools", "资源与工具", AUDIENCE_ALL, False, 4),
     MenuItem("models", "模型管理", "tools", "资源与工具", AUDIENCE_ALL, False, 5),
     MenuItem("ai", "AI Agent", "tools", "资源与工具", AUDIENCE_ALL, False, 6),
+    MenuItem("handbook", "调用手册", "tools", "资源与工具", AUDIENCE_ALL, False),
     MenuItem("dashboard", "指标大盘", "system", "系统管理", AUDIENCE_ADMIN, True),
     MenuItem("releases", "发布管理", "system", "系统管理", AUDIENCE_ADMIN, True),
     MenuItem("users", "用户管理", "system", "系统管理", AUDIENCE_ADMIN, True),

@@ -25,6 +25,7 @@ import Users from './pages/Users'
 import PermissionManagement from './pages/PermissionManagement'
 import ReleaseApproval from './pages/ReleaseApproval'
 import PmWorkbench from './pages/PmWorkbench'
+import ApiHandbook from './pages/ApiHandbook'
 import { NoticeCenter } from './modules/notify'
 import { useAuthStore } from './stores/auth'
 import { ApplyPlatformBranding } from './hooks/usePlatformBranding'
@@ -142,6 +143,7 @@ export default function App() {
         <Route path="store" element={<Navigate to="/skills" replace />} />
         <Route path="credentials" element={<RequireMenu menu="credentials"><Credentials /></RequireMenu>} />
         <Route path="ai" element={<RequireMenu menu="ai"><AiChat /></RequireMenu>} />
+        <Route path="handbook" element={<RequireMenu menu="handbook"><ApiHandbook /></RequireMenu>} />
         <Route path="approvals" element={<ReleaseApproval />} />
         <Route path="notifications" element={<NoticeCenter />} />
         <Route path="access" element={<Navigate to="/permissions?tab=apply" replace />} />

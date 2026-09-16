@@ -67,7 +67,7 @@ Linux 节点要自动装 JDK 时，在「节点管理」上传 `jdk-8u271-linux-
 docker compose up -d --build
 ```
 
-访问：前端 http://localhost:5173（compose 下为 http://localhost:8000） · API 文档仅本地打开：http://localhost:8080/docs
+访问：前端 http://localhost:5173（compose 下为 http://localhost:8000）。接口清单在登录后的「调用手册」菜单，不要把 `/docs` 反代到公网。
 
 演示账号：`admin / admin123`。先在「模型管理」配一个可用模型，再到 AI Agent 里发一条测试流水线，核对确认卡片上的流水线 id。
 

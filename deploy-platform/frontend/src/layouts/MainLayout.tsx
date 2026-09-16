@@ -73,6 +73,7 @@ export default function MainLayout() {
     if (path.startsWith('/skills') || path.startsWith('/store')) return 'skills'
     if (path.startsWith('/credentials')) return 'credentials'
     if (path.startsWith('/ai')) return 'ai'
+    if (path.startsWith('/handbook')) return 'handbook'
     if (path.startsWith('/models')) return 'models'
     if (path.startsWith('/settings')) return 'settings'
     if (path.startsWith('/users')) return 'users'

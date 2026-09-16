@@ -26,16 +26,17 @@ from app.modules.credential.router import router as credential_router
 from app.modules.harness.router import router as harness_router
 from app.modules.llm.router import router as llm_router
 from app.modules.metric.router import router as metric_router
+from app.modules.meta.router import router as meta_router
 from app.modules.settings.models import PlatformSetting
 from app.modules.settings.router import router as settings_router
 from app.modules.store.router import router as store_router
 
 FRONTEND = Path(__file__).resolve().parents[2] / "frontend" / "src"
 
-OPEN_MENU_KEYS = ("artifacts", "agents", "nodes", "skills", "credentials", "models", "ai")
+OPEN_MENU_KEYS = ("artifacts", "agents", "nodes", "skills", "credentials", "models", "ai", "handbook")
 ADMIN_MENU_KEYS = ("dashboard", "releases", "users", "settings")
 ADMIN_ROUTE_PATHS = ("releases", "settings", "users")
-OPEN_ROUTE_PATHS = ("artifacts", "agents", "nodes", "skills", "credentials", "models", "ai", "permissions")
+OPEN_ROUTE_PATHS = ("artifacts", "agents", "nodes", "skills", "credentials", "models", "ai", "permissions", "handbook")
 
 
 def _dep_level(route) -> str | None:
@@ -104,7 +105,7 @@ def test_frontend_menu_catalog_matches_backend() -> None:
 def test_grant_modal_does_not_grant_menus() -> None:
     """添加授权只管项目/节点，菜单改走独立页。"""
     text = (FRONTEND / "pages" / "PermissionManagement.tsx").read_text(encoding="utf-8")
-    assert "菜单管理" in text
+    assert "tabMenus" in text
     assert "MenuManagement" in text
     assert 'value="console"' not in text
     assert "控制台模块" not in text
@@ -121,7 +122,7 @@ def test_sidebar_uses_server_visible_keys() -> None:
 
 
 def test_default_visible_keys_match_open_menus() -> None:
-    """没改过配置时，普通人看见工作台和七个资源页，看不见系统管理。"""
+    """没改过配置时，普通人看见工作台和资源页，看不见系统管理。"""
     db = _menu_db()
     staff = visible_keys(db, is_admin=False)
     admin = visible_keys(db, is_admin=True)
@@ -175,6 +176,7 @@ def test_opened_menu_list_apis_are_for_logged_in_users() -> None:
     assert _route_level(store_router, "/store/plugins") == "user"
     assert _route_level(ai_router, "/ai/sessions") == "user"
     assert _route_level(permission_router, "/menus") == "user"
+    assert _route_level(meta_router, "/meta/openapi") == "user"
 
 
 def test_dangerous_ops_stay_admin() -> None:
@@ -230,3 +232,15 @@ def test_admin_gate_rejects_plain_user() -> None:
         assert exc.code == 403
     assert get_current_admin(SimpleNamespace(id=1, username="admin", is_admin=True)).is_admin
     assert get_current_user.__name__ == "get_current_user"
+
+
+def test_nginx_does_not_proxy_swagger_docs() -> None:
+    """入口 Nginx 只反代 /api 和 /mcp，不能把 FastAPI /docs 打到公网。"""
+    text = (FRONTEND.parent / "nginx.conf").read_text(encoding="utf-8")
+    assert "location /docs" not in text
+    assert "location /redoc" not in text
+    assert "location /v3/api-docs" not in text
+    assert "location /swagger-ui" not in text
+    assert "location /api/" in text
+    assert "location /mcp" in text
+

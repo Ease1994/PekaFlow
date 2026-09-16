@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     debug: bool = False
     # 接口文档（/docs、/swagger-ui）。默认关：外网入口 Nginx 不转发，生产也不该开。
-    # 本地脚本会打开；内网机器需要时设 API_DOCS_ENABLED=true。
+    # 登录后的「调用手册」不依赖这项；需要 Swagger UI 时再设 API_DOCS_ENABLED=true。
     api_docs_enabled: bool = False
 
     # 进程启动即绑定，改了必须重启。生产用环境变量 DATABASE_URL。

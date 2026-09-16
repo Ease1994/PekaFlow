@@ -20,6 +20,7 @@ import {
   InboxOutlined,
   ScheduleOutlined,
   UserOutlined,
+  BookOutlined,
 } from '@ant-design/icons'
 
 /** 后端返回的一项菜单。audience: 当前生效的可见范围。 */
@@ -49,6 +50,7 @@ export const MENU_ICONS: Record<string, ReactNode> = {
   credentials: <SafetyCertificateOutlined />,
   models: <ApiOutlined />,
   ai: <RobotOutlined />,
+  handbook: <BookOutlined />,
   dashboard: <DashboardOutlined />,
   releases: <RocketOutlined />,
   users: <UserOutlined />,
@@ -70,6 +72,7 @@ export const FALLBACK_MENU_ITEMS: MenuNode[] = [
   { key: 'credentials', label: '凭证管理', group: 'tools', group_label: '资源与工具', audience: 'all', locked: false },
   { key: 'models', label: '模型管理', group: 'tools', group_label: '资源与工具', audience: 'all', locked: false },
   { key: 'ai', label: 'AI Agent', group: 'tools', group_label: '资源与工具', audience: 'all', locked: false },
+  { key: 'handbook', label: '调用手册', group: 'tools', group_label: '资源与工具', audience: 'all', locked: false },
   { key: 'dashboard', label: '指标大盘', group: 'system', group_label: '系统管理', audience: 'admin', locked: true },
   { key: 'releases', label: '发布管理', group: 'system', group_label: '系统管理', audience: 'admin', locked: true },
   { key: 'users', label: '用户管理', group: 'system', group_label: '系统管理', audience: 'admin', locked: true },
