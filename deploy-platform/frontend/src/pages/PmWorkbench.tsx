@@ -30,7 +30,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { Dayjs } from 'dayjs'
 import { get, post, postR } from '@/api/client'
-import { envColor, envLabel } from '@/env'
+import { envColor, envLabel, groupDisplayName } from '@/env'
 import { useAuthStore } from '@/stores/auth'
 import { useT } from '@/i18n'
 import { releaseStatusMeta } from '@/utils/releaseStatus'
@@ -198,7 +198,7 @@ export default function PmWorkbench() {
       title: t('common.environment'),
       width: 80,
       render: (_: unknown, r: ReleaseCard) => (
-        <Tag color={envColor(r.group_type)}>{envLabel(r.group_type) || r.group_name}</Tag>
+        <Tag color={envColor(r.group_type)}>{groupDisplayName({ name: r.group_name, type: r.group_type })}</Tag>
       ),
     },
     {
@@ -238,7 +238,7 @@ export default function PmWorkbench() {
       title: t('common.environment'),
       width: 90,
       render: (_: unknown, r: ReleaseCard) => (
-        <Tag color={envColor(r.group_type)}>{envLabel(r.group_type) || r.group_name}</Tag>
+        <Tag color={envColor(r.group_type)}>{groupDisplayName({ name: r.group_name, type: r.group_type })}</Tag>
       ),
     },
     {

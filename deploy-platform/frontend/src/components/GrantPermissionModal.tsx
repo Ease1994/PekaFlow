@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Alert, Form, Input, Modal, Select, Checkbox } from 'antd'
 import { useQuery } from '@tanstack/react-query'
 import { get } from '@/api/client'
-import { envLabel } from '@/env'
+import { envLabel, groupOptionLabel } from '@/env'
 import { useT } from '@/i18n'
 
 /** 授权对象：流水线三级（项目/分组/流水线）或节点两级（节点组/节点）。 */
@@ -343,7 +343,7 @@ export default function GrantPermissionModal({
                 }}
                 options={projectGroups.map((g) => ({
                   value: g.id,
-                  label: t('env.groupWithEnv', { name: g.name, env: envLabel(g.type) }),
+                  label: groupOptionLabel(g),
                 }))}
               />
             </Form.Item>

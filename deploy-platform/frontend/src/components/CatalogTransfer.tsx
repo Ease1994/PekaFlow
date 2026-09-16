@@ -4,6 +4,7 @@ import { ExportOutlined, ImportOutlined } from '@ant-design/icons'
 import { postLong } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { useT } from '@/i18n'
+import { groupDisplayName } from '@/env'
 
 /** 导入预览：重名流水线需要用户选覆盖、新建副本或跳过。 */
 export interface CatalogConflict {
@@ -261,7 +262,7 @@ export default function CatalogTransferButtons({
                       title: t('catalog.colEnv'),
                       dataIndex: 'group_name',
                       width: 100,
-                      render: (v: string) => v || '—',
+                      render: (v: string) => groupDisplayName({ name: v }) || '—',
                     },
                     {
                       title: t('catalog.colAction'),

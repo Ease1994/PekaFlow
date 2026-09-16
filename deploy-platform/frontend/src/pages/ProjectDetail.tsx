@@ -5,7 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { del, get, post, put } from '@/api/client'
 import type { Group, Pipeline, Project } from '@/api/types'
-import { defaultApprovalRequired, ENV_SLUG, envColor, envLabel, envOptions, groupOptionLabel } from '@/env'
+import { defaultApprovalRequired, ENV_SLUG, envColor, envLabel, envOptions, groupDisplayName, groupOptionLabel, isFactoryGroupName } from '@/env'
 import { useAuthStore } from '@/stores/auth'
 import CatalogTransferButtons from '@/components/CatalogTransfer'
 import { useIsMobile } from '@/hooks/useIsMobile'
@@ -282,7 +282,7 @@ function AddPipelinesModal({
             width: 140,
             render: (id: number) => {
               const g = groupMap[id]
-              return g ? <Tag color={envColor(g.type)}>{g.name}</Tag> : '—'
+              return g ? <Tag color={envColor(g.type)}>{groupDisplayName(g)}</Tag> : '—'
             },
           },
           {
@@ -712,6 +712,7 @@ export default function ProjectDetail() {
     createGroupForm.resetFields()
     createGroupForm.setFieldsValue({
       type: 'uat',
+      name: envLabel('uat'),
       approval_required: true,
       allow_self_approval: true,
       allow_emergency_bypass: false,
@@ -747,13 +748,13 @@ export default function ProjectDetail() {
     if (busy || inTrash) {
       message.warning(
         inTrash && !busy
-          ? t('project.groupHasRecycle', { name: g.name })
-          : t('project.groupHasPipelines', { name: g.name }),
+          ? t('project.groupHasRecycle', { name: groupDisplayName(g) })
+          : t('project.groupHasPipelines', { name: groupDisplayName(g) }),
       )
       return
     }
     Modal.confirm({
-      title: t('project.deleteGroupTitle', { name: g.name }),
+      title: t('project.deleteGroupTitle', { name: groupDisplayName(g) }),
       content: t('project.deleteGroupBody'),
       okText: t('common.delete'),
       okButtonProps: { danger: true },
@@ -865,7 +866,7 @@ export default function ProjectDetail() {
       children: groups.map((g) => ({
         key: `group:${g.id}`,
         label: navLabel(
-          <Tag color={envColor(g.type)} style={{ margin: 0 }}>{g.name}</Tag>,
+          <Tag color={envColor(g.type)} style={{ margin: 0 }}>{groupDisplayName(g)}</Tag>,
           groupCount[g.id] || 0,
           canManageGroup ? (
             <Dropdown
@@ -911,7 +912,7 @@ export default function ProjectDetail() {
     ...folders.map((f) => ({ value: `folder:${f}`, label: `${f}（${folderCount[f] || 0}）` })),
     ...groups.map((g) => ({
       value: `group:${g.id}`,
-      label: `${g.name}（${groupCount[g.id] || 0}）`,
+      label: `${groupDisplayName(g)}（${groupCount[g.id] || 0}）`,
     })),
   ]
 
@@ -981,7 +982,7 @@ export default function ProjectDetail() {
         const g = groupMap[v]
         return (
           <Space size={4} wrap>
-            {g ? <Tag color={envColor(g.type)}>{g.name}</Tag> : '-'}
+            {g ? <Tag color={envColor(g.type)}>{groupDisplayName(g)}</Tag> : '-'}
             {r.approval_mode === 'exempt' && (
               <Tooltip title={t("project.exemptHint")}>
                 <Tag color="volcano">{t("project.exempt")}</Tag>
@@ -1148,7 +1149,7 @@ export default function ProjectDetail() {
       dataIndex: 'group_id',
       render: (v: number) => {
         const g = groupMap[v]
-        return g ? <Tag color={envColor(g.type)}>{g.name}</Tag> : '-'
+        return g ? <Tag color={envColor(g.type)}>{groupDisplayName(g)}</Tag> : '-'
       },
     },
     {
@@ -1341,7 +1342,7 @@ export default function ProjectDetail() {
                           {r.name}
                         </a>
                         <div className="mobile-entity-meta">
-                          {g ? <Tag color={envColor(g.type)}>{g.name}</Tag> : null}
+                          {g ? <Tag color={envColor(g.type)}>{groupDisplayName(g)}</Tag> : null}
                         </div>
                         <div className="mobile-entity-meta">
                           <ExecStatusCell
@@ -1690,10 +1691,15 @@ export default function ProjectDetail() {
           onValuesChange={(changed) => {
             if ('type' in changed && changed.type && changed.type !== '__custom__') {
               const need = defaultApprovalRequired(changed.type)
-              createGroupForm.setFieldsValue({
+              const prevName = String(createGroupForm.getFieldValue('name') || '')
+              const patch: Record<string, unknown> = {
                 approval_required: need,
                 allow_self_approval: need,
-              })
+              }
+              if (isFactoryGroupName(prevName)) {
+                patch.name = envLabel(changed.type)
+              }
+              createGroupForm.setFieldsValue(patch)
             }
           }}
         >

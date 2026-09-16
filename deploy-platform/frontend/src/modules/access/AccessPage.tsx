@@ -17,7 +17,7 @@ import {
 import { AuditOutlined, CheckOutlined, CloseOutlined, StopOutlined } from '@ant-design/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { get, post } from '@/api/client'
-import { envLabel, groupOptionLabel } from '@/env'
+import { envLabel, groupDisplayName, groupOptionLabel } from '@/env'
 import DataTable from '@/components/DataTable'
 import { useAuthStore } from '@/stores/auth'
 import { t as translate, useT } from '@/i18n'
@@ -235,7 +235,12 @@ export default function AccessPage() {
       render: (_: unknown, row: Application) => <Tag>{scopeLabel(row)}</Tag>,
     },
     { title: t('acl.project'), dataIndex: 'project_name' },
-    { title: t('acl.group'), dataIndex: 'group_name', width: 140 },
+    {
+      title: t('acl.group'),
+      dataIndex: 'group_name',
+      width: 140,
+      render: (v: string) => groupDisplayName({ name: v }),
+    },
     { title: t('acl.pipeline'), dataIndex: 'pipeline_name' },
     {
       title: t('access.colGranted'),

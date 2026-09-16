@@ -28,7 +28,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { del, get, getBlob, post } from '@/api/client'
 import type { Project } from '@/api/types'
-import { envColor, envLabel, envOptions } from '@/env'
+import { envColor, envLabel, envOptions, groupDisplayName } from '@/env'
 import { formatDateTime, useT } from '@/i18n'
 
 const { Text } = Typography
@@ -213,9 +213,12 @@ export default function Artifacts() {
                   {envLabel(r.env)}
                 </Tag>
               )}
-              <Text type="secondary" style={{ fontSize: 11 }}>
-                {r.group_name}
-              </Text>
+              {r.group_name &&
+                groupDisplayName({ name: r.group_name, type: r.env }) !== envLabel(r.env) && (
+                  <Text type="secondary" style={{ fontSize: 11 }}>
+                    {groupDisplayName({ name: r.group_name, type: r.env })}
+                  </Text>
+                )}
             </Space>
           </Space>
         ) : (

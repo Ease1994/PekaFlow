@@ -7,7 +7,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { get, postR } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import type { ReleaseApproval } from '@/api/types'
-import { envColor, envLabel } from '@/env'
+import { envColor, groupDisplayName } from '@/env'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { t as translate, useT } from '@/i18n'
 import { releaseStatusMeta } from '@/utils/releaseStatus'
@@ -106,7 +106,7 @@ function ApprovalMobileCards({
             </a>
             <div className="mobile-entity-meta">
               <Tag color={ACTION_COLOR[row.action || 'release']}>{row.action_label || actionNoun(row.action)}</Tag>
-              {row.group_type ? <Tag color={envColor(row.group_type)}>{row.group_name || envLabel(row.group_type)}</Tag> : null}
+              {row.group_type ? <Tag color={envColor(row.group_type)}>{groupDisplayName({ name: row.group_name, type: row.group_type })}</Tag> : null}
               <Tag color={STATUS_COLOR[row.status]}>{approvalStatusText(row.status)}</Tag>
             </div>
             <div className="mobile-entity-meta">{changeText(row)}</div>
@@ -284,7 +284,7 @@ export default function ReleaseApprovalPage() {
       dataIndex: 'group_type',
       width: 100,
       render: (v: string, row: ReleaseApproval) => (
-        <Tag color={envColor(v)}>{row.group_name || envLabel(v)}</Tag>
+        <Tag color={envColor(v)}>{groupDisplayName({ name: row.group_name, type: v })}</Tag>
       ),
     },
     {

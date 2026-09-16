@@ -31,6 +31,7 @@ import MenuManagement from '@/pages/MenuManagement'
 import AccessApplyPanel from '@/modules/access/AccessApplyPanel'
 import { useAuthStore } from '@/stores/auth'
 import { t, useT } from '@/i18n'
+import { groupDisplayName } from '@/env'
 
 interface UserItem { id: number; username: string; display_name: string; is_admin: boolean }
 interface ProjectItem { id: number; name: string; code: string }
@@ -151,7 +152,7 @@ function reviewActionOptions() {
 function scopeText(row: Application) {
   if (row.scope_text) return row.scope_text
   if (row.apply_type === 'role') return t('perm.scopeRole', { project: row.project_name, role: row.role_name || row.pipeline_name })
-  return `${row.project_name} / ${row.group_name} / ${row.pipeline_name}`
+  return `${row.project_name} / ${groupDisplayName({ name: row.group_name })} / ${row.pipeline_name}`
 }
 
 /** 角色申请 vs 资源权限。 */
