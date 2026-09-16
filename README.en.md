@@ -67,9 +67,7 @@ docker compose logs -f backend
 
 On Windows, copy `.env.example` to `.env` by hand. The example already has trial passwords; you can start without editing. Never commit a filled `.env`.
 
-Sign in as `admin` / `admin123`. For production, change the passwords in `.env` and run `docker compose up -d` again. Changing MySQL / Redis passwords on an existing volume has no effect; use `docker compose down -v` and start over (this wipes the database).
-
-`JWT_SECRET`, `AES_KEY`, and `HARNESS_RUNNER_TOKEN` may stay empty; first boot writes them to the data volume. **Do not rotate JWT/AES on a running install**, or Git credentials already encrypted in the database will not decrypt.
+Sign in as `admin` / `admin123`. For production, change every secret in `.env` and run `docker compose up -d` again. Changing MySQL / Redis passwords on an existing volume has no effect; use `docker compose down -v` and start over (this wipes the database). **Do not rotate JWT/AES on a running install**, or Git credentials already encrypted in the database will not decrypt.
 
 The first build pulls images and compiles frontend and backend; it can take several minutes. Open the browser after backend/frontend are `healthy` or `running` and the backend log shows tables and the admin user.
 

@@ -15,7 +15,6 @@
 #
 # 首次启动：secrets-init 写密钥 → 后端等 MySQL 就绪后建表、补管理员、写默认配置。
 # 口令默认与 .env.example 相同，复制为 .env 就能起。生产请改 .env 后重新部署。
-# JWT / AES / Runner 令牌空则首次自动生成并写入数据卷；换机必须带上原来的那份。
 # ============================================================
 
 services:
@@ -81,9 +80,9 @@ services:
     container_name: deploy-secrets-init
     command: ["python", "-m", "app.db.bootstrap"]
     environment:
-      JWT_SECRET: ${JWT_SECRET:-}
-      AES_KEY: ${AES_KEY:-}
-      HARNESS_RUNNER_TOKEN: ${HARNESS_RUNNER_TOKEN:-}
+      JWT_SECRET: ${JWT_SECRET:-s-CWJIQchAl5tt9iZtN00F1Xx11z_LL8Yjirh1w7GpQxL_d82UootdE5pKBobRsf}
+      AES_KEY: ${AES_KEY:-hSfSy8kVkzSHIJVXpuI2WRPJietxJCJs-Vu5J0GGZxg}
+      HARNESS_RUNNER_TOKEN: ${HARNESS_RUNNER_TOKEN:-8U-ISm_JxDSSzk62j8CmVU8usgptM3GwJIq08V3sPWa_cSX7vY3xMZE_UsJkR8Bp}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-admin123}
     volumes:
       - backend-data:/app/data
@@ -102,9 +101,9 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-rp-redis}
       TZ: Asia/Shanghai
       HARNESS_RUNNER_URL: http://harness-runner:8090
-      HARNESS_RUNNER_TOKEN: ${HARNESS_RUNNER_TOKEN:-}
-      JWT_SECRET: ${JWT_SECRET:-}
-      AES_KEY: ${AES_KEY:-}
+      HARNESS_RUNNER_TOKEN: ${HARNESS_RUNNER_TOKEN:-8U-ISm_JxDSSzk62j8CmVU8usgptM3GwJIq08V3sPWa_cSX7vY3xMZE_UsJkR8Bp}
+      JWT_SECRET: ${JWT_SECRET:-s-CWJIQchAl5tt9iZtN00F1Xx11z_LL8Yjirh1w7GpQxL_d82UootdE5pKBobRsf}
+      AES_KEY: ${AES_KEY:-hSfSy8kVkzSHIJVXpuI2WRPJietxJCJs-Vu5J0GGZxg}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-admin123}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       # 首次写入平台设置。保存过后以库为准，设置页可以改成自备集群。
@@ -155,7 +154,7 @@ services:
     tmpfs:
       - /tmp:size=128m,mode=1770,uid=65532,gid=65532
     environment:
-      HARNESS_RUNNER_TOKEN: ${HARNESS_RUNNER_TOKEN:-}
+      HARNESS_RUNNER_TOKEN: ${HARNESS_RUNNER_TOKEN:-8U-ISm_JxDSSzk62j8CmVU8usgptM3GwJIq08V3sPWa_cSX7vY3xMZE_UsJkR8Bp}
       HARNESS_PACKAGE_ROOT: /packages
       HARNESS_BROKER_URL: http://backend:8080/api/v1/harness/broker
       HARNESS_TOOL_TIMEOUT_SEC: "60"

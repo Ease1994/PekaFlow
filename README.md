@@ -67,9 +67,7 @@ docker compose logs -f backend
 
 Windows 没有 `cp` 就手动复制 `.env.example` 为 `.env`。`.env.example` 已带试用口令，复制后就能起，不必先改。填了值的 `.env` 不要提交进 Git。
 
-登录 `admin` / `admin123`。生产或对外服务请改 `.env` 里的口令后重新 `docker compose up -d`。已经在跑的数据卷改 MySQL / Redis 口令不会生效，要换就 `docker compose down -v` 后重来（库会清空）。
-
-`JWT_SECRET`、`AES_KEY`、`HARNESS_RUNNER_TOKEN` 可以留空，首次启动会写入数据卷。**已经在跑的环境不要重新随机 JWT/AES**，否则库里加密的 Git 凭证解不开。
+登录 `admin` / `admin123`。生产或对外服务请改 `.env` 里每一项口令和密钥后重新 `docker compose up -d`。已经在跑的数据卷改 MySQL / Redis 口令不会生效，要换就 `docker compose down -v` 后重来（库会清空）。**已经在跑的环境不要换 JWT/AES**，否则库里加密的 Git 凭证解不开。
 
 第一次会拉镜像、编前端和后端，可能要几分钟。看到 backend / frontend 为 `healthy` 或 `running`，且后端日志里建表、管理员就绪后再打开浏览器。
 
