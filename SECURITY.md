@@ -1,5 +1,7 @@
 # 安全披露
 
+[中文](SECURITY.md) · [English](SECURITY.en.md)
+
 请不要在公开 Issue、讨论区或 Pull Request 里报告安全漏洞。
 
 ## 怎么报

@@ -4,6 +4,8 @@ import { LockOutlined, DeploymentUnitOutlined } from '@ant-design/icons'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { postR } from '@/api/client'
 import { resolveDisplayName, usePlatformBranding } from '@/hooks/usePlatformBranding'
+import LanguageSwitch from '@/components/LanguageSwitch'
+import { useT } from '@/i18n'
 
 const { Title, Text } = Typography
 
@@ -18,10 +20,11 @@ export default function ResetPassword() {
   const token = useMemo(() => (search.get('token') || '').trim(), [search])
   const { data: branding } = usePlatformBranding()
   const displayName = resolveDisplayName(branding)
+  const t = useT()
 
   const onFinish = async (values: { password: string }) => {
     if (!token) {
-      message.error('重置链接无效，请重新申请')
+      message.error(t('reset.invalidLink'))
       return
     }
     setLoading(true)
@@ -30,7 +33,7 @@ export default function ResetPassword() {
         token,
         password: values.password,
       })
-      message.success(res.message || '密码已重置，请使用新密码登录')
+      message.success(res.message || t('reset.done'))
       navigate('/login', { replace: true })
     } catch {
       // 错误已由拦截器提示
@@ -41,6 +44,9 @@ export default function ResetPassword() {
 
   return (
     <div className="login-page">
+      <div className="login-lang-switch">
+        <LanguageSwitch />
+      </div>
       <Card className="login-card">
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div style={{ color: '#1677ff' }}>
@@ -49,13 +55,13 @@ export default function ResetPassword() {
           <Title level={3} style={{ marginTop: 12, marginBottom: 4 }}>
             {displayName}
           </Title>
-          <Text type="secondary">设置新的登录密码</Text>
+          <Text type="secondary">{t('reset.subtitle')}</Text>
         </div>
         {!token ? (
           <>
-            <Text type="danger">链接缺少令牌，请从邮件里重新打开，或再申请一次。</Text>
+            <Text type="danger">{t('reset.missingToken')}</Text>
             <div style={{ marginTop: 24, textAlign: 'center' }}>
-              <Link to="/forgot-password">重新申请</Link>
+              <Link to="/forgot-password">{t('reset.reapply')}</Link>
             </div>
           </>
         ) : (
@@ -64,42 +70,42 @@ export default function ResetPassword() {
               <Form.Item
                 name="password"
                 rules={[
-                  { required: true, message: '请输入新密码' },
-                  { min: 8, message: '密码至少 8 位' },
+                  { required: true, message: t('reset.newPassword') },
+                  { min: 8, message: t('reset.min8') },
                 ]}
               >
-                <Input.Password prefix={<LockOutlined />} placeholder="新密码，至少 8 位" />
+                <Input.Password prefix={<LockOutlined />} placeholder={t('reset.min8')} />
               </Form.Item>
               <Form.Item
                 name="confirm"
                 dependencies={['password']}
                 rules={[
-                  { required: true, message: '请再输入一遍新密码' },
+                  { required: true, message: t('reset.confirmRequired') },
                   ({ getFieldValue }) => ({
                     validator(_, value) {
                       if (!value || getFieldValue('password') === value) {
                         return Promise.resolve()
                       }
-                      return Promise.reject(new Error('两次输入的密码不一致'))
+                      return Promise.reject(new Error(t('reset.mismatch')))
                     },
                   }),
                 ]}
               >
-                <Input.Password prefix={<LockOutlined />} placeholder="再输入一遍" />
+                <Input.Password prefix={<LockOutlined />} placeholder={t('reset.confirmPlaceholder')} />
               </Form.Item>
               <Form.Item>
                 <Button type="primary" htmlType="submit" block loading={loading}>
-                  重置密码
+                  {t('reset.submit')}
                 </Button>
               </Form.Item>
             </Form>
             <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
-              重置成功后，若平台开启了双因子，下次登录需要重新用 Authenticator 扫码绑定。
+              {t('reset.hint')}
             </Text>
           </>
         )}
         <div style={{ marginTop: 16, textAlign: 'center' }}>
-          <Link to="/login">返回登录</Link>
+          <Link to="/login">{t('reset.back')}</Link>
         </div>
       </Card>
     </div>

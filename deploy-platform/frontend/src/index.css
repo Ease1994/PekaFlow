@@ -670,6 +670,27 @@ body.rp-col-resizing * {
   justify-content: center;
   padding: 16px;
   background: linear-gradient(135deg, #1677ff 0%, #0b2b5e 100%);
+  position: relative;
+}
+
+.login-lang-switch {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+}
+
+.login-lang-switch .ant-btn {
+  color: #fff;
+}
+
+.login-lang-switch .ant-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.rp-lang-label {
+  margin-inline-start: 4px;
 }
 
 .login-card {
@@ -706,6 +727,10 @@ body.rp-col-resizing * {
   .header-notice-banner,
   .header-user-name,
   .header-user-tag {
+    display: none;
+  }
+
+  .rp-lang-label {
     display: none;
   }
 

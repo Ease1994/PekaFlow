@@ -1,10 +1,12 @@
 # 发布部署平台（release-platform）
 
+[中文](README.md) · [English](README.en.md)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**release-platform** is an AI-agent-first release platform for mixed targets: Kubernetes, Docker, VMs, Windows IIS, Tomcat, and jars. People talk to the agent; pipelines and pull-mode agents do the work.
-
 **发布部署平台** 是以 AI Agent 为交互核心的多形态发布部署平台。人用自然语言查询、申请权限、发起发布、诊断失败、编写插件；流水线编排与构建机 / 节点执行，把变更落到环境上。
+
+界面语言可在登录页和顶栏切换：简体中文、繁体中文、English、日本語、हिन्दी、Português（巴西）、Deutsch。流水线等内页尚未全部抽出文案时，会回落到简体。
 
 编排是 Stage → Job → Step。助手运行时按 [DeepSeek AI-Harness](https://github.com/deepseek-ai/deepseek-harness) 的思路落地（session 事件溯源、agent-loop、tools 守卫管线、compaction、Skills、MCP、sandbox），不是把 dsh 进程嵌进来。
 
@@ -108,10 +110,10 @@ docker compose logs -f backend
 | 文档 | 内容 |
 |------|------|
 | [功能说明书](deploy-platform/docs/功能说明书.md) | 每个模块做什么、亮点；[Word 版](deploy-platform/docs/发布部署平台-功能说明书.docx) |
-| [部署文档](deploy-platform/docs/部署文档.md) | 从零安装、Compose、Agent、HTTPS、备份升级 |
+| [部署文档](deploy-platform/docs/部署文档.md) · [English](deploy-platform/docs/部署文档.en.md) | 从零安装、Compose、Agent、HTTPS、备份升级 |
 | [开发者手册](docs/开发者手册.md) | 架构对照、模块表、数据库、踩坑 |
-| [贡献指南](CONTRIBUTING.md) | 怎么跑测试、提交约定 |
-| [安全披露](SECURITY.md) | 漏洞请走 GitHub Advisory，不要开公开 Issue |
+| [贡献指南](CONTRIBUTING.md) · [English](CONTRIBUTING.en.md) | 怎么跑测试、提交约定 |
+| [安全披露](SECURITY.md) · [English](SECURITY.en.md) | 漏洞请走 GitHub Advisory，不要开公开 Issue |
 
 ## 技术栈
 

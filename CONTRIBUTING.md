@@ -1,5 +1,7 @@
 # 参与贡献
 
+[中文](CONTRIBUTING.md) · [English](CONTRIBUTING.en.md)
+
 感谢你愿意改这个项目。动手前请先读 [`docs/开发者手册.md`](docs/开发者手册.md) 的踩坑表。
 
 ## 本地跑起来

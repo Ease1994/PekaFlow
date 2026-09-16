@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { Card, Form, Input, Button, Typography, message, Divider } from 'antd'
 import {
   UserOutlined,
@@ -14,6 +14,8 @@ import { useAuthStore } from '@/stores/auth'
 import type { LoginResponse, UserInfo } from '@/api/types'
 import { resolveDisplayName, usePlatformBranding } from '@/hooks/usePlatformBranding'
 import { isWecomWebView, safeNextPath } from '@/utils/h5'
+import LanguageSwitch from '@/components/LanguageSwitch'
+import { useT } from '@/i18n'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -37,6 +39,7 @@ export default function Login() {
   const [hint, setHint] = useState('')
   const { data: branding } = usePlatformBranding()
   const displayName = resolveDisplayName(branding)
+  const t = useT()
 
   const { data: wecomStatus } = useQuery({
     queryKey: ['wecom-status'],
@@ -54,11 +57,11 @@ export default function Login() {
   /** 拿到正式 token 才进工作台。pending 票不能当登录态。 */
   const enterSession = (data: LoginResponse) => {
     if (!data.token || !data.user) {
-      message.error('登录未完成，请重新输入账号密码')
+      message.error(t('login.incomplete'))
       return
     }
     setAuth(data.token, data.user)
-    message.success(`欢迎回来，${data.user.display_name || data.user.username}`)
+    message.success(t('login.welcomeBack', { name: data.user.display_name || data.user.username }))
     goAfterLogin()
   }
 
@@ -125,11 +128,11 @@ export default function Login() {
     const body = await resp.json()
     if (body.code === 0 && body.data) {
       setAuth(token, body.data as UserInfo)
-      message.success('企业微信登录成功')
+      message.success(t('login.wecomOk'))
       goAfterLogin()
       return
     }
-    message.error('企业微信登录失败')
+    message.error(t('login.wecomFail'))
   }
 
   useEffect(() => {
@@ -148,7 +151,7 @@ export default function Login() {
         try {
           await enterWithToken(e.data.access_token as string)
         } catch {
-          message.error('企业微信登录失败')
+          message.error(t('login.wecomFail'))
         }
       }
     }
@@ -166,6 +169,9 @@ export default function Login() {
 
   return (
     <div className="login-page">
+      <div className="login-lang-switch">
+        <LanguageSwitch />
+      </div>
       <Card className={step === 'totp_setup' ? 'login-card is-totp-setup' : 'login-card'}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div style={{ color: '#1677ff' }}>
@@ -180,43 +186,43 @@ export default function Login() {
           </Title>
           <Text type="secondary">
             {step === 'password'
-              ? '任何应用、任何环境，一次定义、一键发布'
+              ? t('login.tagline')
               : step === 'totp_setup'
-                ? '首次登录请用 Authenticator 扫描二维码'
-                : '请输入 Authenticator 中的 6 位验证码'}
+                ? t('login.totpSetup')
+                : t('login.totpRequired')}
           </Text>
         </div>
 
         {step === 'password' ? (
           <>
             <Form onFinish={onFinish} size="large">
-              <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
-                <Input prefix={<UserOutlined />} placeholder="本地账号或域账号 / 邮箱" />
+              <Form.Item name="username" rules={[{ required: true, message: t('login.usernameRequired') }]}>
+                <Input prefix={<UserOutlined />} placeholder={t('login.usernamePlaceholder')} />
               </Form.Item>
-              <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}>
-                <Input.Password prefix={<LockOutlined />} placeholder="密码" />
+              <Form.Item name="password" rules={[{ required: true, message: t('login.passwordRequired') }]}>
+                <Input.Password prefix={<LockOutlined />} placeholder={t('login.passwordPlaceholder')} />
               </Form.Item>
               <Form.Item>
                 <Button type="primary" htmlType="submit" block loading={loading}>
-                  登录
+                  {t('login.submit')}
                 </Button>
               </Form.Item>
             </Form>
             <div style={{ textAlign: 'right', marginTop: -8, marginBottom: 8 }}>
-              <Link to="/forgot-password">忘记密码</Link>
+              <Link to="/forgot-password">{t('login.forgot')}</Link>
             </div>
 
             {wecomStatus?.enabled && (
               <>
-                <Divider plain style={{ fontSize: 12, color: '#999' }}>或</Divider>
+                <Divider plain style={{ fontSize: 12, color: '#999' }}>{t('login.or')}</Divider>
                 <Button block icon={<WechatOutlined />} onClick={handleWecomLogin} style={{ color: '#07c160' }}>
-                  企业微信登录
+                  {t('login.wecom')}
                 </Button>
               </>
             )}
 
             <Text type="secondary" style={{ fontSize: 12, display: 'block', textAlign: 'center', marginTop: 16 }}>
-              本地账号用短名（如 admin）。域账号请先让管理员开启 LDAP，可用邮箱或域账号登录。
+              {t('login.localHint')}
             </Text>
           </>
         ) : (
@@ -257,22 +263,22 @@ export default function Login() {
             >
               <Form.Item
                 name="code"
-                rules={[{ required: true, message: '请输入 6 位验证码' }]}
+                rules={[{ required: true, message: t('login.totpCodeRequired') }]}
                 style={{ display: 'flex', justifyContent: 'center' }}
               >
                 <Input.OTP length={6} disabled={loading} />
               </Form.Item>
               <Form.Item>
                 <Button type="primary" htmlType="submit" block loading={loading}>
-                  验证并登录
+                  {t('login.verify')}
                 </Button>
               </Form.Item>
             </Form>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16 }}>
               <Button type="link" onClick={backToPassword} style={{ padding: 0 }}>
-                返回账号密码
+                {t('login.backToPassword')}
               </Button>
-              <Link to="/forgot-password">忘记密码 / 手机丢了</Link>
+              <Link to="/forgot-password">{t('login.forgotLostPhone')}</Link>
             </div>
           </>
         )}

@@ -3,6 +3,7 @@ import { Alert, Drawer, Space, Tag, Typography } from 'antd'
 import { useQuery } from '@tanstack/react-query'
 import { get } from '@/api/client'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import { useT } from '@/i18n'
 
 type HealthComponent = {
   name: string
@@ -23,6 +24,7 @@ type HealthPayload = {
 export default function SystemHealthBar() {
   const [open, setOpen] = useState(false)
   const isMobile = useIsMobile()
+  const t = useT()
   const { data } = useQuery({
     queryKey: ['system-health-deps'],
     queryFn: () => get<HealthPayload>('/health/deps', undefined, { skipErrorToast: true }),
@@ -46,16 +48,16 @@ export default function SystemHealthBar() {
             style={{ cursor: 'pointer', marginInlineEnd: 0 }}
             onClick={() => setOpen(true)}
           >
-            {c.name} 异常
+            {t('health.abnormal', { name: c.name })}
           </Tag>
         ))}
         <Typography.Link style={{ fontSize: 12, whiteSpace: 'nowrap' }} onClick={() => setOpen(true)}>
-          查看详情
+          {t('health.details')}
         </Typography.Link>
       </Space>
-      <Drawer title="系统依赖状态" width={isMobile ? '100%' : 480} open={open} onClose={() => setOpen(false)}>
+      <Drawer title={t('health.drawerTitle')} width={isMobile ? '100%' : 480} open={open} onClose={() => setOpen(false)}>
         <Typography.Paragraph type="secondary" style={{ marginBottom: 12 }}>
-          探测时间：{data?.checked_at || '—'}。依赖挂了时定时触发可能不跑、构建日志可能丢失。
+          {t('health.checkedAt', { time: data?.checked_at || t('health.hint') })}
         </Typography.Paragraph>
         {(data?.components || []).map((c) => (
           <Alert
@@ -63,8 +65,8 @@ export default function SystemHealthBar() {
             type={c.status === 'ok' ? 'success' : 'error'}
             showIcon
             style={{ marginBottom: 12 }}
-            message={`${c.name}：${c.status === 'ok' ? '正常' : '异常'}`}
-            description={<pre className="system-health-detail">{c.detail || '—'}</pre>}
+            message={`${c.name}：${c.status === 'ok' ? t('health.ok') : t('health.bad')}`}
+            description={<pre className="system-health-detail">{c.detail || t('health.hint')}</pre>}
           />
         ))}
       </Drawer>

@@ -13,6 +13,8 @@ import { useAuthStore } from '@/stores/auth'
 import { get } from '@/api/client'
 import { FALLBACK_MENU_ITEMS, MENU_ICONS, canSeeMenu, type MenuCatalog } from '@/menus'
 import ApiTokenModal from '@/components/ApiTokenModal'
+import LanguageSwitch from '@/components/LanguageSwitch'
+import { useT } from '@/i18n'
 import {
   resolveDisplayName,
   resolveNoticeColor,
@@ -38,6 +40,7 @@ export default function MainLayout() {
   const headerNoticeColor = resolveNoticeColor(branding?.header_notice_color)
   const headerNoticeTheme = HEADER_NOTICE_COLORS[headerNoticeColor]
   const isMobile = useIsMobile()
+  const t = useT()
   /** 手机上侧栏改成抽屉，点汉堡打开。 */
   const [menuOpen, setMenuOpen] = useState(false)
   const [tokenModalOpen, setTokenModalOpen] = useState(false)
@@ -91,9 +94,9 @@ export default function MainLayout() {
       .map((item) => ({
         key: item.key,
         icon: MENU_ICONS[item.key],
-        label: item.label,
+        label: t(`menu.${item.key}`),
       }))
-  }, [menuCatalog, isAdmin])
+  }, [menuCatalog, isAdmin, t])
 
   /**
    * 点菜单项后跳转。手机上再关上抽屉，否则会挡住刚打开的审批页。
@@ -132,8 +135,8 @@ export default function MainLayout() {
             <button
               type="button"
               className="sider-brand-toggle"
-              title={collapsed ? '展开菜单' : '收起菜单'}
-              aria-label={collapsed ? '展开菜单' : '收起菜单'}
+              title={collapsed ? t('layout.expandMenu') : t('layout.collapseMenu')}
+              aria-label={collapsed ? t('layout.expandMenu') : t('layout.collapseMenu')}
               onClick={toggleCollapsed}
             >
               <DeploymentUnitOutlined />
@@ -167,7 +170,7 @@ export default function MainLayout() {
               type="text"
               className="rp-header-menu"
               icon={<MenuOutlined />}
-              aria-label="打开菜单"
+              aria-label={t('layout.openMenu')}
               onClick={() => setMenuOpen(true)}
             />
           )}
@@ -195,20 +198,21 @@ export default function MainLayout() {
           <Space size={isMobile ? 8 : 16}>
             {!isMobile && <SystemHealthBar />}
             <NoticeBell />
+            <LanguageSwitch />
             <Dropdown
             menu={{
               items: [
                 {
                   key: 'api-token',
                   icon: <KeyOutlined />,
-                  label: '创建 API Token',
+                  label: t('layout.apiToken'),
                   onClick: () => setTokenModalOpen(true),
                 },
                 { type: 'divider' },
                 {
                   key: 'logout',
                   icon: <LogoutOutlined />,
-                  label: '退出登录',
+                  label: t('layout.logout'),
                   onClick: () => {
                     logout()
                     navigate('/login')
@@ -219,10 +223,10 @@ export default function MainLayout() {
           >
             <Space style={{ cursor: 'pointer' }}>
               <Avatar size="small" icon={<UserOutlined />} />
-              <span className="header-user-name">{user?.display_name || user?.username || '未登录'}</span>
+              <span className="header-user-name">{user?.display_name || user?.username || t('layout.notSignedIn')}</span>
               {user?.is_admin && (
                 <Tag className="header-user-tag" color="gold">
-                  管理员
+                  {t('layout.admin')}
                 </Tag>
               )}
             </Space>
