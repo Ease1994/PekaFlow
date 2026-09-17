@@ -8,16 +8,18 @@
 
 界面语言可在登录页和顶栏切换：简体中文、繁体中文、English、日本語、हिन्दी、Português（巴西）、Deutsch。
 
-编排是 Stage → Job → Step。助手运行时按 [DeepSeek AI-Harness](https://github.com/deepseek-ai/deepseek-harness) 的思路落地（session 事件溯源、agent-loop、tools 守卫管线、compaction、Skills、MCP、sandbox），不是把 dsh 进程嵌进来。
+助手运行时按 [DeepSeek AI-Harness](https://github.com/deepseek-ai/deepseek-harness) 的思路落地（session 事件溯源、agent-loop、tools 守卫管线、compaction、Skills、MCP、sandbox）。
 
 ## 能做什么
 
-- **三种入口同一权限**：AI 助手、Web 页面、API Token 走同一套 RBAC；流水线执行权只能通过助手申请
-- **变更先确认**：发布 / 回滚 / Rebuild / 节点传文件生成一次性签名卡片，点确认才执行
-- **异构落地**：K8s、Docker、SSH、IIS 增量、制品与回滚
-- **拉模式 Agent**：构建机与部署节点同一只 JDK 8 jar，机器主动拉任务，不必给平台开入站
-- **失败即停**：步骤报错级联取消，取消真杀进程树
-- **生产安全优先**：空发布清单不会按全量打包；没写明范围就拒绝执行
+- **三种入口**：AI 助手、Web 页面、OpenAPI 都能做权限范围内的操作
+- **变更先审批**：每次上线走审批流程，审批记录留档可查
+- **异构落地**：K8s、Docker、jar、IIS 增量、制品与回滚等
+- **Agent**：构建机与部署节点自动更新，不用手工维护；权限收得很紧，不会把未授权动作放到生产上
+- **权限与角色**：权限可以细分到菜单和按钮
+- **生产安全优先**：严格审查要执行的命令，未点名、未确认的变更不会上环境
+- **代码库**：覆盖市面上大部分代码托管；偶尔遇到冷门的，可以让助手开发插件接上
+- **更多功能**：见 [功能说明书](deploy-platform/docs/功能说明书.md)
 
 ## 架构图
 

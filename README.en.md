@@ -4,20 +4,22 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**PekaFlowAI** is an AI-agent-first release platform for mixed targets: Kubernetes, Docker, VMs, Windows IIS, Tomcat, and jars. People talk to the agent; pipelines and pull-mode agents do the work.
+**PekaFlowAI** is an AI-agent-first release platform for mixed targets. People query, request access, ship, diagnose failures, and write plugins in natural language; pipelines and builder / node agents put the change onto the environment.
 
 The web app has a language switcher on the sign-in page and in the header: Simplified Chinese, Traditional Chinese, English, Japanese, Hindi, Brazilian Portuguese, and German.
 
-Orchestration is Stage → Job → Step. The assistant runtime follows [DeepSeek AI-Harness](https://github.com/deepseek-ai/deepseek-harness) (session event sourcing, agent-loop, tool guards, compaction, Skills, MCP, sandbox). It is not an embedded dsh process.
+The assistant runtime follows [DeepSeek AI-Harness](https://github.com/deepseek-ai/deepseek-harness) (session event sourcing, agent-loop, tool guards, compaction, Skills, MCP, sandbox).
 
 ## What it does
 
-- **Three doors, one permission model**: AI assistant, web UI, and API tokens share RBAC. Pipeline execute rights are requested only through the assistant
-- **Confirm before change**: release / rollback / rebuild / node file push produce a one-shot signed card; nothing runs until you confirm
-- **Heterogeneous targets**: Kubernetes, Docker, SSH, IIS incremental, artifacts and rollback
-- **Pull-mode agent**: builders and deploy nodes share one JDK 8 jar; machines pull work, the platform needs no inbound ports to them
-- **Fail closed**: a failed step cancels the rest and kills the process tree
-- **Production safety**: an empty deploy manifest is refused, never silently packed as everything
+- **Three doors**: AI assistant, web UI, and OpenAPI can all do what the signed-in identity is allowed to do
+- **Approve before release**: every production ship goes through approval, and every decision is kept on record
+- **Heterogeneous targets**: Kubernetes, Docker, jars, IIS incremental, artifacts, rollback, and more
+- **Agents**: builders and deploy nodes update themselves; permissions are tight so unauthorized actions do not reach production
+- **Roles and permissions**: access can be scoped to menus and buttons
+- **Production safety first**: commands are reviewed before they run; unnamed or unconfirmed changes stay off the environment
+- **Source control**: most common forges work out of the box; for a niche one, ask the assistant to write a plugin
+- **More**: see the [feature spec](deploy-platform/docs/功能说明书.md) (Chinese)
 
 ## Architecture diagrams
 
