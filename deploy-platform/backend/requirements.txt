@@ -1,4 +1,4 @@
-# PekaFlow · Python 后端依赖
+# PekaFlowAI · Python 后端依赖
 # 安装: pip install -r requirements.txt
 
 # ---- Web 框架 ----

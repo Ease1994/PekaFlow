@@ -29,9 +29,10 @@ def _db() -> Session:
 
 
 def test_clamp_display_and_session() -> None:
-    assert branding.clamp_display_name("  发布部署平台  ") == "PekaFlow"
-    assert branding.clamp_display_name("") == "PekaFlow"
-    assert branding.clamp_display_name("  PekaFlow  ") == "PekaFlow"
+    assert branding.clamp_display_name("  发布部署平台  ") == "PekaFlowAI"
+    assert branding.clamp_display_name("") == "PekaFlowAI"
+    assert branding.clamp_display_name("  PekaFlow  ") == "PekaFlowAI"
+    assert branding.clamp_display_name("  PekaFlowAI  ") == "PekaFlowAI"
     assert len(branding.clamp_display_name("测" * 80)) == branding.DISPLAY_NAME_MAX
     assert branding.clamp_from_name("") == branding.DEFAULT_FROM_NAME
     assert branding.clamp_session_expire_days("7") == 7

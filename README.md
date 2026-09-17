@@ -1,10 +1,10 @@
-# PekaFlow
+# PekaFlowAI
 
 [中文](README.md) · [English](README.en.md)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**PekaFlow** 是以 AI Agent 为交互核心的多形态发布部署平台。人用自然语言查询、申请权限、发起发布、诊断失败、编写插件；流水线编排与构建机 / 节点执行，把变更落到环境上。
+**PekaFlowAI** 是以 AI Agent 为交互核心的多形态发布部署平台。人用自然语言查询、申请权限、发起发布、诊断失败、编写插件；流水线编排与构建机 / 节点执行，把变更落到环境上。
 
 界面语言可在登录页和顶栏切换：简体中文、繁体中文、English、日本語、हिन्दी、Português（巴西）、Deutsch。
 
@@ -39,8 +39,8 @@
 - 能访问镜像仓库，第一次构建会拉镜像并编译前后端，可能要几分钟
 
 ```bash
-git clone https://github.com/Ease1994/PekaFlow.git
-cd PekaFlow/deploy-platform
+git clone https://github.com/Ease1994/PekaFlowAI.git
+cd PekaFlowAI/deploy-platform
 ```
 
 ### 步骤 2 · 写环境文件
@@ -112,7 +112,7 @@ docker compose down
 在当初 clone 的目录里：
 
 ```bash
-cd PekaFlow
+cd PekaFlowAI
 git pull
 cd deploy-platform
 ```
@@ -164,8 +164,8 @@ docker compose up -d --build
 需要 Python 3.10+、Node.js 18+。Windows 用 `py`，不要用 `python3`。适合改代码，不是生产装法。
 
 ```bash
-git clone https://github.com/Ease1994/PekaFlow.git
-cd PekaFlow
+git clone https://github.com/Ease1994/PekaFlowAI.git
+cd PekaFlowAI
 
 # 后端
 cd deploy-platform/backend

@@ -33,7 +33,7 @@ def test_html_failure_uses_red_header_and_escapes():
     html = render_email_html(
         "发布失败：msbuild #22",
         SAMPLE + "\n· 含 <script>alert(1)</script> 的日志",
-        brand="PekaFlow",
+        brand="PekaFlowAI",
         link="/executions/1/22",
         origin="https://deploy.example.com",
     )

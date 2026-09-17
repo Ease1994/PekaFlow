@@ -19,11 +19,12 @@ FROM_NAME_MAX = 64
 SESSION_DAYS_DEFAULT = 1
 SESSION_DAYS_MIN = 1
 SESSION_DAYS_MAX = 30
-DEFAULT_DISPLAY_NAME = "PekaFlow"
-DEFAULT_FROM_NAME = "PekaFlow"
+DEFAULT_DISPLAY_NAME = "PekaFlowAI"
+DEFAULT_FROM_NAME = "PekaFlowAI"
 # 库里若仍是旧出厂名，按新产品名显示，避免升级后侧栏还写着上一版称呼
 LEGACY_FACTORY_NAMES = frozenset(
     {
+        "PekaFlow",
         "发布部署平台",
         "發佈部署平台",
         "Release Platform",
@@ -54,7 +55,7 @@ def is_factory_display_name(raw: object) -> bool:
 
 
 def clamp_display_name(raw: object) -> str:
-    """平台显示名：去空白、截断；空或旧出厂名回 PekaFlow。"""
+    """平台显示名：去空白、截断；空或旧出厂名回 PekaFlowAI。"""
     text = str(raw or "").strip()[:DISPLAY_NAME_MAX]
     if is_factory_display_name(text):
         return DEFAULT_DISPLAY_NAME

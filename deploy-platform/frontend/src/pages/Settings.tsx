@@ -81,7 +81,7 @@ interface Settings {
 }
 
 /** 出厂显示名；表单空值回填用。旧出厂名在 isFactoryProductName 里兼容。 */
-const FACTORY_PRODUCT_NAME = 'PekaFlow'
+const FACTORY_PRODUCT_NAME = 'PekaFlowAI'
 
 export default function Settings() {
   const t = useT()

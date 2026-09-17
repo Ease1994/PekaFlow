@@ -15,9 +15,10 @@ export interface PlatformBranding {
   header_notice_color: string
 }
 
-const FALLBACK_NAME = 'PekaFlow'
+const FALLBACK_NAME = 'PekaFlowAI'
 /** 出厂名（含旧版称呼）。设置里没改过时，侧栏显示当前产品名。 */
 const LEGACY_FACTORY_NAMES = new Set([
+  'PekaFlowAI',
   'PekaFlow',
   '发布部署平台',
   '發佈部署平台',

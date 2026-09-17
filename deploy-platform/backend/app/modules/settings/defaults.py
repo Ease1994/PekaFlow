@@ -51,11 +51,11 @@ DEFAULT_SETTINGS: dict[str, str] = {
     "smtp_user": "",
     "smtp_password": "",
     "smtp_from": "",
-    "smtp_from_name": "PekaFlow",  # 邮件/通知里的发件人显示名
+    "smtp_from_name": "PekaFlowAI",  # 邮件/通知里的发件人显示名
     "smtp_ssl": "true",
     # ---- 品牌与登录会话 ----
     # 侧栏、登录页、浏览器标题用的平台名；侧栏图标是前端固定资源，不能在这里改
-    "platform_display_name": "PekaFlow",
+    "platform_display_name": "PekaFlowAI",
     # 顶栏图片 MIME；空表示顶栏左侧空白。文件在 data/branding/header-image，不进 value
     "header_image_mime": "",
     "header_notice_text": "",  # 顶栏通知横幅，空则不显示

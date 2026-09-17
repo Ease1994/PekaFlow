@@ -1,10 +1,10 @@
-# PekaFlow · 技术概览
+# PekaFlowAI · 技术概览
 
 > 架构、模块、数据库、启动方式与踩坑见仓库根目录 [`../docs/开发者手册.md`](../docs/开发者手册.md)。本文件只列本目录怎么放、技术栈和快速启动。
 >
 > 功能按模块说明（每个模块：做什么 / 功能 / 亮点；文末总结 AI）—— Word [`docs/发布部署平台-功能说明书.docx`](docs/发布部署平台-功能说明书.docx)，Markdown [`docs/功能说明书.md`](docs/功能说明书.md)。
 
-PekaFlow。**产品形态是 AI Agent**；运行时按 **DeepSeek AI-Harness**（session 事件日志、agent-loop、tools 守卫管线、system-prompt 分段、compaction、Skills、MCP→tools.register、sandbox）在发布域落地。编排仍是 Stage→Job→Step。
+PekaFlowAI。**产品形态是 AI Agent**；运行时按 **DeepSeek AI-Harness**（session 事件日志、agent-loop、tools 守卫管线、system-prompt 分段、compaction、Skills、MCP→tools.register、sandbox）在发布域落地。编排仍是 Stage→Job→Step。
 
 ## 仓库结构
 

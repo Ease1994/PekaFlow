@@ -1,5 +1,5 @@
 # ============================================================
-# PekaFlow · 完整部署编排（MySQL + Redis + Elasticsearch + 后端 + 前端）
+# PekaFlowAI · 完整部署编排（MySQL + Redis + Elasticsearch + 后端 + 前端）
 #
 # 一次性启动全部服务：
 #   docker compose up -d --build
