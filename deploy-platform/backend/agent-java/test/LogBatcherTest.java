@@ -1,10 +1,10 @@
-package com.release.agent;
+package com.pekaflow.agent;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/** 不进 jar。编译：javac -cp out test/LogBatcherTest.java -d out && java -cp out com.release.agent.LogBatcherTest */
+/** 不进 jar。编译：javac -cp out test/LogBatcherTest.java -d out && java -cp out com.pekaflow.agent.LogBatcherTest */
 public final class LogBatcherTest {
     private static int failed;
 

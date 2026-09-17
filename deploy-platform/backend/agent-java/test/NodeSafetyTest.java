@@ -1,4 +1,4 @@
-package com.release.agent;
+package com.pekaflow.agent;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -15,7 +15,7 @@ import java.util.zip.ZipOutputStream;
  * 不进 jar。
  *
  * 编译：javac -cp out test/NodeSafetyTest.java -d out
- * 运行：java -cp out com.release.agent.NodeSafetyTest
+ * 运行：java -cp out com.pekaflow.agent.NodeSafetyTest
  */
 public final class NodeSafetyTest {
     private static int failed;

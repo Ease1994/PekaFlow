@@ -1,4 +1,4 @@
-package com.release.atom;
+package com.pekaflow.atom;
 
 import java.io.File;
 import java.io.FileWriter;

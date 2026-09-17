@@ -1,6 +1,6 @@
 package com.example;
 
-import com.release.atom.ReleaseAtomSdk;
+import com.pekaflow.atom.ReleaseAtomSdk;
 
 /** 示例入口：javac 后随包分发 class。 */
 public class HelloAtom {

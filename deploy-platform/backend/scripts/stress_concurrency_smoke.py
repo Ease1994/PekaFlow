@@ -26,7 +26,7 @@ def static_checks() -> None:
     root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     checks = [
         ("agent jar", os.path.join(root, "agent-java", "deploy-agent.jar")),
-        ("LogBatcher.java", os.path.join(root, "agent-java", "src", "com", "release", "agent", "LogBatcher.java")),
+        ("LogBatcher.java", os.path.join(root, "agent-java", "src", "com", "pekaflow", "agent", "LogBatcher.java")),
         ("log_store.py", os.path.join(root, "app", "modules", "agent", "log_store.py")),
         ("ExecutionDetail SSE", os.path.join(root, "..", "frontend", "src", "pages", "ExecutionDetail.tsx")),
     ]
@@ -53,7 +53,7 @@ def static_checks() -> None:
         sys.exit(1)
     print("[ok] fetch_task FOR UPDATE SKIP LOCKED")
 
-    with open(os.path.join(root, "agent-java", "src", "com", "release", "agent", "AgentMain.java"), encoding="utf-8") as f:
+    with open(os.path.join(root, "agent-java", "src", "com", "pekaflow", "agent", "AgentMain.java"), encoding="utf-8") as f:
         am = f.read()
     if "/status" not in am or "concurrency" not in am.lower():
         print("[fail] Agent 缺少 concurrency / cancel 短轮询")

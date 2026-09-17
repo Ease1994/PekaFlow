@@ -39,8 +39,8 @@ Builders, nodes, HTTPS, and backups: [deployment guide](deploy-platform/docs/部
 - Network access to pull images. The first build compiles frontend and backend and can take several minutes
 
 ```bash
-git clone https://github.com/Ease1994/release-platform.git
-cd release-platform/deploy-platform
+git clone https://github.com/Ease1994/PekaFlow.git
+cd PekaFlow/deploy-platform
 ```
 
 ### Step 2 · Create the env file
@@ -112,7 +112,7 @@ Keep at least: MySQL, the `backend-data` volume (secrets / artifacts / plugins),
 From the directory you cloned:
 
 ```bash
-cd release-platform
+cd PekaFlow
 git pull
 cd deploy-platform
 ```
@@ -164,8 +164,8 @@ Do not start a second process on the machine to “swap the jar” by hand.
 You need Python 3.10+ and Node.js 18+. On Windows use `py`, not `python3`. This is for changing code, not a production install.
 
 ```bash
-git clone https://github.com/Ease1994/release-platform.git
-cd release-platform
+git clone https://github.com/Ease1994/PekaFlow.git
+cd PekaFlow
 
 # Backend
 cd deploy-platform/backend

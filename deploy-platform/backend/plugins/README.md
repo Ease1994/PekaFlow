@@ -43,7 +43,7 @@ my-plugin.zip
 ├── task.json          # 必填：清单
 ├── task.py / task.js / *.class  # 入口（与 entrypoint 一致）
 ├── release_atom_sdk/     # Python：把 SDK 拷进包
-├── com/release/atom/     # Java：把 SDK class/源码打进包
+├── com/pekaflow/atom/     # Java：把 SDK class/源码打进包
 ├── release_atom_sdk.js   # Node.js：拷贝 SDK
 └── 其它业务文件
 ```
@@ -219,16 +219,16 @@ zip -r hello-python-1.0.0.zip task.json task.py release_atom_sdk
 
 ## 7. Java 插件（JDK 8）
 
-SDK：`plugins/sdk/java/src/com/release/atom/ReleaseAtomSdk.java`（无第三方依赖）  
+SDK：`plugins/sdk/java/src/com/pekaflow/atom/ReleaseAtomSdk.java`（无第三方依赖）  
 骨架：`plugins/examples/hello-java/`
 
-1. 将 `com/release/atom/ReleaseAtomSdk.java` 与业务入口一起编译进包。  
+1. 将 `com/pekaflow/atom/ReleaseAtomSdk.java` 与业务入口一起编译进包。  
 2. 入口类读取 `System.getenv("RELEASE_ATOM_INPUT_JSON")`，或调用 SDK。  
 3. 本地编译示例：
 
 ```bash
 cd plugins/examples/hello-java
-javac -encoding UTF-8 com/release/atom/ReleaseAtomSdk.java com/example/HelloAtom.java
+javac -encoding UTF-8 com/pekaflow/atom/ReleaseAtomSdk.java com/example/HelloAtom.java
 ```
 
 4. zip 内需包含 `.class`（Agent 不会帮你 javac）：
@@ -236,7 +236,7 @@ javac -encoding UTF-8 com/release/atom/ReleaseAtomSdk.java com/example/HelloAtom
 ```
 task.json
 com/example/HelloAtom.class
-com/release/atom/ReleaseAtomSdk.class
+com/pekaflow/atom/ReleaseAtomSdk.class
 ```
 
 5. `entrypoint` 示例：`java -cp . com.example.HelloAtom`  
@@ -337,7 +337,7 @@ backend/plugins/
 ├── README.md                 # 本规范
 ├── sdk/
 │   ├── python/release_atom_sdk/
-│   ├── java/src/com/release/atom/ReleaseAtomSdk.java
+│   ├── java/src/com/pekaflow/atom/ReleaseAtomSdk.java
 │   └── nodejs/release_atom_sdk.js
 ├── git-checkout/             # 生产示例（Python，平台启动时自动打包安装）
 ├── run-pipeline/             # 子流水线调用（平台编排执行，启动时自动安装）

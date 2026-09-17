@@ -39,8 +39,8 @@
 - 能访问镜像仓库，第一次构建会拉镜像并编译前后端，可能要几分钟
 
 ```bash
-git clone https://github.com/Ease1994/release-platform.git
-cd release-platform/deploy-platform
+git clone https://github.com/Ease1994/PekaFlow.git
+cd PekaFlow/deploy-platform
 ```
 
 ### 步骤 2 · 写环境文件
@@ -112,7 +112,7 @@ docker compose down
 在当初 clone 的目录里：
 
 ```bash
-cd release-platform
+cd PekaFlow
 git pull
 cd deploy-platform
 ```
@@ -164,8 +164,8 @@ docker compose up -d --build
 需要 Python 3.10+、Node.js 18+。Windows 用 `py`，不要用 `python3`。适合改代码，不是生产装法。
 
 ```bash
-git clone https://github.com/Ease1994/release-platform.git
-cd release-platform
+git clone https://github.com/Ease1994/PekaFlow.git
+cd PekaFlow
 
 # 后端
 cd deploy-platform/backend
