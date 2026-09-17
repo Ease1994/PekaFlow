@@ -12,8 +12,10 @@ import {
   applyCanvasUnlink,
   canCanvasLink,
   isCanvasGraphErr,
+  pruneOpenCuts,
   type CanvasRef,
 } from './canvasGraph'
+import { canvasEdgeId, stepNodeId } from './canvasLayout'
 
 beforeAll(() => {
   useI18nStore.getState().setLocale('zh-CN')
@@ -138,6 +140,28 @@ describe('applyCanvasLink 改顺序', () => {
     if (isCanvasGraphErr(r)) throw new Error(r.error)
     expect(r.hint).toContain('已接上')
     expect(jobPlugins(r.stages)).toEqual([['git-checkout', 'pack-incremental', 'file-transfer']])
+  })
+
+  it('同一 Job 里把后面的步骤拉到中间：一次就接上，旧断开记录不能挡住新箭头', () => {
+    const stages: GraphStage[] = [
+      {
+        id: 's1',
+        name: '构建',
+        order: 1,
+        jobs: [job('1-1', '构建机', 'builder', ['git-checkout', 'maven-build', 'docker-deploy', 'docker-build'])],
+      },
+    ]
+    const maven: CanvasRef = { kind: 'step', stageId: 's1', jobId: '1-1', stepIndex: 1 }
+    const image: CanvasRef = { kind: 'step', stageId: 's1', jobId: '1-1', stepIndex: 3 }
+    const r = applyCanvasLink(stages, maven, image)
+    if (isCanvasGraphErr(r)) throw new Error(r.error)
+    expect(jobPlugins(r.stages)).toEqual([['git-checkout', 'maven-build', 'docker-build', 'docker-deploy']])
+    expect(r.hint).toBe('')
+    const expectedEdge = canvasEdgeId(stepNodeId('s1', '1-1', 1), stepNodeId('s1', '1-1', 2))
+    expect(r.linked_edge_id).toBe(expectedEdge)
+    const staleCut = canvasEdgeId(stepNodeId('s1', '1-1', 1), stepNodeId('s1', '1-1', 2))
+    const leftover = pruneOpenCuts(r.stages, [staleCut].filter((id) => id !== r.linked_edge_id))
+    expect(leftover).toEqual([])
   })
 
   it('把发送文件并入构建机 Job 末尾', () => {

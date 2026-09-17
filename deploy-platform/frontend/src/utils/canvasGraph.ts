@@ -20,6 +20,11 @@ export type CanvasGraphOk = {
   hint: string
   /** 删线时记下来的箭头 id，画布不再画这条线，也不新建 Job */
   cut_edge_id?: string
+  /**
+   * 拉线成功后应显示的那条顺序箭头。
+   * 步骤下标会变，必须用改完之后的 id 清掉断开记录，否则第一次只改了顺序、箭头仍被旧记录挡住。
+   */
+  linked_edge_id?: string
 }
 export type CanvasGraphErr = { error: string }
 export type CanvasGraphResult = CanvasGraphOk | CanvasGraphErr
@@ -138,7 +143,7 @@ function stepLabel(step: GraphStep): string {
 }
 
 /**
- * 从源拉到目标：目标立刻接到源后面。
+ * 从源拉到目标：目标立刻接到源后面，这一次就把箭头画上。
  * 步骤接到步骤 = 改顺序（可跨 Job / 阶段）；接到 Job = 并入该 Job。
  */
 export function applyCanvasLink(
@@ -259,7 +264,11 @@ function linkStepAfterStep(
     source.jobId === target.jobId &&
     target.stepIndex === source.stepIndex + 1
   ) {
-    return { stages, hint: t('pipe.alreadyLinked') }
+    return {
+      stages,
+      hint: t('pipe.alreadyLinked'),
+      linked_edge_id: canvasEdgeId(canvasNodeId(source), canvasNodeId(target)),
+    }
   }
   const moved = takeStep(stages, target.stageId, target.jobId, target.stepIndex)
   if (!moved) return { error: t('pipe.destStepMissing') }
@@ -274,7 +283,14 @@ function linkStepAfterStep(
   }
   insertStep(srcJob, insertAt, moved)
   for (const s of stages) dropEmptyJobs(s)
-  return { stages, hint: t('pipe.linkedAfter', { name: stepLabel(moved) }) }
+
+  // 改完顺序后源就在 insertAt-1，目标在 insertAt。断开记录按节点 id 存，必须用这对新下标去清。
+  const fromIndex = Math.max(0, insertAt - 1)
+  const linked_edge_id = canvasEdgeId(
+    stepNodeId(source.stageId, source.jobId, fromIndex),
+    stepNodeId(source.stageId, source.jobId, insertAt),
+  )
+  return { stages, hint: '', linked_edge_id }
 }
 
 function moveStepToJob(

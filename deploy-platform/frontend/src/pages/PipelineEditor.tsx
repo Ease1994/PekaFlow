@@ -555,11 +555,14 @@ export default function PipelineEditor() {
             message.warning(result.error)
             return g
           }
-          message.success(result.hint)
+          if (result.hint) message.success(result.hint)
+          const cuts = dropCut(g.open_cuts, source, target).filter(
+            (id) => id !== result.linked_edge_id,
+          )
           return {
             ...g,
             stages: result.stages,
-            open_cuts: pruneOpenCuts(result.stages, dropCut(g.open_cuts, source, target)),
+            open_cuts: pruneOpenCuts(result.stages, cuts),
           }
         })
         setConfigTarget(null)
