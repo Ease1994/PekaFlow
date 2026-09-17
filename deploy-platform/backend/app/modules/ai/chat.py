@@ -1714,7 +1714,7 @@ def _chat_with_rules(db: Session, message: str, current) -> dict:
     if "回滚" in message:
         return {"reply": f"回滚属于高风险操作，请给出发布单号。\n{hint}", "actions": [], "audit": True}
     return {
-        "reply": "我是发布助手（AI Agent）。可以：查项目/流水线、发起发布、查状态、诊断失败、回滚、Rebuild、看构建机和 DORA、申请流水线执行权限。\n"
+        "reply": "我是 PekaFlow 助手。可以：查项目/流水线、发起发布、查状态、诊断失败、回滚、Rebuild、看构建机和 DORA、申请流水线执行权限。\n"
         + hint
         + "\n请到「模型配置」填 Key 并设默认模型，助手会用大模型调用技能。",
         "actions": [],

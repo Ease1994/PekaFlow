@@ -13,7 +13,7 @@ import {
 } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { del, get, post, postForm, put } from '@/api/client'
-import { HEADER_NOTICE_COLORS } from '@/hooks/usePlatformBranding'
+import { HEADER_NOTICE_COLORS, isFactoryProductName } from '@/hooks/usePlatformBranding'
 import { useT } from '@/i18n'
 
 interface Settings {
@@ -80,8 +80,8 @@ interface Settings {
   bootstrap_version?: string
 }
 
-/** 出厂显示名，与 resolveDisplayName 比较串一致，不能随界面语言改。 */
-const FACTORY_PRODUCT_NAME = '发布部署平台'
+/** 出厂显示名；表单空值回填用。旧出厂名在 isFactoryProductName 里兼容。 */
+const FACTORY_PRODUCT_NAME = 'PekaFlow'
 
 export default function Settings() {
   const t = useT()
@@ -111,7 +111,9 @@ export default function Settings() {
         totp_2fa_enabled: settings.totp_2fa_enabled || 'false',
         public_app_base: settings.public_app_base || '',
         audit_retention_days: settings.audit_retention_days || '180',
-        platform_display_name: settings.platform_display_name || FACTORY_PRODUCT_NAME,
+        platform_display_name: isFactoryProductName(settings.platform_display_name)
+          ? FACTORY_PRODUCT_NAME
+          : settings.platform_display_name,
         header_notice_text: settings.header_notice_text || '',
         header_notice_color: settings.header_notice_color || 'red',
       })
@@ -167,10 +169,9 @@ export default function Settings() {
     saveMutation.mutate(values)
   }
 
-  const displayName =
-    !settings?.platform_display_name || settings.platform_display_name === FACTORY_PRODUCT_NAME
-      ? t('layout.productName')
-      : settings.platform_display_name
+  const displayName = isFactoryProductName(settings?.platform_display_name)
+    ? t('layout.productName')
+    : (settings?.platform_display_name || t('layout.productName'))
   const noticeTheme = HEADER_NOTICE_COLORS[settings?.header_notice_color as keyof typeof HEADER_NOTICE_COLORS]
   const noticeState = settings?.header_notice_text
     ? (noticeTheme ? t(noticeTheme.label) : settings.header_notice_color)

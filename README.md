@@ -1,10 +1,10 @@
-# 发布部署平台（release-platform）
+# PekaFlow
 
 [中文](README.md) · [English](README.en.md)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**发布部署平台** 是以 AI Agent 为交互核心的多形态发布部署平台。人用自然语言查询、申请权限、发起发布、诊断失败、编写插件；流水线编排与构建机 / 节点执行，把变更落到环境上。
+**PekaFlow** 是以 AI Agent 为交互核心的多形态发布部署平台。人用自然语言查询、申请权限、发起发布、诊断失败、编写插件；流水线编排与构建机 / 节点执行，把变更落到环境上。
 
 界面语言可在登录页和顶栏切换：简体中文、繁体中文、English、日本語、हिन्दी、Português（巴西）、Deutsch。
 

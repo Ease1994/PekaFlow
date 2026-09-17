@@ -89,8 +89,9 @@ def _totp_enabled(db: Session) -> bool:
 
 def _issuer_name(db: Session) -> str:
     from app.modules.settings import get_all_settings
+    from app.modules.settings.branding import clamp_display_name
 
-    return (get_all_settings(db).get("platform_display_name") or "发布部署平台").strip()
+    return clamp_display_name(get_all_settings(db).get("platform_display_name"))
 
 
 def authenticate(

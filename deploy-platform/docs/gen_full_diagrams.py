@@ -157,7 +157,7 @@ def draw_business():
     """全功能 / 全模块 / 全流程：按业务步骤落模块，字号按汇报阅读。"""
     fig, ax = _setup(32.0, 21.6, 0, 100, 0, 76)
 
-    txt(ax, 50, 74.15, "发布部署平台  ·  全模块业务架构图", 28, "bold")
+    txt(ax, 50, 74.15, "PekaFlow  ·  全模块业务架构图", 28, "bold")
     txt(
         ax,
         50,
@@ -338,7 +338,7 @@ def draw_business():
         ax,
         50,
         1.15,
-        "发布部署平台  ·  覆盖功能说明书 16 个模块  ·  三种入口同一权限同一发布单  ·  py docs/gen_full_diagrams.py",
+        "PekaFlow  ·  覆盖功能说明书 16 个模块  ·  三种入口同一权限同一发布单  ·  py docs/gen_full_diagrams.py",
         11.5,
         "normal",
         C["muted"],
@@ -360,7 +360,7 @@ def draw_tech():
     """
     fig, ax = _setup(32.0, 25.6, 0, 100, 0, 96)
 
-    txt(ax, 50, 94.15, "发布部署平台  ·  技术架构图", 28, "bold")
+    txt(ax, 50, 94.15, "PekaFlow  ·  技术架构图", 28, "bold")
     txt(
         ax,
         50,
@@ -563,7 +563,7 @@ def draw_tech():
         ax,
         50,
         0.5,
-        "发布部署平台  ·  模型只通过 Tool 办事，不直接改生产  ·  py docs/gen_full_diagrams.py",
+        "PekaFlow  ·  模型只通过 Tool 办事，不直接改生产  ·  py docs/gen_full_diagrams.py",
         11.5,
         "normal",
         C["muted"],

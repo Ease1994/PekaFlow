@@ -132,7 +132,7 @@ def draw():
     fig.patch.set_facecolor(C["bg"])
     ax.set_facecolor(C["bg"])
 
-    txt(ax, 50, 66.35, "发布部署平台  ·  架构流程图", 20, "bold")
+    txt(ax, 50, 66.35, "PekaFlow  ·  架构流程图", 20, "bold")
     txt(
         ax,
         50,
@@ -278,7 +278,7 @@ def draw():
         ax,
         50,
         11.05,
-        "发布部署平台  ·  颜色按模块  ·  重新出图：py docs/gen_architecture_diagram.py",
+        "PekaFlow  ·  颜色按模块  ·  重新出图：py docs/gen_architecture_diagram.py",
         7.4,
         "normal",
         C["muted"],

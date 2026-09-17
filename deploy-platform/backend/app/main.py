@@ -554,7 +554,7 @@ app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
     description=(
-        "统一的多形态发布部署平台。文档仅供内网/本地查看；"
+        "PekaFlow：多形态发布部署。文档仅供内网/本地查看；"
         "调用接口请在本地工具里带自己账号的 Bearer Token（登录 JWT 或 qx_ API Token）。"
     ),
     openapi_tags=OPENAPI_TAGS,

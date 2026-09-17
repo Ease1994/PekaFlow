@@ -65,7 +65,7 @@ def build_docx() -> Document:
 
     t = doc.add_paragraph()
     t.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    _font(t.add_run("发布部署平台 · 功能模块说明书"), "黑体", 20, True)
+    _font(t.add_run("PekaFlow · 功能模块说明书"), "黑体", 20, True)
 
     sub = doc.add_paragraph()
     sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -414,7 +414,7 @@ def md_escape_lines(items):
 
 def write_md():
     # 与 Word 同结构的短版，避免两份说明书口径打架
-    text = """# 发布部署平台 · 功能模块说明书
+    text = """# PekaFlow · 功能模块说明书
 
 > 每个模块：做什么、功能、核心亮点。Word 版：[`发布部署平台-功能说明书.docx`](./发布部署平台-功能说明书.docx)  
 > 技术架构与实现细节看 [`../../docs/开发者手册.md`](../../docs/开发者手册.md)。

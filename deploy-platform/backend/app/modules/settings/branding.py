@@ -19,8 +19,20 @@ FROM_NAME_MAX = 64
 SESSION_DAYS_DEFAULT = 1
 SESSION_DAYS_MIN = 1
 SESSION_DAYS_MAX = 30
-DEFAULT_DISPLAY_NAME = "发布部署平台"
-DEFAULT_FROM_NAME = "发布部署平台"
+DEFAULT_DISPLAY_NAME = "PekaFlow"
+DEFAULT_FROM_NAME = "PekaFlow"
+# 库里若仍是旧出厂名，按新产品名显示，避免升级后侧栏还写着上一版称呼
+LEGACY_FACTORY_NAMES = frozenset(
+    {
+        "发布部署平台",
+        "發佈部署平台",
+        "Release Platform",
+        "Release-Plattform",
+        "リリースプラットフォーム",
+        "रिलीज़ प्लेटफ़ॉर्म",
+        "Plataforma de release",
+    }
+)
 
 # 顶栏通知：空文案不显示横幅；颜色只认这几个醒目色
 NOTICE_TEXT_MAX = 200
@@ -35,10 +47,18 @@ HEADER_IMAGE_PATH = HEADER_IMAGE_DIR / "header-image"
 HEADER_IMAGE_PUBLIC_PATH = "/api/v1/settings/header-image"
 
 
+def is_factory_display_name(raw: object) -> bool:
+    """空值、当前出厂名、以及历史出厂名，都按未自定义处理。"""
+    text = str(raw or "").strip()
+    return (not text) or text == DEFAULT_DISPLAY_NAME or text in LEGACY_FACTORY_NAMES
+
+
 def clamp_display_name(raw: object) -> str:
-    """平台显示名：去空白、截断；空则回默认「发布部署平台」。"""
+    """平台显示名：去空白、截断；空或旧出厂名回 PekaFlow。"""
     text = str(raw or "").strip()[:DISPLAY_NAME_MAX]
-    return text or DEFAULT_DISPLAY_NAME
+    if is_factory_display_name(text):
+        return DEFAULT_DISPLAY_NAME
+    return text
 
 
 def clamp_from_name(raw: object) -> str:

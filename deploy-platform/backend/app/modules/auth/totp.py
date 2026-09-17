@@ -50,8 +50,10 @@ def verify_code(secret: str, code: str, *, window: int = 1) -> bool:
 
 def provisioning_uri(secret: str, account: str, issuer: str) -> str:
     """Authenticator 识别的 otpauth:// 链接。"""
+    from app.modules.settings.branding import DEFAULT_DISPLAY_NAME
+
     label = (account or "user").strip() or "user"
-    brand = (issuer or "发布部署平台").strip() or "发布部署平台"
+    brand = (issuer or DEFAULT_DISPLAY_NAME).strip() or DEFAULT_DISPLAY_NAME
     return pyotp.TOTP(secret).provisioning_uri(name=label, issuer_name=brand)
 
 

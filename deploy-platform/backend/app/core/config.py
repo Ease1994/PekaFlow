@@ -60,7 +60,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    app_name: str = "发布部署平台"
+    app_name: str = "PekaFlow"
     app_version: str = "0.1.0"
     debug: bool = False
     # 接口文档（/docs、/swagger-ui）。默认关：外网入口 Nginx 不转发，生产也不该开。

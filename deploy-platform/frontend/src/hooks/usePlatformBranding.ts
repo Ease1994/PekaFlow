@@ -15,7 +15,18 @@ export interface PlatformBranding {
   header_notice_color: string
 }
 
-const FALLBACK_NAME = '发布部署平台'
+const FALLBACK_NAME = 'PekaFlow'
+/** 出厂名（含旧版称呼）。设置里没改过时，侧栏显示当前产品名。 */
+const LEGACY_FACTORY_NAMES = new Set([
+  'PekaFlow',
+  '发布部署平台',
+  '發佈部署平台',
+  'Release Platform',
+  'Release-Plattform',
+  'リリースプラットフォーム',
+  'रिलीज़ प्लेटफ़ॉर्म',
+  'Plataforma de release',
+])
 /** 出厂管理员姓名。设置里没改过时，随界面语言显示。 */
 const FACTORY_ADMIN_NAME = '系统管理员'
 /** 与侧栏同一构图的固定网站图标，不能在平台设置里改。 */
@@ -44,13 +55,19 @@ export function usePlatformBranding() {
   })
 }
 
-/** 把查询结果收成一定有值的显示名。出厂中文名随界面语言走。 */
+/** 空值或出厂名（含升级前的旧称呼）视为未自定义。 */
+export function isFactoryProductName(raw?: string): boolean {
+  const text = (raw || '').trim()
+  return !text || LEGACY_FACTORY_NAMES.has(text)
+}
+
+/** 把查询结果收成一定有值的显示名。出厂名随 layout.productName。 */
 export function resolveDisplayName(
   data: PlatformBranding | undefined,
   translate?: (key: string) => string,
 ): string {
   const raw = (data?.display_name || '').trim()
-  if (!raw || raw === FALLBACK_NAME) {
+  if (isFactoryProductName(raw)) {
     return translate ? translate('layout.productName') : FALLBACK_NAME
   }
   return raw

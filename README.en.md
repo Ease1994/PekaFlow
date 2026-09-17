@@ -1,10 +1,10 @@
-# Release Platform
+# PekaFlow
 
 [中文](README.md) · [English](README.en.md)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**release-platform** is an AI-agent-first release platform for mixed targets: Kubernetes, Docker, VMs, Windows IIS, Tomcat, and jars. People talk to the agent; pipelines and pull-mode agents do the work.
+**PekaFlow** is an AI-agent-first release platform for mixed targets: Kubernetes, Docker, VMs, Windows IIS, Tomcat, and jars. People talk to the agent; pipelines and pull-mode agents do the work.
 
 The web app has a language switcher on the sign-in page and in the header: Simplified Chinese, Traditional Chinese, English, Japanese, Hindi, Brazilian Portuguese, and German.
 
