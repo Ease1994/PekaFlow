@@ -13,6 +13,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
+from app.core.openapi_tags import OPENAPI_TAGS
 from app.core.response import BizException, R
 from app.modules.agent.router import router as agent_router
 from app.modules.settings.router import router as settings_router
@@ -556,6 +557,7 @@ app = FastAPI(
         "统一的多形态发布部署平台。文档仅供内网/本地查看；"
         "调用接口请在本地工具里带自己账号的 Bearer Token（登录 JWT 或 qx_ API Token）。"
     ),
+    openapi_tags=OPENAPI_TAGS,
     lifespan=lifespan,
     docs_url="/docs" if _docs else None,
     redoc_url="/redoc" if _docs else None,

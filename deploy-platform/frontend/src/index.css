@@ -873,3 +873,19 @@ button.mobile-entity-card {
   border-right: none;
   padding-right: 0;
 }
+
+/* 调用手册：官方 Swagger UI，藏掉顶栏品牌条 */
+.rp-swagger {
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px 8px 24px;
+  min-height: calc(100% - 8px);
+}
+
+.rp-swagger .swagger-ui .topbar {
+  display: none;
+}
+
+.rp-swagger .swagger-ui .info {
+  margin: 16px 0;
+}

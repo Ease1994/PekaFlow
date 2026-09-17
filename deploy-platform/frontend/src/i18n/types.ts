@@ -96,18 +96,7 @@ export type Messages = {
   }
   handbook: {
     authHint: string
-    searchPh: string
-    noMatch: string
-    count: string
-    untagged: string
-    params: string
-    location: string
-    required: string
-    optional: string
-    yes: string
-    type: string
-    body: string
-    responses: string
+    loadFailed: string
   }
   common: {
     language: string

@@ -15,6 +15,9 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.test.ts'],
   },
+  optimizeDeps: {
+    include: ['swagger-ui-react'],
+  },
   server: {
     host: true, // 监听所有网卡，虚拟机/局域网设备可访问
     port: 5173,
